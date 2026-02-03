@@ -5,6 +5,25 @@
   --foreground: #ffffff;
   --color-primary: #035642;
   --color-accent: #B79527;
+  --ui-panel-bg: #03564226;
+  --ui-panel-solid: #035642;
+  --ui-panel-soft: #03564214;
+  --ui-panel-hover: #03564233;
+  --ui-panel-border: #B7952733;
+  --ui-item-bg: #0356421a;
+  --ui-item-hover: #03564226;
+  --ui-item-border: #03564233;
+  --ui-item-border-hover: #B7952766;
+  --ui-accent-soft: #B7952733;
+  --ui-accent-strong: #B7952766;
+  --ui-text: #ffffff;
+  --ui-text-muted: rgba(255, 255, 255, 0.6);
+  --ui-input-bg: #0356421a;
+  --ui-input-border: #03564233;
+  --ui-input-focus: #B79527;
+  --ui-switch-off: #03564233;
+  --ui-switch-on: #B79527;
+  --ui-overlay: #022b21cc;
 }
 
 @theme inline {
@@ -149,11 +168,12 @@ body {
   opacity: 0;
   transition: opacity 0.2s;
   z-index: 1000 !important;
-  pointer-events: auto !important;
+  pointer-events: none;
 }
 
 .grid-stack-item:hover .ui-resizable-handle {
   opacity: 0.8;
+  pointer-events: auto;
 }
 
 .grid-stack-item:hover .ui-resizable-handle:hover {
@@ -264,6 +284,65 @@ body {
 /* Drag handle styling */
 .gs-drag-handle {
   cursor: move;
+  touch-action: none;
+  opacity: 0;
+  transition: opacity 0.2s;
+  border: 1px dashed rgba(255, 255, 255, 0.25);
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 0.5rem;
+  pointer-events: none;
+}
+
+.grid-stack-item:hover .gs-drag-handle {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Compact widgets: keep drag/resize usable at very small sizes */
+.grid-stack-item.gs-compact .gs-drag-handle {
+  inset: 0;
+}
+
+.grid-stack-item.gs-compact.ui-resizable-autohide > .ui-resizable-handle {
+  display: block;
+}
+
+.grid-stack-item.gs-compact .ui-resizable-handle {
+  opacity: 0;
+}
+
+.grid-stack-item.gs-compact:hover .ui-resizable-handle {
+  opacity: 0.95;
+}
+
+.grid-stack-item.gs-compact .ui-resizable-se,
+.grid-stack-item.gs-compact .ui-resizable-sw,
+.grid-stack-item.gs-compact .ui-resizable-ne,
+.grid-stack-item.gs-compact .ui-resizable-nw {
+  width: 24px !important;
+  height: 24px !important;
+}
+
+.grid-stack-item.gs-compact .ui-resizable-e,
+.grid-stack-item.gs-compact .ui-resizable-w {
+  width: 10px !important;
+}
+
+.grid-stack-item.gs-compact .ui-resizable-s,
+.grid-stack-item.gs-compact .ui-resizable-n {
+  height: 10px !important;
+}
+
+.grid-stack-item.gs-compact .ui-resizable-e,
+.grid-stack-item.gs-compact .ui-resizable-w {
+  top: 6px !important;
+  bottom: 6px !important;
+}
+
+.grid-stack-item.gs-compact .ui-resizable-s,
+.grid-stack-item.gs-compact .ui-resizable-n {
+  left: 6px !important;
+  right: 6px !important;
 }
 
 /* Grid lines (subtle) */
@@ -271,7 +350,7 @@ body {
   background-image:
     linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
-  background-size: calc(100% / 12) calc(100% / 8);
+  background-size: calc(100% / var(--grid-columns, 12)) calc(100% / var(--grid-rows, 8));
 }
 
 /* Subtle noise texture overlay */

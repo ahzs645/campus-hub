@@ -26,6 +26,7 @@ export const DEFAULT_CONFIG: DisplayConfig = {
     { id: 'clock-1', type: 'clock', x: 10, y: 0, w: 2, h: 1 },
     { id: 'poster-1', type: 'poster-carousel', x: 0, y: 1, w: 8, h: 5, props: { rotationSeconds: 10 } },
     { id: 'events-1', type: 'events-list', x: 8, y: 1, w: 4, h: 3 },
+    { id: 'news-ticker-1', type: 'news-ticker', x: 0, y: 7, w: 12, h: 1 },
   ],
   theme: {
     primary: '#035642',

@@ -34,7 +34,7 @@ export default function WebOptions({ data, onChange }: WidgetOptionsProps) {
     <div className="space-y-6">
       {/* URL Settings */}
       <div className="space-y-4">
-        <h3 className="font-semibold text-gray-900">Web Embed Settings</h3>
+        <h3 className="font-semibold text-[var(--ui-text)]">Web Embed Settings</h3>
 
         <FormInput
           label="URL"
@@ -55,15 +55,15 @@ export default function WebOptions({ data, onChange }: WidgetOptionsProps) {
           onChange={handleChange}
         />
 
-        <div className="text-sm text-gray-500">
+        <div className="text-sm text-[var(--ui-text-muted)]">
           Set to 0 to disable auto-refresh. Some websites may block embedding.
         </div>
       </div>
 
       {/* Preview */}
-      <div className="border-t pt-6">
-        <h4 className="font-semibold text-gray-900 mb-4">Preview</h4>
-        <div className="bg-gray-900 rounded-xl aspect-video flex items-center justify-center">
+      <div className="border-t border-[var(--ui-item-border)] pt-6">
+        <h4 className="font-semibold text-[var(--ui-text)] mb-4">Preview</h4>
+        <div className="bg-[var(--ui-item-bg)] rounded-xl aspect-video flex items-center justify-center">
           {state.url ? (
             <div className="text-center">
               <span className="text-4xl">🌐</span>
@@ -80,10 +80,10 @@ export default function WebOptions({ data, onChange }: WidgetOptionsProps) {
       </div>
 
       {/* Warning */}
-      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+      <div className="bg-[var(--ui-accent-soft)] border border-[var(--ui-accent-strong)] rounded-lg p-4">
         <div className="flex gap-2">
           <span>⚠️</span>
-          <div className="text-sm text-amber-800">
+          <div className="text-sm text-[var(--color-accent)]">
             <strong>Note:</strong> Some websites block embedding in iframes for security reasons.
             If the content doesn&apos;t load, the website may not allow embedding.
           </div>

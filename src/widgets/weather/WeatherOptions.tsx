@@ -40,7 +40,7 @@ export default function WeatherOptions({ data, onChange }: WidgetOptionsProps) {
     <div className="space-y-6">
       {/* Settings */}
       <div className="space-y-4">
-        <h3 className="font-semibold text-gray-900">Weather Settings</h3>
+        <h3 className="font-semibold text-[var(--ui-text)]">Weather Settings</h3>
 
         <FormInput
           label="Location"
@@ -71,8 +71,8 @@ export default function WeatherOptions({ data, onChange }: WidgetOptionsProps) {
       </div>
 
       {/* API Configuration */}
-      <div className="space-y-4 border-t pt-6">
-        <h3 className="font-semibold text-gray-900">API Configuration</h3>
+      <div className="space-y-4 border-t border-[var(--ui-item-border)] pt-6">
+        <h3 className="font-semibold text-[var(--ui-text)]">API Configuration</h3>
 
         <FormInput
           label="Weather API Key (optional)"
@@ -83,16 +83,16 @@ export default function WeatherOptions({ data, onChange }: WidgetOptionsProps) {
           onChange={handleChange}
         />
 
-        <div className="text-sm text-gray-500">
+        <div className="text-sm text-[var(--ui-text-muted)]">
           Leave empty to use demo data. Supports OpenWeatherMap API.
         </div>
       </div>
 
       {/* Preview */}
-      <div className="border-t pt-6">
-        <h4 className="font-semibold text-gray-900 mb-4">Preview</h4>
-        <div className="bg-gray-900 rounded-xl p-4">
-          <div className="text-xs text-amber-500 mb-1">{state.location}</div>
+      <div className="border-t border-[var(--ui-item-border)] pt-6">
+        <h4 className="font-semibold text-[var(--ui-text)] mb-4">Preview</h4>
+        <div className="bg-[var(--ui-item-bg)] rounded-xl p-4">
+          <div className="text-xs text-[var(--color-accent)] mb-1">{state.location}</div>
           <div className="flex items-center gap-3">
             <span className="text-3xl">⛅</span>
             <div>

@@ -18,18 +18,24 @@ function DisplayContent() {
     return DEFAULT_CONFIG;
   }, [configParam]);
 
-  // Filter out ticker from grid layout (it has its own fixed position)
-  const gridWidgets = config.layout.filter((w) => w.type !== 'news-ticker');
-  const tickerWidget = config.layout.find((w) => w.type === 'news-ticker');
-
-  // Calculate grid rows based on ticker
-  const gridRows = config.tickerEnabled ? 7 : 8;
+  const gridRows = 8;
+  const layout = useMemo(() => {
+    if (config.tickerEnabled && !config.layout.some((w) => w.type === 'news-ticker')) {
+      return [
+        ...config.layout,
+        { id: 'default-ticker', type: 'news-ticker', x: 0, y: gridRows - 1, w: 12, h: 1 },
+      ];
+    }
+    return config.layout;
+  }, [config, gridRows]);
 
   return (
     <div
       className="w-full h-screen flex flex-col text-white overflow-hidden"
       style={{
         backgroundColor: config.theme.background,
+        '--background': config.theme.background,
+        '--foreground': '#ffffff',
         '--color-primary': config.theme.primary,
         '--color-accent': config.theme.accent,
       } as React.CSSProperties}
@@ -43,7 +49,7 @@ function DisplayContent() {
           gridTemplateRows: `repeat(${gridRows}, 1fr)`,
         }}
       >
-        {gridWidgets.map((widget) => (
+        {layout.map((widget) => (
           <div
             key={widget.id}
             className="min-w-0 min-h-0 overflow-hidden rounded-xl"
@@ -61,7 +67,7 @@ function DisplayContent() {
         ))}
 
         {/* Empty state */}
-        {gridWidgets.length === 0 && (
+        {layout.length === 0 && (
           <div
             className="flex items-center justify-center text-white/30"
             style={{
@@ -76,27 +82,6 @@ function DisplayContent() {
           </div>
         )}
       </div>
-
-      {/* Fixed Ticker at Bottom */}
-      {config.tickerEnabled && (
-        <div className="flex-shrink-0">
-          {tickerWidget ? (
-            <WidgetRenderer widget={tickerWidget} theme={config.theme} />
-          ) : (
-            <WidgetRenderer
-              widget={{
-                id: 'default-ticker',
-                type: 'news-ticker',
-                x: 0,
-                y: 0,
-                w: 12,
-                h: 1,
-              }}
-              theme={config.theme}
-            />
-          )}
-        </div>
-      )}
     </div>
   );
 }

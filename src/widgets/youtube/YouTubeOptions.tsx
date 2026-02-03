@@ -40,7 +40,7 @@ export default function YouTubeOptions({ data, onChange }: WidgetOptionsProps) {
     <div className="space-y-6">
       {/* Video URL */}
       <div className="space-y-4">
-        <h3 className="font-semibold text-gray-900">Video Settings</h3>
+        <h3 className="font-semibold text-[var(--ui-text)]">Video Settings</h3>
 
         <FormInput
           label="YouTube URL or Video ID"
@@ -51,14 +51,14 @@ export default function YouTubeOptions({ data, onChange }: WidgetOptionsProps) {
           onChange={handleChange}
         />
 
-        <div className="text-sm text-gray-500">
+        <div className="text-sm text-[var(--ui-text-muted)]">
           Paste a YouTube URL or just the video ID (e.g., dQw4w9WgXcQ)
         </div>
       </div>
 
       {/* Playback Options */}
-      <div className="space-y-4 border-t pt-6">
-        <h3 className="font-semibold text-gray-900">Playback Options</h3>
+      <div className="space-y-4 border-t border-[var(--ui-item-border)] pt-6">
+        <h3 className="font-semibold text-[var(--ui-text)]">Playback Options</h3>
 
         <FormSwitch
           label="Autoplay"
@@ -83,9 +83,9 @@ export default function YouTubeOptions({ data, onChange }: WidgetOptionsProps) {
       </div>
 
       {/* Preview */}
-      <div className="border-t pt-6">
-        <h4 className="font-semibold text-gray-900 mb-4">Preview</h4>
-        <div className="bg-gray-900 rounded-xl aspect-video flex items-center justify-center">
+      <div className="border-t border-[var(--ui-item-border)] pt-6">
+        <h4 className="font-semibold text-[var(--ui-text)] mb-4">Preview</h4>
+        <div className="bg-[var(--ui-item-bg)] rounded-xl aspect-video flex items-center justify-center">
           {state.videoId ? (
             <div className="text-center">
               <span className="text-4xl">📺</span>

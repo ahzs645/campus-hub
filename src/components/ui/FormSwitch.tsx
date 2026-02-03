@@ -10,14 +10,14 @@ interface FormSwitchProps {
 export default function FormSwitch({ label, name, checked, onChange }: FormSwitchProps) {
   return (
     <div className="flex items-center justify-between">
-      <label className="text-sm font-medium text-gray-700">{label}</label>
+      <label className="text-sm font-medium text-[var(--ui-text-muted)]">{label}</label>
       <button
         type="button"
         role="switch"
         aria-checked={checked}
         onClick={() => onChange(name, !checked)}
         className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-          checked ? 'bg-blue-600' : 'bg-gray-300'
+          checked ? 'bg-[var(--ui-switch-on)]' : 'bg-[var(--ui-switch-off)]'
         }`}
       >
         <span

@@ -46,7 +46,7 @@ export default function MediaPlayerOptions({ data, onChange }: WidgetOptionsProp
     <div className="space-y-6">
       {/* Media Settings */}
       <div className="space-y-4">
-        <h3 className="font-semibold text-gray-900">Media Settings</h3>
+        <h3 className="font-semibold text-[var(--ui-text)]">Media Settings</h3>
 
         <FormSelect
           label="Media Type"
@@ -68,14 +68,14 @@ export default function MediaPlayerOptions({ data, onChange }: WidgetOptionsProp
           onChange={handleChange}
         />
 
-        <div className="text-sm text-gray-500">
+        <div className="text-sm text-[var(--ui-text-muted)]">
           Supports MP4, WebM, MP3, and other browser-compatible formats.
         </div>
       </div>
 
       {/* Playback Options */}
-      <div className="space-y-4 border-t pt-6">
-        <h3 className="font-semibold text-gray-900">Playback Options</h3>
+      <div className="space-y-4 border-t border-[var(--ui-item-border)] pt-6">
+        <h3 className="font-semibold text-[var(--ui-text)]">Playback Options</h3>
 
         <FormSwitch
           label="Autoplay"
@@ -107,9 +107,9 @@ export default function MediaPlayerOptions({ data, onChange }: WidgetOptionsProp
       </div>
 
       {/* Preview */}
-      <div className="border-t pt-6">
-        <h4 className="font-semibold text-gray-900 mb-4">Preview</h4>
-        <div className="bg-gray-900 rounded-xl aspect-video flex items-center justify-center">
+      <div className="border-t border-[var(--ui-item-border)] pt-6">
+        <h4 className="font-semibold text-[var(--ui-text)] mb-4">Preview</h4>
+        <div className="bg-[var(--ui-item-bg)] rounded-xl aspect-video flex items-center justify-center">
           {state.url ? (
             <div className="text-center">
               <span className="text-4xl">{state.type === 'audio' ? '🎵' : '🎬'}</span>

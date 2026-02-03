@@ -16,12 +16,12 @@ interface FormSelectProps {
 export default function FormSelect({ label, name, value, options, onChange }: FormSelectProps) {
   return (
     <div className="space-y-1">
-      <label className="block text-sm font-medium text-gray-700">{label}</label>
+      <label className="block text-sm font-medium text-[var(--ui-text-muted)]">{label}</label>
       <select
         name={name}
         value={value}
         onChange={(e) => onChange(name, e.target.value)}
-        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors bg-white"
+        className="w-full px-3 py-2 border border-[var(--ui-input-border)] rounded-lg focus:ring-2 focus:ring-[var(--ui-input-focus)] focus:border-[var(--ui-input-focus)] outline-none transition-colors bg-[var(--ui-input-bg)] text-[var(--ui-text)]"
       >
         {options.map((opt) => (
           <option key={opt.value} value={opt.value}>

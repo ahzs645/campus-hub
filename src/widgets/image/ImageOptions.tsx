@@ -37,7 +37,7 @@ export default function ImageOptions({ data, onChange }: WidgetOptionsProps) {
     <div className="space-y-6">
       {/* Image Settings */}
       <div className="space-y-4">
-        <h3 className="font-semibold text-gray-900">Image Settings</h3>
+        <h3 className="font-semibold text-[var(--ui-text)]">Image Settings</h3>
 
         <FormInput
           label="Image URL"
@@ -71,9 +71,9 @@ export default function ImageOptions({ data, onChange }: WidgetOptionsProps) {
       </div>
 
       {/* Preview */}
-      <div className="border-t pt-6">
-        <h4 className="font-semibold text-gray-900 mb-4">Preview</h4>
-        <div className="bg-gray-900 rounded-xl aspect-video flex items-center justify-center overflow-hidden">
+      <div className="border-t border-[var(--ui-item-border)] pt-6">
+        <h4 className="font-semibold text-[var(--ui-text)] mb-4">Preview</h4>
+        <div className="bg-[var(--ui-item-bg)] rounded-xl aspect-video flex items-center justify-center overflow-hidden">
           {state.url ? (
             <img
               src={state.url}

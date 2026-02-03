@@ -34,7 +34,7 @@ export default function PosterCarouselOptions({ data, onChange }: WidgetOptionsP
     <div className="space-y-6">
       {/* Settings */}
       <div className="space-y-4">
-        <h3 className="font-semibold text-gray-900">Carousel Settings</h3>
+        <h3 className="font-semibold text-[var(--ui-text)]">Carousel Settings</h3>
 
         <FormInput
           label="Rotation Speed (seconds)"
@@ -46,14 +46,14 @@ export default function PosterCarouselOptions({ data, onChange }: WidgetOptionsP
           onChange={handleChange}
         />
 
-        <div className="text-sm text-gray-500">
+        <div className="text-sm text-[var(--ui-text-muted)]">
           Each poster will display for {state.rotationSeconds} seconds before transitioning to the next.
         </div>
       </div>
 
       {/* API Configuration */}
-      <div className="space-y-4 border-t pt-6">
-        <h3 className="font-semibold text-gray-900">Data Source</h3>
+      <div className="space-y-4 border-t border-[var(--ui-item-border)] pt-6">
+        <h3 className="font-semibold text-[var(--ui-text)]">Data Source</h3>
 
         <FormInput
           label="API URL (optional)"
@@ -64,18 +64,18 @@ export default function PosterCarouselOptions({ data, onChange }: WidgetOptionsP
           onChange={handleChange}
         />
 
-        <div className="text-sm text-gray-500">
+        <div className="text-sm text-[var(--ui-text-muted)]">
           Leave empty to use default sample posters. The API should return an array of objects with:
-          <code className="block mt-2 p-2 bg-gray-100 rounded text-xs">
+          <code className="block mt-2 p-2 bg-[var(--ui-item-bg)] rounded text-xs">
             {`[{ "title": "...", "subtitle": "...", "image": "url" }]`}
           </code>
         </div>
       </div>
 
       {/* Preview */}
-      <div className="border-t pt-6">
-        <h4 className="font-semibold text-gray-900 mb-4">Preview</h4>
-        <div className="bg-gray-900 rounded-xl p-4 aspect-video relative overflow-hidden">
+      <div className="border-t border-[var(--ui-item-border)] pt-6">
+        <h4 className="font-semibold text-[var(--ui-text)] mb-4">Preview</h4>
+        <div className="bg-[var(--ui-item-bg)] rounded-xl p-4 aspect-video relative overflow-hidden">
           <img
             src="https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?w=800&h=600&fit=crop"
             alt="Sample poster"
@@ -87,7 +87,7 @@ export default function PosterCarouselOptions({ data, onChange }: WidgetOptionsP
             <div className="text-sm text-white/80">March 15-17 | Main Quad</div>
           </div>
           <div className="absolute top-2 left-2 right-2 h-1 bg-black/30 rounded">
-            <div className="h-full w-1/3 bg-amber-500 rounded" />
+            <div className="h-full w-1/3 bg-[var(--color-accent)] rounded" />
           </div>
         </div>
       </div>

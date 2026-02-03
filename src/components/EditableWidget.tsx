@@ -22,6 +22,7 @@ export default function EditableWidget({ widget, theme, onEdit, onDelete }: Edit
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const anchorRectRef = useRef<DOMRect | null>(null);
 
   const widgetDef = getWidget(widget.type);
   const WidgetComponent = widgetDef?.component;
@@ -49,15 +50,47 @@ export default function EditableWidget({ widget, theme, onEdit, onDelete }: Edit
   const handleMenuClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (buttonRef.current) {
-      const rect = buttonRef.current.getBoundingClientRect();
-      setMenuPosition({
-        top: rect.bottom + 8,
-        left: rect.left,
-      });
+      anchorRectRef.current = buttonRef.current.getBoundingClientRect();
     }
-    setShowMenu(!showMenu);
+    setShowMenu((prev) => !prev);
     setShowDeleteConfirm(false);
   };
+
+  useEffect(() => {
+    if (!showMenu) return;
+
+    const positionMenu = () => {
+      const anchorRect = anchorRectRef.current;
+      const menuEl = menuRef.current;
+      if (!anchorRect || !menuEl) return;
+
+      const menuRect = menuEl.getBoundingClientRect();
+      const padding = 8;
+
+      let top = anchorRect.bottom + 8;
+      let left = anchorRect.left;
+
+      if (left + menuRect.width + padding > window.innerWidth) {
+        left = window.innerWidth - menuRect.width - padding;
+      }
+      if (left < padding) left = padding;
+
+      if (top + menuRect.height + padding > window.innerHeight) {
+        const above = anchorRect.top - 8 - menuRect.height;
+        if (above >= padding) {
+          top = above;
+        } else {
+          top = Math.max(padding, window.innerHeight - menuRect.height - padding);
+        }
+      }
+
+      setMenuPosition({ top, left });
+    };
+
+    positionMenu();
+    window.addEventListener('resize', positionMenu);
+    return () => window.removeEventListener('resize', positionMenu);
+  }, [showMenu]);
 
   if (!WidgetComponent) {
     return (

@@ -71,46 +71,46 @@ export default function SlideshowOptions({ data, onChange }: WidgetOptionsProps)
       {/* Slides */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-gray-900">Slides</h3>
+          <h3 className="font-semibold text-[var(--ui-text)]">Slides</h3>
           <button
             onClick={addSlide}
-            className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
+            className="px-3 py-1.5 bg-[var(--ui-switch-on)] text-white text-sm rounded-lg hover:brightness-110 transition-colors"
           >
             + Add Slide
           </button>
         </div>
 
         {state.slides.length === 0 ? (
-          <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
+          <div className="text-center py-8 bg-[var(--ui-panel-soft)] rounded-lg border-2 border-dashed border-[var(--ui-item-border)]">
             <span className="text-3xl">🖼️</span>
-            <p className="text-gray-500 text-sm mt-2">No slides yet</p>
-            <p className="text-gray-400 text-xs">Click &quot;Add Slide&quot; to get started</p>
+            <p className="text-[var(--ui-text-muted)] text-sm mt-2">No slides yet</p>
+            <p className="text-[var(--ui-text-muted)] text-xs">Click &quot;Add Slide&quot; to get started</p>
           </div>
         ) : (
           <div className="space-y-4">
             {state.slides.map((slide, index) => (
-              <div key={index} className="bg-gray-50 rounded-lg p-4 relative">
+              <div key={index} className="bg-[var(--ui-panel-soft)] rounded-lg p-4 relative">
                 <button
                   onClick={() => removeSlide(index)}
-                  className="absolute top-2 right-2 w-6 h-6 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+                  className="absolute top-2 right-2 w-6 h-6 flex items-center justify-center text-[var(--ui-text-muted)] hover:text-red-300 hover:bg-red-500/20 rounded transition-colors"
                 >
                   &times;
                 </button>
-                <div className="text-xs text-gray-500 mb-2 font-medium">Slide {index + 1}</div>
+                <div className="text-xs text-[var(--ui-text-muted)] mb-2 font-medium">Slide {index + 1}</div>
                 <div className="space-y-3">
                   <input
                     type="url"
                     value={slide.url}
                     onChange={(e) => handleSlideChange(index, 'url', e.target.value)}
                     placeholder="https://example.com/image.jpg"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-[var(--ui-input-border)] rounded-lg text-sm bg-[var(--ui-input-bg)] text-[var(--ui-text)] placeholder:text-[var(--ui-text-muted)] focus:ring-2 focus:ring-[var(--ui-input-focus)] focus:border-[var(--ui-input-focus)]"
                   />
                   <input
                     type="text"
                     value={slide.caption || ''}
                     onChange={(e) => handleSlideChange(index, 'caption', e.target.value)}
                     placeholder="Caption (optional)"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-[var(--ui-input-border)] rounded-lg text-sm bg-[var(--ui-input-bg)] text-[var(--ui-text)] placeholder:text-[var(--ui-text-muted)] focus:ring-2 focus:ring-[var(--ui-input-focus)] focus:border-[var(--ui-input-focus)]"
                   />
                 </div>
               </div>
@@ -120,8 +120,8 @@ export default function SlideshowOptions({ data, onChange }: WidgetOptionsProps)
       </div>
 
       {/* Settings */}
-      <div className="space-y-4 border-t pt-6">
-        <h3 className="font-semibold text-gray-900">Slideshow Settings</h3>
+      <div className="space-y-4 border-t border-[var(--ui-item-border)] pt-6">
+        <h3 className="font-semibold text-[var(--ui-text)]">Slideshow Settings</h3>
 
         <FormInput
           label="Duration (seconds per slide)"
@@ -161,9 +161,9 @@ export default function SlideshowOptions({ data, onChange }: WidgetOptionsProps)
       </div>
 
       {/* Preview */}
-      <div className="border-t pt-6">
-        <h4 className="font-semibold text-gray-900 mb-4">Preview</h4>
-        <div className="bg-gray-900 rounded-xl aspect-video flex items-center justify-center overflow-hidden">
+      <div className="border-t border-[var(--ui-item-border)] pt-6">
+        <h4 className="font-semibold text-[var(--ui-text)] mb-4">Preview</h4>
+        <div className="bg-[var(--ui-item-bg)] rounded-xl aspect-video flex items-center justify-center overflow-hidden">
           {state.slides.length > 0 && state.slides[0].url ? (
             <div className="relative w-full h-full">
               <img

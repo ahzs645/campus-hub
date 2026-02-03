@@ -46,7 +46,7 @@ export default function ClockOptions({ data, onChange }: WidgetOptionsProps) {
     <div className="space-y-6">
       {/* Settings */}
       <div className="space-y-4">
-        <h3 className="font-semibold text-gray-900">Display Options</h3>
+        <h3 className="font-semibold text-[var(--ui-text)]">Display Options</h3>
 
         <FormSwitch
           label="Show Seconds"
@@ -71,14 +71,14 @@ export default function ClockOptions({ data, onChange }: WidgetOptionsProps) {
       </div>
 
       {/* Preview */}
-      <div className="border-t pt-6">
-        <h4 className="font-semibold text-gray-900 mb-4">Preview</h4>
-        <div className="bg-gray-900 rounded-xl p-6 text-right">
-          <div className="text-4xl font-bold text-amber-500 font-mono">
+      <div className="border-t border-[var(--ui-item-border)] pt-6">
+        <h4 className="font-semibold text-[var(--ui-text)] mb-4">Preview</h4>
+        <div className="bg-[var(--ui-item-bg)] rounded-xl p-6 text-right">
+          <div className="text-4xl font-bold text-[var(--color-accent)] font-mono">
             {now.toLocaleTimeString([], timeOptions)}
           </div>
           {state.showDate && (
-            <div className="text-sm text-gray-400 mt-1">
+            <div className="text-sm text-[var(--ui-text-muted)] mt-1">
               {now.toLocaleDateString([], {
                 weekday: 'long',
                 month: 'long',

@@ -26,6 +26,64 @@ const ASPECT_RATIOS = [
   { label: '9:16', value: 9 / 16, desc: 'Portrait' },
 ];
 
+const GRID_COLUMNS = 12;
+const GRID_GRANULARITY_OPTIONS = [
+  { label: 'Coarse', rows: 8 },
+  { label: 'Medium', rows: 12 },
+  { label: 'Fine', rows: 16 },
+];
+const DEFAULT_GRID_ROWS = GRID_GRANULARITY_OPTIONS[0].rows;
+
+type GridPlacement = { x: number; y: number; w: number; h: number };
+
+const findPlacement = (
+  layout: WidgetConfig[],
+  columns: number,
+  rows: number,
+  desiredW: number,
+  desiredH: number,
+  minW: number,
+  minH: number
+): GridPlacement | null => {
+  const grid: boolean[][] = Array.from({ length: rows }, () =>
+    Array.from({ length: columns }, () => false)
+  );
+
+  layout.forEach((widget) => {
+    for (let dy = 0; dy < widget.h; dy += 1) {
+      for (let dx = 0; dx < widget.w; dx += 1) {
+        const y = widget.y + dy;
+        const x = widget.x + dx;
+        if (y >= 0 && y < rows && x >= 0 && x < columns) {
+          grid[y][x] = true;
+        }
+      }
+    }
+  });
+
+  const canFit = (x: number, y: number, w: number, h: number) => {
+    if (x + w > columns || y + h > rows) return false;
+    for (let dy = 0; dy < h; dy += 1) {
+      for (let dx = 0; dx < w; dx += 1) {
+        if (grid[y + dy][x + dx]) return false;
+      }
+    }
+    return true;
+  };
+
+  for (let h = desiredH; h >= minH; h -= 1) {
+    for (let w = desiredW; w >= minW; w -= 1) {
+      for (let y = 0; y <= rows - h; y += 1) {
+        for (let x = 0; x <= columns - w; x += 1) {
+          if (canFit(x, y, w, h)) return { x, y, w, h };
+        }
+      }
+    }
+  }
+
+  return null;
+};
+
 export default function ConfigurePage() {
   const [config, setConfig] = useState<DisplayConfig>(DEFAULT_CONFIG);
   const [shareUrl, setShareUrl] = useState<string>('');
@@ -33,10 +91,13 @@ export default function ConfigurePage() {
   const [aspectRatio, setAspectRatio] = useState(16 / 9);
   const [previewSize, setPreviewSize] = useState({ width: 0, height: 0 });
   const [editingWidget, setEditingWidget] = useState<WidgetConfig | null>(null);
+  const [placementError, setPlacementError] = useState<string | null>(null);
+  const [gridRows, setGridRows] = useState(DEFAULT_GRID_ROWS);
   const containerRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<GridStackWrapperRef>(null);
 
   const availableWidgets = getAllWidgets();
+  const hasTicker = config.layout.some((widget) => widget.type === 'news-ticker');
 
   // Calculate preview size to fit container while maintaining aspect ratio
   useEffect(() => {
@@ -78,35 +139,72 @@ export default function ConfigurePage() {
       maxH: widgetDef?.maxH,
     };
   });
+  const minRowsNeeded = config.layout.reduce(
+    (maxRows, widget) => Math.max(maxRows, widget.y + widget.h),
+    1
+  );
 
   const addWidget = useCallback((type: string) => {
     const widgetDef = availableWidgets.find((w) => w.type === type);
     if (!widgetDef) return;
 
-    const newWidget: WidgetConfig = {
-      id: `${type}-${Date.now()}`,
-      type: type as WidgetConfig['type'],
-      x: 0,
-      y: 0,
-      w: widgetDef.defaultW,
-      h: widgetDef.defaultH,
-      props: widgetDef.defaultProps || {},
-    };
+    setConfig((prev) => {
+      const minW = widgetDef.minW ?? 1;
+      const minH = widgetDef.minH ?? 1;
+      const maxW = widgetDef.maxW ?? GRID_COLUMNS;
+      const maxH = widgetDef.maxH ?? gridRows;
+      const desiredW = Math.min(widgetDef.defaultW, maxW, GRID_COLUMNS);
+      const desiredH = Math.min(widgetDef.defaultH, maxH, gridRows);
 
-    setConfig((prev) => ({
-      ...prev,
-      layout: [...prev.layout, newWidget],
-    }));
-  }, [availableWidgets]);
+      const placement = findPlacement(
+        prev.layout,
+        GRID_COLUMNS,
+        gridRows,
+        desiredW,
+        desiredH,
+        minW,
+        minH
+      );
+
+      if (!placement) {
+        setPlacementError('No space available. Move or resize a widget to make room.');
+        return prev;
+      }
+
+      setPlacementError(null);
+
+      const newWidget: WidgetConfig = {
+        id: `${type}-${Date.now()}`,
+        type: type as WidgetConfig['type'],
+        x: placement.x,
+        y: placement.y,
+        w: placement.w,
+        h: placement.h,
+        props: widgetDef.defaultProps || {},
+      };
+
+      return {
+        ...prev,
+        tickerEnabled: type === 'news-ticker' ? true : prev.tickerEnabled,
+        layout: [...prev.layout, newWidget],
+      };
+    });
+  }, [availableWidgets, gridRows]);
 
   const removeWidget = useCallback((id: string) => {
-    setConfig((prev) => ({
-      ...prev,
-      layout: prev.layout.filter((w) => w.id !== id),
-    }));
-  }, []);
+    setPlacementError(null);
+    setConfig((prev) => {
+      const nextLayout = prev.layout.filter((w) => w.id !== id);
+      return {
+        ...prev,
+        tickerEnabled: nextLayout.some((widget) => widget.type === 'news-ticker'),
+        layout: nextLayout,
+      };
+    });
+  }, [placementError]);
 
   const handleLayoutChange = useCallback((items: GridStackItem[]) => {
+    if (placementError) setPlacementError(null);
     setConfig((prev) => ({
       ...prev,
       layout: prev.layout.map((widget) => {
@@ -174,12 +272,40 @@ export default function ConfigurePage() {
   );
 
   // Calculate cell height based on preview dimensions
-  const cellHeight = previewSize.height > 0 ? previewSize.height / 8 : 80;
+  const cellHeight = previewSize.height > 0 ? previewSize.height / gridRows : 80;
 
   return (
-    <div className="h-screen flex flex-col bg-gray-950 text-white overflow-hidden">
+    <div
+      className="h-screen flex flex-col text-white overflow-hidden"
+      style={{
+        backgroundColor: config.theme.background,
+        '--background': config.theme.background,
+        '--color-primary': config.theme.primary,
+        '--color-accent': config.theme.accent,
+        '--foreground': '#ffffff',
+        '--ui-panel-bg': `${config.theme.primary}26`,
+        '--ui-panel-solid': `${config.theme.primary}`,
+        '--ui-panel-soft': `${config.theme.primary}14`,
+        '--ui-panel-hover': `${config.theme.primary}33`,
+        '--ui-panel-border': `${config.theme.accent}33`,
+        '--ui-item-bg': `${config.theme.primary}1a`,
+        '--ui-item-hover': `${config.theme.primary}26`,
+        '--ui-item-border': `${config.theme.primary}33`,
+        '--ui-item-border-hover': `${config.theme.accent}66`,
+        '--ui-accent-soft': `${config.theme.accent}33`,
+        '--ui-accent-strong': `${config.theme.accent}66`,
+        '--ui-text': '#ffffff',
+        '--ui-text-muted': 'rgba(255, 255, 255, 0.6)',
+        '--ui-input-bg': `${config.theme.primary}1a`,
+        '--ui-input-border': `${config.theme.primary}33`,
+        '--ui-input-focus': `${config.theme.accent}`,
+        '--ui-switch-off': `${config.theme.primary}33`,
+        '--ui-switch-on': `${config.theme.accent}`,
+        '--ui-overlay': `${config.theme.background}cc`,
+      } as React.CSSProperties}
+    >
       {/* Header */}
-      <header className="flex-shrink-0 border-b border-white/10 px-6 py-4">
+      <header className="flex-shrink-0 border-b border-[var(--ui-panel-border)] px-6 py-4">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-display font-bold flex items-center gap-3">
             <span
@@ -200,7 +326,7 @@ export default function ConfigurePage() {
               href={`/display?config=${encodeConfig(config)}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="px-4 py-2 rounded-lg font-medium border border-white/20 hover:bg-white/10 transition-all"
+              className="px-4 py-2 rounded-lg font-medium border border-[var(--ui-panel-border)] hover:bg-[var(--ui-item-hover)] transition-all"
             >
               Open Fullscreen
             </a>
@@ -211,11 +337,11 @@ export default function ConfigurePage() {
       {/* Main Content */}
       <div className="flex-1 flex min-h-0 overflow-hidden">
         {/* Sidebar */}
-        <aside className="w-80 flex-shrink-0 border-r border-white/10 overflow-y-auto p-4 space-y-4">
+        <aside className="w-80 flex-shrink-0 border-r border-[var(--ui-panel-border)] bg-[var(--ui-panel-soft)] overflow-y-auto p-4 space-y-4">
           {/* Demo Presets */}
-          <div className="bg-gradient-to-br from-amber-900/30 to-amber-950/30 rounded-xl p-4 space-y-3 border border-amber-500/20">
+          <div className="bg-[var(--ui-panel-bg)] rounded-xl p-4 space-y-3 border border-[var(--ui-panel-border)]">
             <h2 className="font-bold text-lg flex items-center gap-2">
-              <span className="text-amber-400">Demo Presets</span>
+              <span className="text-[var(--color-accent)]">Demo Presets</span>
             </h2>
             <p className="text-xs text-white/50">Load a pre-built layout to get started quickly</p>
             <div className="grid grid-cols-2 gap-2">
@@ -223,17 +349,17 @@ export default function ConfigurePage() {
                 <button
                   key={preset.id}
                   onClick={() => setConfig(preset.config)}
-                  className="p-2 rounded-lg bg-black/30 hover:bg-black/50 border border-white/10 hover:border-amber-500/30 transition-all text-left group"
+                  className="p-2 rounded-lg bg-[var(--ui-item-bg)] hover:bg-[var(--ui-item-hover)] border border-[var(--ui-item-border)] hover:border-[var(--ui-item-border-hover)] transition-all text-left group"
                 >
                   <div className="text-lg mb-1">{preset.icon}</div>
-                  <div className="text-xs font-medium group-hover:text-amber-300 transition-colors">{preset.name}</div>
+                  <div className="text-xs font-medium group-hover:text-[var(--color-accent)] transition-colors">{preset.name}</div>
                 </button>
               ))}
             </div>
           </div>
 
           {/* Settings */}
-          <div className="bg-white/5 rounded-xl p-4 space-y-4">
+          <div className="bg-[var(--ui-panel-bg)] border border-[var(--ui-panel-border)] rounded-xl p-4 space-y-4">
             <h2 className="font-bold text-lg">Settings</h2>
 
             <div>
@@ -242,7 +368,7 @@ export default function ConfigurePage() {
                 type="text"
                 value={config.schoolName}
                 onChange={(e) => setConfig((prev) => ({ ...prev, schoolName: e.target.value }))}
-                className="w-full px-3 py-2 rounded-lg bg-black/30 border border-white/10 focus:border-white/30 outline-none"
+                className="w-full px-3 py-2 rounded-lg bg-[var(--ui-item-bg)] border border-[var(--ui-item-border)] focus:border-[var(--ui-item-border-hover)] outline-none"
               />
             </div>
 
@@ -280,14 +406,25 @@ export default function ConfigurePage() {
             <div className="flex items-center justify-between pt-2">
               <span className="text-sm">Show News Ticker</span>
               <button
-                onClick={() => setConfig((prev) => ({ ...prev, tickerEnabled: !prev.tickerEnabled }))}
+                onClick={() => {
+                  if (hasTicker) {
+                    setPlacementError(null);
+                    setConfig((prev) => ({
+                      ...prev,
+                      tickerEnabled: false,
+                      layout: prev.layout.filter((widget) => widget.type !== 'news-ticker'),
+                    }));
+                  } else {
+                    addWidget('news-ticker');
+                  }
+                }}
                 className={`w-12 h-6 rounded-full transition-all ${
-                  config.tickerEnabled ? 'bg-green-500' : 'bg-white/20'
+                  hasTicker ? 'bg-[var(--color-accent)]' : 'bg-[var(--ui-item-bg)]'
                 }`}
               >
                 <div
                   className={`w-5 h-5 rounded-full bg-white transition-transform ${
-                    config.tickerEnabled ? 'translate-x-6' : 'translate-x-0.5'
+                    hasTicker ? 'translate-x-6' : 'translate-x-0.5'
                   }`}
                 />
               </button>
@@ -295,7 +432,7 @@ export default function ConfigurePage() {
           </div>
 
           {/* Aspect Ratio */}
-          <div className="bg-white/5 rounded-xl p-4 space-y-3">
+          <div className="bg-[var(--ui-panel-bg)] border border-[var(--ui-panel-border)] rounded-xl p-4 space-y-3">
             <h2 className="font-bold text-lg">Preview Aspect Ratio</h2>
             <div className="grid grid-cols-2 gap-2">
               {ASPECT_RATIOS.map((ar) => (
@@ -304,8 +441,8 @@ export default function ConfigurePage() {
                   onClick={() => setAspectRatio(ar.value)}
                   className={`p-2 rounded-lg text-sm transition-all ${
                     aspectRatio === ar.value
-                      ? 'bg-white/20 border-white/40'
-                      : 'bg-black/20 hover:bg-black/40 border-transparent'
+                      ? 'bg-[var(--ui-item-hover)] border-[var(--ui-item-border-hover)]'
+                      : 'bg-[var(--ui-item-bg)] hover:bg-[var(--ui-item-hover)] border-[var(--ui-item-border)]'
                   } border`}
                 >
                   <div className="font-medium">{ar.label}</div>
@@ -316,7 +453,7 @@ export default function ConfigurePage() {
           </div>
 
           {/* Add Widgets */}
-          <div className="bg-white/5 rounded-xl p-4 space-y-3">
+          <div className="bg-[var(--ui-panel-bg)] border border-[var(--ui-panel-border)] rounded-xl p-4 space-y-3">
             <div className="flex items-center justify-between">
               <h2 className="font-bold text-lg">Widgets</h2>
               {config.layout.length > 0 && (
@@ -329,17 +466,22 @@ export default function ConfigurePage() {
               )}
             </div>
             <p className="text-xs text-white/50">Click to add. Drag to reposition. Click settings to configure.</p>
+            {placementError && (
+              <div className="text-xs text-red-300 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+                {placementError}
+              </div>
+            )}
             <div className="space-y-2">
               {availableWidgets.map((widget) => {
                 const count = config.layout.filter((w) => w.type === widget.type).length;
                 return (
                   <div
                     key={widget.type}
-                    className={`p-3 rounded-lg flex items-center gap-3 ${
+                    className={`p-3 rounded-lg flex items-center gap-3 border transition-all cursor-pointer ${
                       count > 0
-                        ? 'bg-green-900/30 border border-green-500/30 hover:bg-green-900/40'
-                        : 'bg-black/20 hover:bg-black/40'
-                    } transition-all cursor-pointer`}
+                        ? 'bg-[var(--ui-accent-soft)] border-[var(--ui-accent-strong)]'
+                        : 'bg-[var(--ui-item-bg)] border-[var(--ui-item-border)] hover:bg-[var(--ui-item-hover)] hover:border-[var(--ui-item-border-hover)]'
+                    }`}
                     onClick={() => addWidget(widget.type)}
                   >
                     <span className="text-xl">{widget.icon}</span>
@@ -348,7 +490,7 @@ export default function ConfigurePage() {
                       <div className="text-xs text-white/50">{widget.description}</div>
                     </div>
                     {count > 0 && (
-                      <span className="text-xs px-2 py-0.5 bg-green-500/20 text-green-400 rounded">
+                      <span className="text-xs px-2 py-0.5 bg-[var(--ui-accent-soft)] text-[var(--color-accent)] rounded">
                         {count}
                       </span>
                     )}
@@ -360,18 +502,18 @@ export default function ConfigurePage() {
 
           {/* Share URL */}
           {shareUrl && (
-            <div className="bg-white/5 rounded-xl p-4 space-y-3">
+            <div className="bg-[var(--ui-panel-bg)] border border-[var(--ui-panel-border)] rounded-xl p-4 space-y-3">
               <h2 className="font-bold text-lg">Share URL</h2>
               <div className="space-y-2">
                 <input
                   type="text"
                   value={shareUrl}
                   readOnly
-                  className="w-full px-3 py-2 rounded-lg bg-black/30 border border-white/10 text-xs font-mono"
+                  className="w-full px-3 py-2 rounded-lg bg-[var(--ui-item-bg)] border border-[var(--ui-item-border)] text-xs font-mono"
                 />
                 <button
                   onClick={copyUrl}
-                  className="w-full py-2 rounded-lg bg-white/10 hover:bg-white/20 text-sm font-medium"
+                  className="w-full py-2 rounded-lg bg-[var(--ui-item-bg)] hover:bg-[var(--ui-item-hover)] text-sm font-medium"
                 >
                   {copied ? 'Copied!' : 'Copy URL'}
                 </button>
@@ -382,13 +524,37 @@ export default function ConfigurePage() {
 
         {/* Preview Area */}
         <main className="flex-1 p-6 flex flex-col min-w-0 overflow-hidden">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-4 gap-4">
             <h2 className="font-display font-bold text-lg" style={{ color: config.theme.accent }}>
               Layout Editor
             </h2>
-            <span className="text-xs text-white/40">
-              Drag widgets to reposition. Use handles to resize.
-            </span>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2 text-xs text-white/60">
+                <label htmlFor="grid-granularity" className="text-xs text-white/60">
+                  Grid Granularity
+                </label>
+                <select
+                  id="grid-granularity"
+                  value={gridRows}
+                  onChange={(e) => setGridRows(Number(e.target.value))}
+                  className="px-2 py-1 rounded-lg bg-[var(--ui-item-bg)] border border-[var(--ui-item-border)] text-white/80 text-xs outline-none focus:border-[var(--ui-item-border-hover)]"
+                  title={`Current layout uses ${minRowsNeeded} rows`}
+                >
+                  {GRID_GRANULARITY_OPTIONS.map((option) => (
+                    <option
+                      key={option.rows}
+                      value={option.rows}
+                      disabled={option.rows < minRowsNeeded}
+                    >
+                      {option.label} ({option.rows})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <span className="text-xs text-white/40">
+                Drag widgets to reposition. Use handles to resize.
+              </span>
+            </div>
           </div>
 
           {/* Preview Container */}
@@ -397,7 +563,7 @@ export default function ConfigurePage() {
             className="flex-1 flex items-center justify-center min-h-0 overflow-hidden"
           >
             <div
-              className="rounded-xl overflow-hidden border border-white/20 shadow-2xl transition-all duration-200 flex flex-col"
+              className="rounded-xl overflow-hidden border border-[var(--ui-panel-border)] shadow-2xl transition-all duration-200 flex flex-col"
               style={{
                 width: previewSize.width || 'auto',
                 height: previewSize.height || 'auto',
@@ -410,9 +576,9 @@ export default function ConfigurePage() {
                   <GridStackWrapper
                     ref={gridRef}
                     items={gridItems}
-                    columns={12}
-                    rows={config.tickerEnabled ? 7 : 8}
-                    cellHeight={config.tickerEnabled ? (previewSize.height - 48) / 7 : cellHeight}
+                    columns={GRID_COLUMNS}
+                    rows={gridRows}
+                    cellHeight={cellHeight}
                     margin={8}
                     onLayoutChange={handleLayoutChange}
                     renderItem={renderGridItem}
@@ -429,23 +595,6 @@ export default function ConfigurePage() {
                 )}
               </div>
 
-              {/* Ticker Preview */}
-              {config.tickerEnabled && (
-                <div className="flex-shrink-0 h-12 relative overflow-hidden" style={{ backgroundColor: config.theme.accent }}>
-                  <div
-                    className="absolute left-0 top-0 bottom-0 z-10 flex items-center px-4 font-bold text-xs uppercase tracking-wider"
-                    style={{ backgroundColor: config.theme.primary, color: config.theme.accent }}
-                  >
-                    <span className="animate-pulse mr-2">●</span>
-                    Breaking
-                  </div>
-                  <div className="h-full flex items-center pl-28 whitespace-nowrap animate-ticker" style={{ animationDuration: '20s' }}>
-                    <span className="text-sm font-medium" style={{ color: config.theme.primary }}>
-                      Library closes at 10PM tonight • Rain expected this afternoon • Basketball finals Saturday 7PM • Free pizza at Student Center 12PM
-                    </span>
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         </main>

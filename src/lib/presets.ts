@@ -37,6 +37,7 @@ export const DEMO_PRESETS: Preset[] = [
             { title: 'Club Rush', date: '2026-02-20', time: '11:00 AM', location: 'Student Plaza' },
           ]
         }},
+        { id: 'news-ticker-1', type: 'news-ticker', x: 0, y: 7, w: 12, h: 1 },
       ],
       theme: { primary: '#035642', accent: '#B79527', background: '#022b21' },
       schoolName: 'Campus Hub',
@@ -67,6 +68,7 @@ export const DEMO_PRESETS: Preset[] = [
           fit: 'cover',
         }},
         { id: 'clock-1', type: 'clock', x: 0, y: 5, w: 3, h: 1, props: { showSeconds: false, showDate: true } },
+        { id: 'news-ticker-1', type: 'news-ticker', x: 0, y: 7, w: 12, h: 1 },
       ],
       theme: { primary: '#1a1a2e', accent: '#e94560', background: '#16213e' },
       schoolName: 'Media Center',
@@ -120,6 +122,7 @@ export const DEMO_PRESETS: Preset[] = [
             { imageUrl: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=600', title: 'Get Involved', description: 'Join a club today' },
           ]
         }},
+        { id: 'news-ticker-1', type: 'news-ticker', x: 0, y: 7, w: 12, h: 1 },
       ],
       theme: { primary: '#2d3436', accent: '#00b894', background: '#1e272e' },
       schoolName: 'Events Board',
@@ -178,6 +181,7 @@ export const DEMO_PRESETS: Preset[] = [
             { title: 'Q&A Panel', time: '4:00 PM' },
           ]
         }},
+        { id: 'news-ticker-1', type: 'news-ticker', x: 0, y: 7, w: 12, h: 1 },
       ],
       theme: { primary: '#1b4332', accent: '#d4a373', background: '#081c15' },
       schoolName: 'Photo Gallery',
