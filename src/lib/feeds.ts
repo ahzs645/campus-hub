@@ -49,10 +49,10 @@ export function parseRss(text: string): RssItem[] {
 
 const unfoldIcs = (text: string): string => text.replace(/\r?\n[ \t]/g, '');
 
-const parseIcsDate = (value: string | undefined): Date | null => {
-  if (!value) return null;
+const parseIcsDate = (value: string | undefined): Date | undefined => {
+  if (!value) return undefined;
   const trimmed = value.trim();
-  if (!trimmed) return null;
+  if (!trimmed) return undefined;
 
   const dateOnlyMatch = /^\d{8}$/.test(trimmed);
   if (dateOnlyMatch) {
@@ -86,7 +86,7 @@ const parseIcsDate = (value: string | undefined): Date | null => {
   }
 
   const parsed = new Date(trimmed);
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
+  return Number.isNaN(parsed.getTime()) ? undefined : parsed;
 };
 
 export function parseICal(text: string): ICalEvent[] {
