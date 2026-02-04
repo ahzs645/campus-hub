@@ -2,7 +2,14 @@
 
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useMemo, useState } from 'react';
-import { decodeConfig, DEFAULT_CONFIG, normalizeConfig, getBasePath, type DisplayConfig } from '@/lib/config';
+import {
+  decodeConfig,
+  DEFAULT_CONFIG,
+  normalizeConfig,
+  getBasePath,
+  type DisplayConfig,
+  type WidgetConfig,
+} from '@/lib/config';
 import { buildCacheKey, fetchJsonWithCache } from '@/lib/data-cache';
 import WidgetRenderer from '@/components/WidgetRenderer';
 import '@/widgets'; // Register all widgets
@@ -185,12 +192,17 @@ function DisplayContent() {
   const config: DisplayConfig = activeConfig;
 
   const gridRows = config.gridRows ?? 8;
-  const layout = useMemo(() => {
+  const layout: WidgetConfig[] = useMemo(() => {
     if (config.tickerEnabled && !config.layout.some((w) => w.type === 'news-ticker')) {
-      return [
-        ...config.layout,
-        { id: 'default-ticker', type: 'news-ticker', x: 0, y: gridRows - 1, w: 12, h: 1 },
-      ];
+      const tickerWidget: WidgetConfig = {
+        id: 'default-ticker',
+        type: 'news-ticker',
+        x: 0,
+        y: gridRows - 1,
+        w: 12,
+        h: 1,
+      };
+      return [...config.layout, tickerWidget];
     }
     return config.layout;
   }, [config, gridRows]);
