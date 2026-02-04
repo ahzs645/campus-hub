@@ -54,6 +54,14 @@ export default function PosterCarousel({ config, theme }: WidgetComponentProps) 
   const [progress, setProgress] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
 
+  useEffect(() => {
+    if (apiUrl) return;
+    setPosters(carouselConfig?.posters ?? DEFAULT_POSTERS);
+    setCurrentIndex(0);
+    setProgress(0);
+    setIsTransitioning(false);
+  }, [apiUrl, carouselConfig?.posters]);
+
   // Fetch posters from API if provided
   useEffect(() => {
     if (!apiUrl) return;

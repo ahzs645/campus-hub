@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { WidgetComponentProps, registerWidget } from '@/lib/widget-registry';
+import { buildCacheKey, fetchJsonWithCache, fetchTextWithCache } from '@/lib/data-cache';
+import { parseRss } from '@/lib/feeds';
 import NewsTickerOptions from './NewsTickerOptions';
 
 interface TickerItem {
@@ -12,6 +14,9 @@ interface TickerItem {
 
 interface NewsTickerConfig {
   apiUrl?: string;
+  sourceType?: 'json' | 'rss';
+  corsProxy?: string;
+  cacheTtlSeconds?: number;
   items?: TickerItem[];
   speed?: number;
   label?: string;
@@ -25,22 +30,54 @@ const DEFAULT_TICKER_ITEMS: TickerItem[] = [
   { id: 5, label: 'EVENT', text: 'Free pizza at Student Center — 12PM today while supplies last' },
 ];
 
+const applyCorsProxy = (url: string, corsProxy?: string) => {
+  if (!corsProxy) return url;
+  return `${corsProxy}${url}`;
+};
+
 export default function NewsTicker({ config, theme }: WidgetComponentProps) {
   const tickerConfig = config as NewsTickerConfig | undefined;
   const apiUrl = tickerConfig?.apiUrl;
+  const sourceType = tickerConfig?.sourceType ?? 'json';
+  const corsProxy = tickerConfig?.corsProxy?.trim();
+  const cacheTtlSeconds = tickerConfig?.cacheTtlSeconds ?? 120;
   const speed = tickerConfig?.speed ?? 30;
   const label = tickerConfig?.label ?? 'Breaking';
 
   const [items, setItems] = useState<TickerItem[]>(tickerConfig?.items ?? DEFAULT_TICKER_ITEMS);
 
   useEffect(() => {
+    if (apiUrl) return;
+    setItems(tickerConfig?.items ?? DEFAULT_TICKER_ITEMS);
+  }, [apiUrl, tickerConfig?.items]);
+
+  useEffect(() => {
     if (!apiUrl) return;
+    let isMounted = true;
 
     const fetchTicker = async () => {
       try {
-        const response = await fetch(apiUrl);
-        const data = await response.json();
-        if (Array.isArray(data)) {
+        const fetchUrl = applyCorsProxy(apiUrl, corsProxy);
+        if (sourceType === 'rss') {
+          const { text } = await fetchTextWithCache(fetchUrl, {
+            cacheKey: buildCacheKey('ticker-rss', fetchUrl),
+            ttlMs: cacheTtlSeconds * 1000,
+          });
+          const parsed = parseRss(text);
+          const mapped = parsed.map((item, index) => ({
+            id: item.guid ?? item.link ?? `${item.title}-${index}`,
+            label: item.categories?.[0] ?? label ?? 'NEWS',
+            text: item.title,
+          }));
+          if (isMounted) setItems(mapped);
+          return;
+        }
+
+        const { data } = await fetchJsonWithCache<TickerItem[]>(fetchUrl, {
+          cacheKey: buildCacheKey('ticker-json', fetchUrl),
+          ttlMs: cacheTtlSeconds * 1000,
+        });
+        if (Array.isArray(data) && isMounted) {
           setItems(data);
         }
       } catch (error) {
@@ -49,9 +86,12 @@ export default function NewsTicker({ config, theme }: WidgetComponentProps) {
     };
 
     fetchTicker();
-    const interval = setInterval(fetchTicker, 15000); // Refresh every 15 seconds
-    return () => clearInterval(interval);
-  }, [apiUrl]);
+    const interval = setInterval(fetchTicker, 15000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [apiUrl, sourceType, corsProxy, cacheTtlSeconds, label]);
 
   const tickerContent = [...items, ...items]; // Duplicate for seamless loop
 
@@ -119,5 +159,8 @@ registerWidget({
   defaultProps: {
     speed: 30,
     label: 'Breaking',
+    sourceType: 'json',
+    cacheTtlSeconds: 120,
+    corsProxy: '',
   },
 });

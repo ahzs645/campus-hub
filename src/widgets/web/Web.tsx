@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { WidgetComponentProps, registerWidget } from '@/lib/widget-registry';
 import WebOptions from './WebOptions';
 
@@ -11,6 +12,30 @@ interface WebConfig {
 export default function Web({ config, theme }: WidgetComponentProps) {
   const webConfig = config as WebConfig | undefined;
   const url = webConfig?.url ?? '';
+  const refreshInterval = webConfig?.refreshInterval ?? 0;
+  const [iframeSrc, setIframeSrc] = useState(url);
+
+  useEffect(() => {
+    setIframeSrc(url);
+  }, [url]);
+
+  useEffect(() => {
+    if (!url || refreshInterval <= 0) return;
+
+    const updateSrc = () => {
+      try {
+        const nextUrl = new URL(url, window.location.origin);
+        nextUrl.searchParams.set('_ts', Date.now().toString());
+        setIframeSrc(nextUrl.toString());
+      } catch {
+        const separator = url.includes('?') ? '&' : '?';
+        setIframeSrc(`${url}${separator}_ts=${Date.now()}`);
+      }
+    };
+
+    const interval = setInterval(updateSrc, refreshInterval * 1000);
+    return () => clearInterval(interval);
+  }, [url, refreshInterval]);
 
   if (!url) {
     return (
@@ -28,7 +53,7 @@ export default function Web({ config, theme }: WidgetComponentProps) {
   return (
     <div className="h-full w-full overflow-hidden rounded-lg">
       <iframe
-        src={url}
+        src={iframeSrc}
         className="w-full h-full border-0"
         sandbox="allow-scripts allow-same-origin allow-forms"
         title="Web content"

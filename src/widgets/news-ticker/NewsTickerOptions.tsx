@@ -1,13 +1,16 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { FormInput } from '@/components/ui';
+import { FormInput, FormSelect } from '@/components/ui';
 import type { WidgetOptionsProps } from '@/lib/widget-registry';
 
 interface NewsTickerData {
   label: string;
   speed: number;
   apiUrl: string;
+  sourceType: 'json' | 'rss';
+  corsProxy: string;
+  cacheTtlSeconds: number;
 }
 
 export default function NewsTickerOptions({ data, onChange }: WidgetOptionsProps) {
@@ -15,6 +18,9 @@ export default function NewsTickerOptions({ data, onChange }: WidgetOptionsProps
     label: (data?.label as string) ?? 'Breaking',
     speed: (data?.speed as number) ?? 30,
     apiUrl: (data?.apiUrl as string) ?? '',
+    sourceType: (data?.sourceType as 'json' | 'rss') ?? 'json',
+    corsProxy: (data?.corsProxy as string) ?? '',
+    cacheTtlSeconds: (data?.cacheTtlSeconds as number) ?? 120,
   });
 
   useEffect(() => {
@@ -23,6 +29,9 @@ export default function NewsTickerOptions({ data, onChange }: WidgetOptionsProps
         label: (data.label as string) ?? 'Breaking',
         speed: (data.speed as number) ?? 30,
         apiUrl: (data.apiUrl as string) ?? '',
+        sourceType: (data.sourceType as 'json' | 'rss') ?? 'json',
+        corsProxy: (data.corsProxy as string) ?? '',
+        cacheTtlSeconds: (data.cacheTtlSeconds as number) ?? 120,
       });
     }
   }, [data]);
@@ -69,6 +78,17 @@ export default function NewsTickerOptions({ data, onChange }: WidgetOptionsProps
       <div className="space-y-4 border-t border-[var(--ui-item-border)] pt-6">
         <h3 className="font-semibold text-[var(--ui-text)] text-center">Data Source</h3>
 
+        <FormSelect
+          label="Source Type"
+          name="sourceType"
+          value={state.sourceType}
+          options={[
+            { value: 'json', label: 'JSON API' },
+            { value: 'rss', label: 'RSS Feed' },
+          ]}
+          onChange={handleChange}
+        />
+
         <FormInput
           label="API URL (optional)"
           name="apiUrl"
@@ -78,11 +98,37 @@ export default function NewsTickerOptions({ data, onChange }: WidgetOptionsProps
           onChange={handleChange}
         />
 
+        <FormInput
+          label="CORS Proxy (optional)"
+          name="corsProxy"
+          type="text"
+          value={state.corsProxy}
+          placeholder="https://r.jina.ai/http://"
+          onChange={handleChange}
+        />
+
+        <FormInput
+          label="Cache TTL (seconds)"
+          name="cacheTtlSeconds"
+          type="number"
+          value={state.cacheTtlSeconds}
+          min={30}
+          max={3600}
+          onChange={handleChange}
+        />
+
         <div className="text-sm text-[var(--ui-text-muted)] text-center">
-          Leave empty to use default sample announcements. The API should return:
-          <code className="block mt-2 p-2 bg-[var(--ui-item-bg)] rounded text-xs text-left max-w-md mx-auto">
-            {`[{ "label": "WEATHER", "text": "Rain expected..." }]`}
-          </code>
+          Leave empty to use default sample announcements.
+          {state.sourceType === 'json' && (
+            <code className="block mt-2 p-2 bg-[var(--ui-item-bg)] rounded text-xs text-left max-w-md mx-auto">
+              {`[{ "label": "WEATHER", "text": "Rain expected..." }]`}
+            </code>
+          )}
+          {state.sourceType === 'rss' && (
+            <div className="mt-2 text-xs">
+              RSS items are mapped into ticker items using the item title.
+            </div>
+          )}
         </div>
       </div>
 

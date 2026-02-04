@@ -1,13 +1,16 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { FormInput } from '@/components/ui';
+import { FormInput, FormSelect } from '@/components/ui';
 import type { WidgetOptionsProps } from '@/lib/widget-registry';
 
 interface EventsListData {
   title: string;
   maxItems: number;
   apiUrl: string;
+  sourceType: 'json' | 'ical' | 'rss';
+  corsProxy: string;
+  cacheTtlSeconds: number;
 }
 
 export default function EventsListOptions({ data, onChange }: WidgetOptionsProps) {
@@ -15,6 +18,9 @@ export default function EventsListOptions({ data, onChange }: WidgetOptionsProps
     title: (data?.title as string) ?? 'Upcoming Events',
     maxItems: (data?.maxItems as number) ?? 10,
     apiUrl: (data?.apiUrl as string) ?? '',
+    sourceType: (data?.sourceType as 'json' | 'ical' | 'rss') ?? 'json',
+    corsProxy: (data?.corsProxy as string) ?? '',
+    cacheTtlSeconds: (data?.cacheTtlSeconds as number) ?? 300,
   });
 
   useEffect(() => {
@@ -23,6 +29,9 @@ export default function EventsListOptions({ data, onChange }: WidgetOptionsProps
         title: (data.title as string) ?? 'Upcoming Events',
         maxItems: (data.maxItems as number) ?? 10,
         apiUrl: (data.apiUrl as string) ?? '',
+        sourceType: (data.sourceType as 'json' | 'ical' | 'rss') ?? 'json',
+        corsProxy: (data.corsProxy as string) ?? '',
+        cacheTtlSeconds: (data.cacheTtlSeconds as number) ?? 300,
       });
     }
   }, [data]);
@@ -63,6 +72,18 @@ export default function EventsListOptions({ data, onChange }: WidgetOptionsProps
       <div className="space-y-4 border-t border-[var(--ui-item-border)] pt-6">
         <h3 className="font-semibold text-[var(--ui-text)]">Data Source</h3>
 
+        <FormSelect
+          label="Source Type"
+          name="sourceType"
+          value={state.sourceType}
+          options={[
+            { value: 'json', label: 'JSON API' },
+            { value: 'ical', label: 'iCal (Google/Outlook)' },
+            { value: 'rss', label: 'RSS Feed' },
+          ]}
+          onChange={handleChange}
+        />
+
         <FormInput
           label="API URL (optional)"
           name="apiUrl"
@@ -72,11 +93,42 @@ export default function EventsListOptions({ data, onChange }: WidgetOptionsProps
           onChange={handleChange}
         />
 
+        <FormInput
+          label="CORS Proxy (optional)"
+          name="corsProxy"
+          type="text"
+          value={state.corsProxy}
+          placeholder="https://r.jina.ai/http://"
+          onChange={handleChange}
+        />
+
+        <FormInput
+          label="Cache TTL (seconds)"
+          name="cacheTtlSeconds"
+          type="number"
+          value={state.cacheTtlSeconds}
+          min={30}
+          max={3600}
+          onChange={handleChange}
+        />
+
         <div className="text-sm text-[var(--ui-text-muted)]">
-          Leave empty to use default sample events. The API should return an array:
-          <code className="block mt-2 p-2 bg-[var(--ui-item-bg)] rounded text-xs">
-            {`[{ "title": "...", "date": "Mar 10", "time": "11:00 AM", "location": "..." }]`}
-          </code>
+          Leave empty to use default sample events.
+          {state.sourceType === 'json' && (
+            <code className="block mt-2 p-2 bg-[var(--ui-item-bg)] rounded text-xs">
+              {`[{ "title": "...", "date": "Mar 10", "time": "11:00 AM", "location": "..." }]`}
+            </code>
+          )}
+          {state.sourceType === 'ical' && (
+            <div className="mt-2 text-xs">
+              Use a public iCal URL (Google/Outlook calendars can export this).
+            </div>
+          )}
+          {state.sourceType === 'rss' && (
+            <div className="mt-2 text-xs">
+              RSS items are mapped into events using the item title and publish date.
+            </div>
+          )}
         </div>
       </div>
 

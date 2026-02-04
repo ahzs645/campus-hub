@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { WidgetComponentProps, registerWidget } from '@/lib/widget-registry';
+import { buildCacheKey, fetchJsonWithCache } from '@/lib/data-cache';
 import WeatherOptions from './WeatherOptions';
 
 interface WeatherData {
@@ -42,11 +43,24 @@ const MOCK_WEATHER: WeatherData = {
   location: 'Campus',
 };
 
+const mapWeatherIcon = (condition: string): string => {
+  const key = condition.toLowerCase();
+  if (key.includes('clear')) return 'sunny';
+  if (key.includes('cloud')) return 'cloudy';
+  if (key.includes('rain')) return 'rainy';
+  if (key.includes('storm') || key.includes('thunder')) return 'stormy';
+  if (key.includes('snow')) return 'snowy';
+  if (key.includes('fog') || key.includes('mist') || key.includes('haze')) return 'foggy';
+  if (key.includes('wind')) return 'windy';
+  return 'default';
+};
+
 export default function Weather({ config, theme }: WidgetComponentProps) {
   const weatherConfig = config as WeatherConfig | undefined;
   const units = weatherConfig?.units ?? 'fahrenheit';
   const showDetails = weatherConfig?.showDetails ?? true;
   const location = weatherConfig?.location ?? 'Campus';
+  const apiKey = weatherConfig?.apiKey?.trim();
 
   const [weather, setWeather] = useState<WeatherData>({
     ...MOCK_WEATHER,
@@ -60,11 +74,55 @@ export default function Weather({ config, theme }: WidgetComponentProps) {
     return () => clearInterval(timer);
   }, []);
 
-  // Convert temperature based on units
-  const displayTemp = units === 'celsius'
-    ? Math.round((weather.temp - 32) * 5 / 9)
-    : weather.temp;
+  useEffect(() => {
+    if (!apiKey) {
+      const temp = units === 'celsius'
+        ? Math.round((MOCK_WEATHER.temp - 32) * 5 / 9)
+        : MOCK_WEATHER.temp;
+      setWeather({ ...MOCK_WEATHER, temp, location });
+      return;
+    }
 
+    let isMounted = true;
+    const fetchWeather = async () => {
+      try {
+        const unitParam = units === 'celsius' ? 'metric' : 'imperial';
+        const url = `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(
+          location
+        )}&units=${unitParam}&appid=${apiKey}`;
+        const { data } = await fetchJsonWithCache<any>(url, {
+          cacheKey: buildCacheKey('weather', `${location}:${unitParam}`),
+          ttlMs: 10 * 60 * 1000,
+        });
+
+        if (!isMounted) return;
+        const condition = data?.weather?.[0]?.main ?? 'Clear';
+        const description = data?.weather?.[0]?.description ?? condition;
+        const windSpeed = typeof data?.wind?.speed === 'number' ? data.wind.speed : MOCK_WEATHER.wind;
+        const windMph = units === 'celsius' ? Math.round(windSpeed * 2.23694) : Math.round(windSpeed);
+
+        setWeather({
+          temp: Math.round(data?.main?.temp ?? MOCK_WEATHER.temp),
+          condition: description,
+          icon: mapWeatherIcon(condition),
+          humidity: Math.round(data?.main?.humidity ?? MOCK_WEATHER.humidity),
+          wind: windMph,
+          location,
+        });
+      } catch (error) {
+        console.error('Failed to fetch weather:', error);
+      }
+    };
+
+    fetchWeather();
+    const interval = setInterval(fetchWeather, 10 * 60 * 1000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [apiKey, location, units]);
+
+  const displayTemp = weather.temp;
   const tempUnit = units === 'celsius' ? '°C' : '°F';
 
   return (
@@ -84,7 +142,7 @@ export default function Weather({ config, theme }: WidgetComponentProps) {
             {displayTemp}{tempUnit}
           </div>
           <div className="text-sm text-white/70 capitalize">
-            {weather.condition.replace('-', ' ')}
+            {weather.condition.replace(/-/g, ' ')}
           </div>
         </div>
       </div>
@@ -131,5 +189,6 @@ registerWidget({
     location: 'Campus',
     units: 'fahrenheit',
     showDetails: true,
+    apiKey: '',
   },
 });

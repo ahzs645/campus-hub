@@ -1,0 +1,26 @@
+{
+  "schoolName": "Campus Hub",
+  "gridRows": 8,
+  "tickerEnabled": true,
+  "theme": {
+    "primary": "#035642",
+    "accent": "#B79527",
+    "background": "#022b21"
+  },
+  "layout": [
+    { "id": "clock-1", "type": "clock", "x": 10, "y": 0, "w": 2, "h": 1 },
+    {
+      "id": "events-1",
+      "type": "events-list",
+      "x": 0,
+      "y": 0,
+      "w": 10,
+      "h": 5,
+      "props": {
+        "title": "Upcoming Events",
+        "maxItems": 6
+      }
+    },
+    { "id": "news-ticker-1", "type": "news-ticker", "x": 0, "y": 7, "w": 12, "h": 1 }
+  ]
+}

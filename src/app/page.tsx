@@ -1,8 +1,11 @@
 import Link from 'next/link';
-import { encodeConfig, DEFAULT_CONFIG } from '@/lib/config';
+import { encodeConfig, DEFAULT_CONFIG, getBasePath } from '@/lib/config';
 
 export default function Home() {
   const defaultConfigUrl = encodeConfig(DEFAULT_CONFIG);
+  const basePath = getBasePath();
+  const configurePath = `${basePath}/configure`;
+  const displayPath = `${basePath}/display?config=${defaultConfigUrl}`;
 
   return (
     <div className="min-h-screen flex flex-col relative overflow-hidden">
@@ -48,7 +51,7 @@ export default function Home() {
           {/* CTA Buttons */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
             <Link
-              href="/configure"
+              href={configurePath}
               className="group px-8 py-4 rounded-xl font-semibold text-lg transition-all hover:scale-105 hover:shadow-lg flex items-center gap-3"
               style={{ backgroundColor: '#B79527', color: '#035642' }}
             >
@@ -75,7 +78,7 @@ export default function Home() {
             </Link>
 
             <Link
-              href={`/display?config=${defaultConfigUrl}`}
+              href={displayPath}
               className="group px-8 py-4 rounded-xl font-semibold text-lg border-2 transition-all hover:scale-105 hover:bg-white/5 flex items-center gap-3"
               style={{ borderColor: '#B79527', color: '#B79527' }}
             >

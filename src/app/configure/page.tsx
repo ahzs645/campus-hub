@@ -2,7 +2,15 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import dynamic from 'next/dynamic';
-import { encodeConfig, DEFAULT_CONFIG, type DisplayConfig, type WidgetConfig } from '@/lib/config';
+import {
+  encodeConfig,
+  DEFAULT_CONFIG,
+  normalizeConfig,
+  generateShareUrl,
+  getBasePath,
+  type DisplayConfig,
+  type WidgetConfig,
+} from '@/lib/config';
 import { DEMO_PRESETS } from '@/lib/presets';
 import { getAllWidgets, getWidget } from '@/widgets';
 import EditableWidget from '@/components/EditableWidget';
@@ -33,6 +41,7 @@ const GRID_GRANULARITY_OPTIONS = [
   { label: 'Fine', rows: 16 },
 ];
 const DEFAULT_GRID_ROWS = GRID_GRANULARITY_OPTIONS[0].rows;
+const CONFIG_STORAGE_KEY = 'campus-hub:config';
 
 type GridPlacement = { x: number; y: number; w: number; h: number };
 
@@ -92,12 +101,45 @@ export default function ConfigurePage() {
   const [previewSize, setPreviewSize] = useState({ width: 0, height: 0 });
   const [editingWidget, setEditingWidget] = useState<WidgetConfig | null>(null);
   const [placementError, setPlacementError] = useState<string | null>(null);
-  const [gridRows, setGridRows] = useState(DEFAULT_GRID_ROWS);
+  const [gridRows, setGridRows] = useState(DEFAULT_CONFIG.gridRows ?? DEFAULT_GRID_ROWS);
   const containerRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<GridStackWrapperRef>(null);
+  const basePath = getBasePath();
 
   const availableWidgets = getAllWidgets();
   const hasTicker = config.layout.some((widget) => widget.type === 'news-ticker');
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const saved = localStorage.getItem(CONFIG_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved) as DisplayConfig;
+        setConfig(normalizeConfig(parsed));
+      }
+    } catch {
+      // Ignore corrupted cache
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const timeout = setTimeout(() => {
+      try {
+        localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(config));
+      } catch {
+        // Ignore storage failures (quota, private mode)
+      }
+    }, 300);
+    return () => clearTimeout(timeout);
+  }, [config]);
+
+  useEffect(() => {
+    if (!config.gridRows) return;
+    if (config.gridRows !== gridRows) {
+      setGridRows(config.gridRows);
+    }
+  }, [config.gridRows, gridRows]);
 
   // Calculate preview size to fit container while maintaining aspect ratio
   useEffect(() => {
@@ -241,8 +283,7 @@ export default function ConfigurePage() {
   }, []);
 
   const generateUrl = useCallback(() => {
-    const encoded = encodeConfig(config);
-    const url = `${window.location.origin}/display?config=${encoded}`;
+    const url = generateShareUrl(config, window.location.origin);
     setShareUrl(url);
   }, [config]);
 
@@ -323,7 +364,7 @@ export default function ConfigurePage() {
               Generate URL
             </button>
             <a
-              href={`/display?config=${encodeConfig(config)}`}
+              href={`${basePath}/display?config=${encodeConfig(config)}`}
               target="_blank"
               rel="noopener noreferrer"
               className="px-4 py-2 rounded-lg font-medium border border-[var(--ui-panel-border)] hover:bg-[var(--ui-item-hover)] transition-all"
@@ -348,7 +389,7 @@ export default function ConfigurePage() {
               {DEMO_PRESETS.map((preset) => (
                 <button
                   key={preset.id}
-                  onClick={() => setConfig(preset.config)}
+                  onClick={() => setConfig(normalizeConfig(preset.config))}
                   className="p-2 rounded-lg bg-[var(--ui-item-bg)] hover:bg-[var(--ui-item-hover)] border border-[var(--ui-item-border)] hover:border-[var(--ui-item-border-hover)] transition-all text-left group"
                 >
                   <div className="text-lg mb-1">{preset.icon}</div>
@@ -536,7 +577,11 @@ export default function ConfigurePage() {
                 <select
                   id="grid-granularity"
                   value={gridRows}
-                  onChange={(e) => setGridRows(Number(e.target.value))}
+                  onChange={(e) => {
+                    const nextRows = Number(e.target.value);
+                    setGridRows(nextRows);
+                    setConfig((prev) => ({ ...prev, gridRows: nextRows }));
+                  }}
                   className="px-2 py-1 rounded-lg bg-[var(--ui-item-bg)] border border-[var(--ui-item-border)] text-white/80 text-xs outline-none focus:border-[var(--ui-item-border-hover)]"
                   title={`Current layout uses ${minRowsNeeded} rows`}
                 >

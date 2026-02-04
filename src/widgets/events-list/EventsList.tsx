@@ -2,18 +2,23 @@
 
 import { useState, useEffect } from 'react';
 import { WidgetComponentProps, registerWidget } from '@/lib/widget-registry';
+import { buildCacheKey, fetchJsonWithCache, fetchTextWithCache } from '@/lib/data-cache';
+import { parseICal, parseRss } from '@/lib/feeds';
 import EventsListOptions from './EventsListOptions';
 
 interface Event {
   id: string | number;
   title: string;
-  date: string;
-  time: string;
-  location: string;
+  date?: string;
+  time?: string;
+  location?: string;
 }
 
 interface EventsListConfig {
   apiUrl?: string;
+  sourceType?: 'json' | 'ical' | 'rss';
+  corsProxy?: string;
+  cacheTtlSeconds?: number;
   events?: Event[];
   maxItems?: number;
   title?: string;
@@ -27,23 +32,91 @@ const DEFAULT_EVENTS: Event[] = [
   { id: 5, title: 'Yoga on the Lawn', date: 'Mar 14', time: '8:00 AM', location: 'West Lawn' },
 ];
 
+const applyCorsProxy = (url: string, corsProxy?: string) => {
+  if (!corsProxy) return url;
+  return `${corsProxy}${url}`;
+};
+
+const formatDate = (value: Date | null): string => {
+  if (!value) return '';
+  return value.toLocaleDateString([], { month: 'short', day: 'numeric' });
+};
+
+const formatTime = (value: Date | null): string => {
+  if (!value) return '';
+  return value.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+};
+
 export default function EventsList({ config, theme }: WidgetComponentProps) {
   const eventsConfig = config as EventsListConfig | undefined;
   const apiUrl = eventsConfig?.apiUrl;
+  const sourceType = eventsConfig?.sourceType ?? 'json';
+  const corsProxy = eventsConfig?.corsProxy?.trim();
+  const cacheTtlSeconds = eventsConfig?.cacheTtlSeconds ?? 300;
   const maxItems = eventsConfig?.maxItems ?? 10;
   const title = eventsConfig?.title ?? 'Upcoming Events';
 
   const [events, setEvents] = useState<Event[]>(eventsConfig?.events ?? DEFAULT_EVENTS);
 
   useEffect(() => {
+    if (apiUrl) return;
+    setEvents(eventsConfig?.events ?? DEFAULT_EVENTS);
+  }, [apiUrl, eventsConfig?.events]);
+
+  useEffect(() => {
     if (!apiUrl) return;
 
+    let isMounted = true;
     const fetchEvents = async () => {
       try {
-        const response = await fetch(apiUrl);
-        const data = await response.json();
-        if (Array.isArray(data)) {
-          setEvents(data.slice(0, maxItems));
+        const fetchUrl = applyCorsProxy(apiUrl, corsProxy);
+        if (sourceType === 'ical') {
+          const { text } = await fetchTextWithCache(fetchUrl, {
+            cacheKey: buildCacheKey('events-ical', fetchUrl),
+            ttlMs: cacheTtlSeconds * 1000,
+          });
+          const parsed = parseICal(text);
+          const mapped = parsed.map((event, index) => {
+            const isAllDay = event.startRaw?.trim().length === 8;
+            return {
+              id: event.uid ?? `${event.summary}-${index}`,
+              title: event.summary,
+              date: formatDate(event.start ?? null),
+              time: isAllDay ? '' : formatTime(event.start ?? null),
+              location: event.location ?? '',
+            } satisfies Event;
+          });
+          if (isMounted) setEvents(mapped.slice(0, maxItems));
+          return;
+        }
+
+        if (sourceType === 'rss') {
+          const { text } = await fetchTextWithCache(fetchUrl, {
+            cacheKey: buildCacheKey('events-rss', fetchUrl),
+            ttlMs: cacheTtlSeconds * 1000,
+          });
+          const parsed = parseRss(text);
+          const mapped = parsed.map((item, index) => {
+            const dateObj = item.pubDate ? new Date(item.pubDate) : null;
+            return {
+              id: item.guid ?? item.link ?? `${item.title}-${index}`,
+              title: item.title,
+              date: formatDate(dateObj),
+              time: formatTime(dateObj),
+              location: item.categories?.[0] ?? '',
+            } satisfies Event;
+          });
+          if (isMounted) setEvents(mapped.slice(0, maxItems));
+          return;
+        }
+
+        const { data } = await fetchJsonWithCache<Event[] | { events: Event[] }>(fetchUrl, {
+          cacheKey: buildCacheKey('events-json', fetchUrl),
+          ttlMs: cacheTtlSeconds * 1000,
+        });
+        const list = Array.isArray(data) ? data : data.events;
+        if (Array.isArray(list) && isMounted) {
+          setEvents(list.slice(0, maxItems));
         }
       } catch (error) {
         console.error('Failed to fetch events:', error);
@@ -51,9 +124,12 @@ export default function EventsList({ config, theme }: WidgetComponentProps) {
     };
 
     fetchEvents();
-    const interval = setInterval(fetchEvents, 30000); // Refresh every 30 seconds
-    return () => clearInterval(interval);
-  }, [apiUrl, maxItems]);
+    const interval = setInterval(fetchEvents, 30000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [apiUrl, sourceType, corsProxy, cacheTtlSeconds, maxItems]);
 
   return (
     <div className="h-full flex flex-col min-h-0 p-4">
@@ -76,7 +152,7 @@ export default function EventsList({ config, theme }: WidgetComponentProps) {
 
       {/* Events list */}
       <div className="flex-1 space-y-2 overflow-y-auto min-h-0 hide-scrollbar pr-1">
-        {events.map((event, index) => (
+        {events.slice(0, maxItems).map((event, index) => (
           <div
             key={event.id}
             className="p-3 rounded-xl border-l-4 transition-all duration-300 hover:translate-x-1"
@@ -90,30 +166,34 @@ export default function EventsList({ config, theme }: WidgetComponentProps) {
               {event.title}
             </div>
             <div className="text-xs opacity-90 flex items-center gap-2 mt-1.5 flex-wrap">
-              <span
-                className="font-bold px-2 py-0.5 rounded"
-                style={{ backgroundColor: `${theme.accent}20`, color: theme.accent }}
-              >
-                {event.date}
-              </span>
-              <span className="text-white/70">{event.time}</span>
-              <span className="text-white/50 flex items-center gap-1">
-                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-                  />
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-                  />
-                </svg>
-                {event.location}
-              </span>
+              {event.date && (
+                <span
+                  className="font-bold px-2 py-0.5 rounded"
+                  style={{ backgroundColor: `${theme.accent}20`, color: theme.accent }}
+                >
+                  {event.date}
+                </span>
+              )}
+              {event.time && <span className="text-white/70">{event.time}</span>}
+              {event.location && (
+                <span className="text-white/50 flex items-center gap-1">
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                    />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                    />
+                  </svg>
+                  {event.location}
+                </span>
+              )}
             </div>
           </div>
         ))}
@@ -137,5 +217,8 @@ registerWidget({
   defaultProps: {
     maxItems: 10,
     title: 'Upcoming Events',
+    sourceType: 'json',
+    cacheTtlSeconds: 300,
+    corsProxy: '',
   },
 });

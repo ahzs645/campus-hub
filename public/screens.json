@@ -1,0 +1,15 @@
+{
+  "screens": {
+    "library-lobby": {
+      "name": "Library Lobby",
+      "playlistUrl": "/playlists/example.json"
+    },
+    "gym-entrance": {
+      "name": "Gym Entrance",
+      "configUrl": "/configs/example.json"
+    }
+  },
+  "groups": {
+    "north-campus": ["library-lobby", "gym-entrance"]
+  }
+}
