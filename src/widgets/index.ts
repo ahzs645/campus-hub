@@ -11,6 +11,7 @@ import './web/Web';
 import './image/Image';
 import './media-player/MediaPlayer';
 import './slideshow/Slideshow';
+import './poster-feed/PosterFeed';
 
 // Re-export registry functions
 export { getWidget, getAllWidgets, getWidgetComponent } from '@/lib/widget-registry';

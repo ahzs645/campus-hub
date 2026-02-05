@@ -216,11 +216,19 @@ function DisplayContent() {
         '--color-accent': config.theme.accent,
       } as React.CSSProperties}
     >
-      {config.schoolName && (
+      {(config.schoolName || config.logo?.value) && (
         <div
-          className="absolute top-4 left-4 z-20 px-3 py-1.5 rounded-lg text-sm font-semibold backdrop-blur bg-black/30"
+          className="absolute top-4 left-4 z-20 px-3 py-1.5 rounded-lg text-sm font-semibold backdrop-blur bg-black/30 flex items-center gap-2"
           style={{ color: config.theme.accent, border: `1px solid ${config.theme.accent}40` }}
         >
+          {config.logo?.value && (
+            config.logo.type === 'url' ? (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img src={config.logo.value} alt="" className="h-6 w-auto object-contain" />
+            ) : (
+              <div className="h-6 [&>svg]:h-6 [&>svg]:w-auto" dangerouslySetInnerHTML={{ __html: config.logo.value }} />
+            )
+          )}
           {config.schoolName}
         </div>
       )}

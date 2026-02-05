@@ -13,12 +13,18 @@ export interface WidgetConfig {
     | 'web'
     | 'image'
     | 'media-player'
-    | 'slideshow';
+    | 'slideshow'
+    | 'poster-feed';
   x: number;
   y: number;
   w: number;
   h: number;
   props?: Record<string, unknown>;
+}
+
+export interface LogoConfig {
+  type: 'svg' | 'url';
+  value: string;
 }
 
 export interface DisplayConfig {
@@ -31,6 +37,7 @@ export interface DisplayConfig {
   schoolName: string;
   tickerEnabled: boolean;
   gridRows?: number;
+  logo?: LogoConfig;
 }
 
 export const DEFAULT_CONFIG: DisplayConfig = {
@@ -83,6 +90,14 @@ export function normalizeConfig(raw: Partial<DisplayConfig> | null | undefined):
       typeof safe.gridRows === 'number' && Number.isFinite(safe.gridRows)
         ? safe.gridRows
         : DEFAULT_CONFIG.gridRows,
+    logo:
+      safe.logo &&
+      typeof safe.logo === 'object' &&
+      (safe.logo.type === 'svg' || safe.logo.type === 'url') &&
+      typeof safe.logo.value === 'string' &&
+      safe.logo.value.trim().length > 0
+        ? { type: safe.logo.type, value: safe.logo.value }
+        : undefined,
   };
 }
 

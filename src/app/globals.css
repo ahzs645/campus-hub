@@ -86,6 +86,30 @@ body {
   animation: ticker linear infinite;
 }
 
+/* Poster stack – active card shuffles out left, scales up, comes back on top */
+@keyframes poster-move-out-in {
+  0% {
+    translate: 0 0;
+    scale: 1;
+  }
+  50% {
+    translate: -100% 0;
+    scale: 1.15;
+  }
+  100% {
+    translate: 0 0;
+    scale: 1;
+    z-index: 10;
+  }
+}
+
+/* Poster stack – all cards briefly straighten while the active one animates */
+@keyframes poster-straighten {
+  50% {
+    rotate: 0deg;
+  }
+}
+
 /* Fade in animation */
 @keyframes fade-in {
   0% {
