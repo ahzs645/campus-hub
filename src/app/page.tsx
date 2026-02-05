@@ -1,11 +1,11 @@
 import Link from 'next/link';
-import { encodeConfig, DEFAULT_CONFIG, getBasePath } from '@/lib/config';
+import { encodeConfig, DEFAULT_CONFIG } from '@/lib/config';
 
 export default function Home() {
   const defaultConfigUrl = encodeConfig(DEFAULT_CONFIG);
-  const basePath = getBasePath();
-  const configurePath = `${basePath}/configure`;
-  const displayPath = `${basePath}/display?config=${defaultConfigUrl}`;
+  // Next.js <Link> automatically adds basePath, so use root-relative paths
+  const configurePath = '/configure';
+  const displayPath = `/display?config=${defaultConfigUrl}`;
 
   return (
     <div className="min-h-screen flex flex-col relative overflow-hidden">
