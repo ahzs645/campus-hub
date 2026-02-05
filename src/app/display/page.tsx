@@ -6,7 +6,6 @@ import {
   decodeConfig,
   DEFAULT_CONFIG,
   normalizeConfig,
-  getBasePath,
   type DisplayConfig,
   type WidgetConfig,
 } from '@/lib/config';
@@ -39,11 +38,11 @@ interface ScreenMap {
   groups?: Record<string, string[]>;
 }
 
-const resolveUrl = (url: string, basePath: string): string => {
+const resolveUrl = (url: string): string => {
   const trimmed = url.trim();
   if (!trimmed) return '';
   try {
-    return new URL(trimmed, window.location.origin + basePath + '/').toString();
+    return new URL(trimmed, window.location.origin + '/').toString();
   } catch {
     return trimmed;
   }
@@ -51,7 +50,6 @@ const resolveUrl = (url: string, basePath: string): string => {
 
 function DisplayContent() {
   const searchParams = useSearchParams();
-  const basePath = getBasePath();
   const paramsKey = searchParams.toString();
 
   const [activeConfig, setActiveConfig] = useState<DisplayConfig>(DEFAULT_CONFIG);
@@ -74,7 +72,7 @@ function DisplayContent() {
       const screenUrlParam = searchParams.get('screenUrl');
 
       if (screenId) {
-        const screenMapUrl = resolveUrl(screenUrlParam || `${basePath}/screens.json`, basePath);
+        const screenMapUrl = resolveUrl(screenUrlParam || '/screens.json');
         try {
           const { data } = await fetchJsonWithCache<ScreenMap>(screenMapUrl, {
             cacheKey: buildCacheKey('screen-map', screenMapUrl),
@@ -89,7 +87,7 @@ function DisplayContent() {
       }
 
       if (playlistUrl) {
-        const resolvedUrl = resolveUrl(playlistUrl, basePath);
+        const resolvedUrl = resolveUrl(playlistUrl);
         try {
           const { data } = await fetchJsonWithCache<Playlist>(resolvedUrl, {
             cacheKey: buildCacheKey('playlist', resolvedUrl),
@@ -104,7 +102,7 @@ function DisplayContent() {
       }
 
       if (!resolvedPlaylist && configUrl) {
-        const resolvedUrl = resolveUrl(configUrl, basePath);
+        const resolvedUrl = resolveUrl(configUrl);
         try {
           const { data } = await fetchJsonWithCache<DisplayConfig>(resolvedUrl, {
             cacheKey: buildCacheKey('config', resolvedUrl),
@@ -140,7 +138,7 @@ function DisplayContent() {
     return () => {
       isMounted = false;
     };
-  }, [paramsKey, basePath]);
+  }, [paramsKey]);
 
   useEffect(() => {
     if (!playlist || playlist.items.length === 0) return;
@@ -155,7 +153,7 @@ function DisplayContent() {
       if (item.config) {
         setActiveConfig(normalizeConfig(item.config));
       } else if (item.configUrl) {
-        const resolvedUrl = resolveUrl(item.configUrl, basePath);
+        const resolvedUrl = resolveUrl(item.configUrl);
         try {
           const { data } = await fetchJsonWithCache<DisplayConfig>(resolvedUrl, {
             cacheKey: buildCacheKey('playlist-config', resolvedUrl),
@@ -187,7 +185,7 @@ function DisplayContent() {
       isMounted = false;
       if (timeout) clearTimeout(timeout);
     };
-  }, [playlist, currentIndex, basePath]);
+  }, [playlist, currentIndex]);
 
   const config: DisplayConfig = activeConfig;
 

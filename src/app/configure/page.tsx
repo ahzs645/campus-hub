@@ -7,7 +7,6 @@ import {
   DEFAULT_CONFIG,
   normalizeConfig,
   generateShareUrl,
-  getBasePath,
   type DisplayConfig,
   type WidgetConfig,
 } from '@/lib/config';
@@ -104,7 +103,6 @@ export default function ConfigurePage() {
   const [gridRows, setGridRows] = useState(DEFAULT_CONFIG.gridRows ?? DEFAULT_GRID_ROWS);
   const containerRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<GridStackWrapperRef>(null);
-  const basePath = getBasePath();
 
   const availableWidgets = getAllWidgets();
   const hasTicker = config.layout.some((widget) => widget.type === 'news-ticker');
@@ -364,7 +362,7 @@ export default function ConfigurePage() {
               Generate URL
             </button>
             <a
-              href={`${basePath}/display?config=${encodeConfig(config)}`}
+              href={`/display?config=${encodeConfig(config)}`}
               target="_blank"
               rel="noopener noreferrer"
               className="px-4 py-2 rounded-lg font-medium border border-[var(--ui-panel-border)] hover:bg-[var(--ui-item-hover)] transition-all"

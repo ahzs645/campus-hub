@@ -50,14 +50,8 @@ export const DEFAULT_CONFIG: DisplayConfig = {
   gridRows: 8,
 };
 
-const normalizeBasePath = (basePath: string): string => {
-  if (!basePath) return '';
-  if (basePath === '/') return '';
-  return basePath.startsWith('/') ? basePath : `/${basePath}`;
-};
-
-export const getBasePath = (): string =>
-  normalizeBasePath(process.env.NEXT_PUBLIC_BASE_PATH ?? '');
+// Base path is no longer used - site runs at root domain
+export const getBasePath = (): string => '';
 
 export function normalizeConfig(raw: Partial<DisplayConfig> | null | undefined): DisplayConfig {
   const safe = raw && typeof raw === 'object' ? raw : {};
