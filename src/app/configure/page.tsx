@@ -321,6 +321,12 @@ export default function ConfigurePage() {
     [config.layout, config.theme, handleEditWidget, removeWidget]
   );
 
+  // Calculate proportional margin so preview spacing matches the display at any size
+  // At 1080p reference: margin=8px → 16px inter-widget gap, 8px edge spacing
+  const gridMargin = previewSize.height > 0
+    ? Math.max(2, Math.round(previewSize.height * 0.0075))
+    : 8;
+
   // Calculate cell height based on preview dimensions
   const cellHeight = previewSize.height > 0 ? previewSize.height / gridRows : 80;
 
@@ -780,7 +786,7 @@ export default function ConfigurePage() {
                     columns={GRID_COLUMNS}
                     rows={gridRows}
                     cellHeight={cellHeight}
-                    margin={8}
+                    margin={gridMargin}
                     onLayoutChange={handleLayoutChange}
                     renderItem={renderGridItem}
                   />

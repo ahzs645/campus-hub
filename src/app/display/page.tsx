@@ -251,13 +251,15 @@ function DisplayContent() {
         </div>
       )}
 
-      {/* CSS Grid Layout - 12 columns */}
+      {/* CSS Grid Layout - viewport-proportional spacing matches the configure preview */}
       <div
-        className={`flex-1 p-4 gap-4 min-h-0${config.comingSoon ? ' blur-sm grayscale pointer-events-none select-none' : ''}`}
+        className={`flex-1 min-h-0${config.comingSoon ? ' blur-sm grayscale pointer-events-none select-none' : ''}`}
         style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(12, 1fr)',
           gridTemplateRows: `repeat(${gridRows}, 1fr)`,
+          gap: '1.5vh',
+          padding: '0.75vh',
         }}
       >
         {layout.map((widget) => (
