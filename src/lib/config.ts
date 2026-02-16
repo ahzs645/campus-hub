@@ -20,6 +20,7 @@ export interface WidgetConfig {
   w: number;
   h: number;
   props?: Record<string, unknown>;
+  comingSoon?: boolean;
 }
 
 export interface LogoConfig {
@@ -74,6 +75,7 @@ export function normalizeConfig(raw: Partial<DisplayConfig> | null | undefined):
           item.props && typeof item.props === 'object'
             ? (item.props as Record<string, unknown>)
             : undefined,
+        comingSoon: item.comingSoon === true ? true : undefined,
       }))
     : DEFAULT_CONFIG.layout;
 

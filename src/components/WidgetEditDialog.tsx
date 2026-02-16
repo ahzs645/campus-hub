@@ -8,7 +8,8 @@ interface WidgetEditDialogProps {
   widgetId: string;
   widgetType: string;
   initialData: Record<string, unknown>;
-  onSave: (widgetId: string, data: Record<string, unknown>) => void;
+  comingSoon?: boolean;
+  onSave: (widgetId: string, data: Record<string, unknown>, comingSoon: boolean) => void;
   onClose: () => void;
 }
 
@@ -17,10 +18,12 @@ export default function WidgetEditDialog({
   widgetId,
   widgetType,
   initialData,
+  comingSoon: initialComingSoon = false,
   onSave,
   onClose,
 }: WidgetEditDialogProps) {
   const [data, setData] = useState<Record<string, unknown>>(initialData);
+  const [comingSoon, setComingSoon] = useState(initialComingSoon);
   const dialogRef = useRef<HTMLDialogElement>(null);
 
   const widgetDef = getWidget(widgetType);
@@ -30,8 +33,9 @@ export default function WidgetEditDialog({
   useEffect(() => {
     if (isOpen) {
       setData(initialData);
+      setComingSoon(initialComingSoon);
     }
-  }, [isOpen, initialData]);
+  }, [isOpen, initialData, initialComingSoon]);
 
   // Control dialog open/close
   useEffect(() => {
@@ -50,9 +54,9 @@ export default function WidgetEditDialog({
   }, []);
 
   const handleSave = useCallback(() => {
-    onSave(widgetId, data);
+    onSave(widgetId, data, comingSoon);
     onClose();
-  }, [widgetId, data, onSave, onClose]);
+  }, [widgetId, data, comingSoon, onSave, onClose]);
 
   const handleBackdropClick = useCallback(
     (e: React.MouseEvent<HTMLDialogElement>) => {
@@ -95,12 +99,35 @@ export default function WidgetEditDialog({
         </div>
 
         {/* Content - Scrollable */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          {/* Coming Soon Toggle */}
+          <div className="flex items-center justify-between p-3 rounded-lg bg-[var(--ui-panel-soft)] border border-[var(--ui-panel-border)]">
+            <div>
+              <div className="text-sm font-medium text-[var(--ui-text)]">Coming Soon</div>
+              <div className="text-xs text-[var(--ui-text-muted)]">Gray out this widget with a &quot;Coming Soon&quot; overlay</div>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={comingSoon}
+              onClick={() => setComingSoon(!comingSoon)}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors flex-shrink-0 ${
+                comingSoon ? 'bg-[var(--ui-switch-on)]' : 'bg-[var(--ui-switch-off)]'
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  comingSoon ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              />
+            </button>
+          </div>
+
           {OptionsComponent ? (
             <OptionsComponent data={data} onChange={handleChange} />
           ) : (
             <div className="text-center py-8 text-[var(--ui-text-muted)]">
-              <p>No configuration options available for this widget.</p>
+              <p>No additional configuration options available for this widget.</p>
             </div>
           )}
         </div>

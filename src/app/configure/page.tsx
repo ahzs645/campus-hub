@@ -270,11 +270,11 @@ export default function ConfigurePage() {
     }
   }, [config.layout]);
 
-  const handleSaveWidgetOptions = useCallback((widgetId: string, data: Record<string, unknown>) => {
+  const handleSaveWidgetOptions = useCallback((widgetId: string, data: Record<string, unknown>, comingSoon: boolean) => {
     setConfig((prev) => ({
       ...prev,
       layout: prev.layout.map((widget) =>
-        widget.id === widgetId ? { ...widget, props: data } : widget
+        widget.id === widgetId ? { ...widget, props: data, comingSoon: comingSoon || undefined } : widget
       ),
     }));
     setEditingWidget(null);
@@ -733,6 +733,7 @@ export default function ConfigurePage() {
           widgetId={editingWidget.id}
           widgetType={editingWidget.type}
           initialData={editingWidget.props || {}}
+          comingSoon={editingWidget.comingSoon}
           onSave={handleSaveWidgetOptions}
           onClose={() => setEditingWidget(null)}
         />

@@ -27,8 +27,20 @@ export default function WidgetRenderer({ widget, theme }: WidgetRendererProps) {
   }
 
   return (
-    <div className="h-full w-full">
-      <Component config={widget.props} theme={theme} />
+    <div className="h-full w-full relative">
+      <div className={widget.comingSoon ? 'h-full w-full blur-sm grayscale pointer-events-none select-none' : 'h-full w-full'}>
+        <Component config={widget.props} theme={theme} />
+      </div>
+      {widget.comingSoon && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-xl">
+          <span
+            className="text-lg font-bold tracking-wide uppercase px-4 py-2 rounded-lg backdrop-blur-sm"
+            style={{ color: theme.accent, backgroundColor: `${theme.primary}80` }}
+          >
+            Coming Soon
+          </span>
+        </div>
+      )}
     </div>
   );
 }

@@ -110,13 +110,29 @@ export default function EventsList({ config, theme }: WidgetComponentProps) {
           return;
         }
 
-        const { data } = await fetchJsonWithCache<Event[] | { events: Event[] }>(fetchUrl, {
+        const { data } = await fetchJsonWithCache<Record<string, unknown>[] | { events: Record<string, unknown>[] }>(fetchUrl, {
           cacheKey: buildCacheKey('events-json', fetchUrl),
           ttlMs: cacheTtlSeconds * 1000,
         });
         const list = Array.isArray(data) ? data : data.events;
         if (Array.isArray(list) && isMounted) {
-          setEvents(list.slice(0, maxItems));
+          const normalized = list.map((item, index) => {
+            // If the event already has date/time strings, use as-is
+            if (item.date && typeof item.date === 'string' && !/^\d{4}-/.test(item.date)) {
+              return item as unknown as Event;
+            }
+            // Normalize events with ISO startDate/endDate (e.g. WordPress REST APIs)
+            const rawStart = (item.startDate ?? item.start_date ?? item.start ?? item.date) as string | undefined;
+            const startObj = rawStart ? new Date(rawStart) : null;
+            return {
+              id: (item.id as string | number) ?? `${item.title}-${index}`,
+              title: item.title as string,
+              date: formatDate(startObj),
+              time: startObj && !isNaN(startObj.getTime()) ? formatTime(startObj) : '',
+              location: (item.location ?? '') as string,
+            } satisfies Event;
+          });
+          setEvents(normalized.slice(0, maxItems));
         }
       } catch (error) {
         console.error('Failed to fetch events:', error);
