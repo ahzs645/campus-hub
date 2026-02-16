@@ -33,6 +33,17 @@ const ASPECT_RATIOS = [
   { label: '9:16', value: 9 / 16, desc: 'Portrait' },
 ];
 
+const COLOR_PRESETS = [
+  { name: 'Campus Classic', primary: '#035642', accent: '#B79527', background: '#022b21' },
+  { name: 'SparkLab', primary: '#122738', accent: '#f85c14', background: '#0a1620' },
+  { name: 'Crimson', primary: '#1a1a2e', accent: '#e94560', background: '#16213e' },
+  { name: 'Emerald', primary: '#2d3436', accent: '#00b894', background: '#1e272e' },
+  { name: 'Ocean', primary: '#2c3e50', accent: '#3498db', background: '#1a252f' },
+  { name: 'Minimal', primary: '#0f0f0f', accent: '#ffffff', background: '#000000' },
+  { name: 'Sandstone', primary: '#1b4332', accent: '#d4a373', background: '#081c15' },
+  { name: 'Royal', primary: '#1a1040', accent: '#9b59b6', background: '#0d0a20' },
+];
+
 const GRID_COLUMNS = 12;
 const GRID_GRANULARITY_OPTIONS = [
   { label: 'Coarse', rows: 8 },
@@ -497,6 +508,47 @@ export default function ConfigurePage() {
                   }`}
                 />
               </button>
+            </div>
+
+            <div>
+              <label className="block text-sm text-white/60 mb-2">Color Presets</label>
+              <div className="grid grid-cols-4 gap-1.5">
+                {COLOR_PRESETS.map((preset) => {
+                  const isActive =
+                    config.theme.primary === preset.primary &&
+                    config.theme.accent === preset.accent &&
+                    config.theme.background === preset.background;
+                  return (
+                    <button
+                      key={preset.name}
+                      title={preset.name}
+                      onClick={() =>
+                        setConfig((prev) => ({
+                          ...prev,
+                          theme: {
+                            primary: preset.primary,
+                            accent: preset.accent,
+                            background: preset.background,
+                          },
+                        }))
+                      }
+                      className={`group relative h-8 rounded-lg overflow-hidden transition-all ${
+                        isActive
+                          ? 'ring-2 ring-white ring-offset-1 ring-offset-transparent scale-105'
+                          : 'hover:scale-105'
+                      }`}
+                    >
+                      <div className="absolute inset-0 flex">
+                        <div className="w-1/2" style={{ backgroundColor: preset.primary }} />
+                        <div className="w-1/2" style={{ backgroundColor: preset.accent }} />
+                      </div>
+                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40">
+                        <span className="text-[9px] font-medium text-white truncate px-1">{preset.name}</span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
