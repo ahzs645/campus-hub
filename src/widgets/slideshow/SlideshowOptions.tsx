@@ -81,7 +81,7 @@ export default function SlideshowOptions({ data, onChange }: WidgetOptionsProps)
         </div>
 
         {state.slides.length === 0 ? (
-          <div className="text-center py-8 bg-[var(--ui-panel-soft)] rounded-lg border-2 border-dashed border-[var(--ui-item-border)]">
+          <div className="text-center py-8 bg-[var(--ui-panel-soft)] rounded-lg border-2 border-dashed border-[color:var(--ui-item-border)]">
             <span className="text-3xl">🖼️</span>
             <p className="text-[var(--ui-text-muted)] text-sm mt-2">No slides yet</p>
             <p className="text-[var(--ui-text-muted)] text-xs">Click &quot;Add Slide&quot; to get started</p>
@@ -103,14 +103,14 @@ export default function SlideshowOptions({ data, onChange }: WidgetOptionsProps)
                     value={slide.url}
                     onChange={(e) => handleSlideChange(index, 'url', e.target.value)}
                     placeholder="https://example.com/image.jpg"
-                    className="w-full px-3 py-2 border border-[var(--ui-input-border)] rounded-lg text-sm bg-[var(--ui-input-bg)] text-[var(--ui-text)] placeholder:text-[var(--ui-text-muted)] focus:ring-2 focus:ring-[var(--ui-input-focus)] focus:border-[var(--ui-input-focus)]"
+                    className="w-full px-3 py-2 border border-[color:var(--ui-input-border)] rounded-lg text-sm bg-[var(--ui-input-bg)] text-[var(--ui-text)] placeholder:text-[var(--ui-text-muted)] focus:ring-2 focus:ring-[var(--ui-input-focus)] focus:border-[color:var(--ui-input-focus)]"
                   />
                   <input
                     type="text"
                     value={slide.caption || ''}
                     onChange={(e) => handleSlideChange(index, 'caption', e.target.value)}
                     placeholder="Caption (optional)"
-                    className="w-full px-3 py-2 border border-[var(--ui-input-border)] rounded-lg text-sm bg-[var(--ui-input-bg)] text-[var(--ui-text)] placeholder:text-[var(--ui-text-muted)] focus:ring-2 focus:ring-[var(--ui-input-focus)] focus:border-[var(--ui-input-focus)]"
+                    className="w-full px-3 py-2 border border-[color:var(--ui-input-border)] rounded-lg text-sm bg-[var(--ui-input-bg)] text-[var(--ui-text)] placeholder:text-[var(--ui-text-muted)] focus:ring-2 focus:ring-[var(--ui-input-focus)] focus:border-[color:var(--ui-input-focus)]"
                   />
                 </div>
               </div>
@@ -120,7 +120,7 @@ export default function SlideshowOptions({ data, onChange }: WidgetOptionsProps)
       </div>
 
       {/* Settings */}
-      <div className="space-y-4 border-t border-[var(--ui-item-border)] pt-6">
+      <div className="space-y-4 border-t border-[color:var(--ui-item-border)] pt-6">
         <h3 className="font-semibold text-[var(--ui-text)]">Slideshow Settings</h3>
 
         <FormInput
@@ -161,7 +161,7 @@ export default function SlideshowOptions({ data, onChange }: WidgetOptionsProps)
       </div>
 
       {/* Preview */}
-      <div className="border-t border-[var(--ui-item-border)] pt-6">
+      <div className="border-t border-[color:var(--ui-item-border)] pt-6">
         <h4 className="font-semibold text-[var(--ui-text)] mb-4">Preview</h4>
         <div className="bg-[var(--ui-item-bg)] rounded-xl aspect-video flex items-center justify-center overflow-hidden">
           {state.slides.length > 0 && state.slides[0].url ? (

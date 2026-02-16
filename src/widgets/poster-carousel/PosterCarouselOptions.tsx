@@ -52,7 +52,7 @@ export default function PosterCarouselOptions({ data, onChange }: WidgetOptionsP
       </div>
 
       {/* API Configuration */}
-      <div className="space-y-4 border-t border-[var(--ui-item-border)] pt-6">
+      <div className="space-y-4 border-t border-[color:var(--ui-item-border)] pt-6">
         <h3 className="font-semibold text-[var(--ui-text)]">Data Source</h3>
 
         <FormInput
@@ -73,7 +73,7 @@ export default function PosterCarouselOptions({ data, onChange }: WidgetOptionsP
       </div>
 
       {/* Preview */}
-      <div className="border-t border-[var(--ui-item-border)] pt-6">
+      <div className="border-t border-[color:var(--ui-item-border)] pt-6">
         <h4 className="font-semibold text-[var(--ui-text)] mb-4">Preview</h4>
         <div className="bg-[var(--ui-item-bg)] rounded-xl p-4 aspect-video relative overflow-hidden">
           <img

@@ -22,7 +22,10 @@ export default function FormInput({ label, name, type = 'text', value, onChange,
         name={name}
         value={value ?? ''}
         onChange={handleChange}
-        className="w-full px-3 py-2 border border-[var(--ui-input-border)] rounded-lg bg-[var(--ui-input-bg)] text-[var(--ui-text)] placeholder:text-[var(--ui-text-muted)] focus:ring-2 focus:ring-[var(--ui-input-focus)] focus:border-[var(--ui-input-focus)] outline-none transition-colors"
+        className="w-full px-3 py-2 rounded-lg bg-[var(--ui-input-bg)] text-[var(--ui-text)] placeholder:text-[var(--ui-text-muted)] focus:ring-2 outline-none transition-colors"
+        style={{
+          border: '1px solid var(--ui-input-border)',
+        }}
         {...props}
       />
     </div>

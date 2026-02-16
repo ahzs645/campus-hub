@@ -361,7 +361,7 @@ export default function ConfigurePage() {
       } as React.CSSProperties}
     >
       {/* Header */}
-      <header className="flex-shrink-0 border-b border-[var(--ui-panel-border)] px-6 py-4">
+      <header className="flex-shrink-0 border-b border-[color:var(--ui-panel-border)] px-6 py-4">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-display font-bold flex items-center gap-3">
             <span
@@ -382,7 +382,7 @@ export default function ConfigurePage() {
               href={`/display?config=${encodeConfig(config)}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="px-4 py-2 rounded-lg font-medium border border-[var(--ui-panel-border)] hover:bg-[var(--ui-item-hover)] transition-all"
+              className="px-4 py-2 rounded-lg font-medium border border-[color:var(--ui-panel-border)] hover:bg-[var(--ui-item-hover)] transition-all"
             >
               Open Fullscreen
             </a>
@@ -393,9 +393,9 @@ export default function ConfigurePage() {
       {/* Main Content */}
       <div className="flex-1 flex min-h-0 overflow-hidden">
         {/* Sidebar */}
-        <aside className="w-80 flex-shrink-0 border-r border-[var(--ui-panel-border)] bg-[var(--ui-panel-soft)] overflow-y-auto p-4 space-y-4">
+        <aside className="w-80 flex-shrink-0 border-r border-[color:var(--ui-panel-border)] bg-[var(--ui-panel-soft)] overflow-y-auto p-4 space-y-4">
           {/* Demo Presets */}
-          <div className="bg-[var(--ui-panel-bg)] rounded-xl p-4 space-y-3 border border-[var(--ui-panel-border)]">
+          <div className="bg-[var(--ui-panel-bg)] rounded-xl p-4 space-y-3 border border-[color:var(--ui-panel-border)]">
             <h2 className="font-bold text-lg flex items-center gap-2">
               <span className="text-[var(--color-accent)]">Demo Presets</span>
             </h2>
@@ -405,7 +405,7 @@ export default function ConfigurePage() {
                 <button
                   key={preset.id}
                   onClick={() => setConfig(normalizeConfig(preset.config))}
-                  className="p-2 rounded-lg bg-[var(--ui-item-bg)] hover:bg-[var(--ui-item-hover)] border border-[var(--ui-item-border)] hover:border-[var(--ui-item-border-hover)] transition-all text-left group"
+                  className="p-2 rounded-lg bg-[var(--ui-item-bg)] hover:bg-[var(--ui-item-hover)] border border-[color:var(--ui-item-border)] hover:border-[var(--ui-item-border-hover)] transition-all text-left group"
                 >
                   <div className="text-lg mb-1">{preset.icon}</div>
                   <div className="text-xs font-medium group-hover:text-[var(--color-accent)] transition-colors">{preset.name}</div>
@@ -415,7 +415,7 @@ export default function ConfigurePage() {
           </div>
 
           {/* Settings */}
-          <div className="bg-[var(--ui-panel-bg)] border border-[var(--ui-panel-border)] rounded-xl p-4 space-y-4">
+          <div className="bg-[var(--ui-panel-bg)] border border-[color:var(--ui-panel-border)] rounded-xl p-4 space-y-4">
             <h2 className="font-bold text-lg">Settings</h2>
 
             <div>
@@ -424,7 +424,7 @@ export default function ConfigurePage() {
                 type="text"
                 value={config.schoolName}
                 onChange={(e) => setConfig((prev) => ({ ...prev, schoolName: e.target.value }))}
-                className="w-full px-3 py-2 rounded-lg bg-[var(--ui-item-bg)] border border-[var(--ui-item-border)] focus:border-[var(--ui-item-border-hover)] outline-none"
+                className="w-full px-3 py-2 rounded-lg bg-[var(--ui-item-bg)] border border-[color:var(--ui-item-border)] focus:border-[var(--ui-item-border-hover)] outline-none"
               />
             </div>
 
@@ -447,7 +447,7 @@ export default function ConfigurePage() {
                     }));
                   }
                 }}
-                className="w-full px-3 py-2 rounded-lg bg-[var(--ui-item-bg)] border border-[var(--ui-item-border)] focus:border-[var(--ui-item-border-hover)] outline-none text-sm mb-2"
+                className="w-full px-3 py-2 rounded-lg bg-[var(--ui-item-bg)] border border-[color:var(--ui-item-border)] focus:border-[var(--ui-item-border-hover)] outline-none text-sm mb-2"
               >
                 <option value="">None</option>
                 <option value="url">Image URL</option>
@@ -464,7 +464,7 @@ export default function ConfigurePage() {
                       logo: { type: 'url', value: e.target.value },
                     }))
                   }
-                  className="w-full px-3 py-2 rounded-lg bg-[var(--ui-item-bg)] border border-[var(--ui-item-border)] focus:border-[var(--ui-item-border-hover)] outline-none text-sm"
+                  className="w-full px-3 py-2 rounded-lg bg-[var(--ui-item-bg)] border border-[color:var(--ui-item-border)] focus:border-[var(--ui-item-border-hover)] outline-none text-sm"
                 />
               )}
               {config.logo?.type === 'svg' && (
@@ -478,11 +478,11 @@ export default function ConfigurePage() {
                     }))
                   }
                   rows={4}
-                  className="w-full px-3 py-2 rounded-lg bg-[var(--ui-item-bg)] border border-[var(--ui-item-border)] focus:border-[var(--ui-item-border-hover)] outline-none text-sm font-mono resize-y"
+                  className="w-full px-3 py-2 rounded-lg bg-[var(--ui-item-bg)] border border-[color:var(--ui-item-border)] focus:border-[var(--ui-item-border-hover)] outline-none text-sm font-mono resize-y"
                 />
               )}
               {config.logo?.value && (
-                <div className="mt-2 p-2 rounded-lg bg-[var(--ui-item-bg)] border border-[var(--ui-item-border)] flex items-center justify-center">
+                <div className="mt-2 p-2 rounded-lg bg-[var(--ui-item-bg)] border border-[color:var(--ui-item-border)] flex items-center justify-center">
                   {config.logo.type === 'url' ? (
                     /* eslint-disable-next-line @next/next/no-img-element */
                     <img src={config.logo.value} alt="Logo preview" className="max-h-12 max-w-full object-contain" />
@@ -591,7 +591,7 @@ export default function ConfigurePage() {
           </div>
 
           {/* Aspect Ratio */}
-          <div className="bg-[var(--ui-panel-bg)] border border-[var(--ui-panel-border)] rounded-xl p-4 space-y-3">
+          <div className="bg-[var(--ui-panel-bg)] border border-[color:var(--ui-panel-border)] rounded-xl p-4 space-y-3">
             <h2 className="font-bold text-lg">Preview Aspect Ratio</h2>
             <div className="grid grid-cols-2 gap-2">
               {ASPECT_RATIOS.map((ar) => (
@@ -601,7 +601,7 @@ export default function ConfigurePage() {
                   className={`p-2 rounded-lg text-sm transition-all ${
                     aspectRatio === ar.value
                       ? 'bg-[var(--ui-item-hover)] border-[var(--ui-item-border-hover)]'
-                      : 'bg-[var(--ui-item-bg)] hover:bg-[var(--ui-item-hover)] border-[var(--ui-item-border)]'
+                      : 'bg-[var(--ui-item-bg)] hover:bg-[var(--ui-item-hover)] border-[color:var(--ui-item-border)]'
                   } border`}
                 >
                   <div className="font-medium">{ar.label}</div>
@@ -612,7 +612,7 @@ export default function ConfigurePage() {
           </div>
 
           {/* Add Widgets */}
-          <div className="bg-[var(--ui-panel-bg)] border border-[var(--ui-panel-border)] rounded-xl p-4 space-y-3">
+          <div className="bg-[var(--ui-panel-bg)] border border-[color:var(--ui-panel-border)] rounded-xl p-4 space-y-3">
             <div className="flex items-center justify-between">
               <h2 className="font-bold text-lg">Widgets</h2>
               {config.layout.length > 0 && (
@@ -642,7 +642,7 @@ export default function ConfigurePage() {
                       className={`p-3 rounded-lg flex items-center gap-3 border transition-all ${
                         hasTicker
                           ? 'bg-[var(--ui-accent-soft)] border-[var(--ui-accent-strong)]'
-                          : 'bg-[var(--ui-item-bg)] border-[var(--ui-item-border)]'
+                          : 'bg-[var(--ui-item-bg)] border-[color:var(--ui-item-border)]'
                       }`}
                     >
                       <span className="text-xl">{widget.icon}</span>
@@ -664,7 +664,7 @@ export default function ConfigurePage() {
                           }
                         }}
                         className={`w-10 h-5 rounded-full transition-all flex-shrink-0 ${
-                          hasTicker ? 'bg-[var(--color-accent)]' : 'bg-[var(--ui-item-bg)] border border-[var(--ui-item-border)]'
+                          hasTicker ? 'bg-[var(--color-accent)]' : 'bg-[var(--ui-item-bg)] border border-[color:var(--ui-item-border)]'
                         }`}
                       >
                         <div
@@ -683,7 +683,7 @@ export default function ConfigurePage() {
                     className={`p-3 rounded-lg flex items-center gap-3 border transition-all cursor-pointer ${
                       count > 0
                         ? 'bg-[var(--ui-accent-soft)] border-[var(--ui-accent-strong)]'
-                        : 'bg-[var(--ui-item-bg)] border-[var(--ui-item-border)] hover:bg-[var(--ui-item-hover)] hover:border-[var(--ui-item-border-hover)]'
+                        : 'bg-[var(--ui-item-bg)] border-[color:var(--ui-item-border)] hover:bg-[var(--ui-item-hover)] hover:border-[var(--ui-item-border-hover)]'
                     }`}
                     onClick={() => addWidget(widget.type)}
                   >
@@ -705,14 +705,14 @@ export default function ConfigurePage() {
 
           {/* Share URL */}
           {shareUrl && (
-            <div className="bg-[var(--ui-panel-bg)] border border-[var(--ui-panel-border)] rounded-xl p-4 space-y-3">
+            <div className="bg-[var(--ui-panel-bg)] border border-[color:var(--ui-panel-border)] rounded-xl p-4 space-y-3">
               <h2 className="font-bold text-lg">Share URL</h2>
               <div className="space-y-2">
                 <input
                   type="text"
                   value={shareUrl}
                   readOnly
-                  className="w-full px-3 py-2 rounded-lg bg-[var(--ui-item-bg)] border border-[var(--ui-item-border)] text-xs font-mono"
+                  className="w-full px-3 py-2 rounded-lg bg-[var(--ui-item-bg)] border border-[color:var(--ui-item-border)] text-xs font-mono"
                 />
                 <button
                   onClick={copyUrl}
@@ -744,7 +744,7 @@ export default function ConfigurePage() {
                     setGridRows(nextRows);
                     setConfig((prev) => ({ ...prev, gridRows: nextRows }));
                   }}
-                  className="px-2 py-1 rounded-lg bg-[var(--ui-item-bg)] border border-[var(--ui-item-border)] text-white/80 text-xs outline-none focus:border-[var(--ui-item-border-hover)]"
+                  className="px-2 py-1 rounded-lg bg-[var(--ui-item-bg)] border border-[color:var(--ui-item-border)] text-white/80 text-xs outline-none focus:border-[var(--ui-item-border-hover)]"
                   title={`Current layout uses ${minRowsNeeded} rows`}
                 >
                   {GRID_GRANULARITY_OPTIONS.map((option) => (
@@ -770,7 +770,7 @@ export default function ConfigurePage() {
             className="flex-1 flex items-center justify-center min-h-0 overflow-hidden"
           >
             <div
-              className="rounded-xl overflow-hidden border border-[var(--ui-panel-border)] shadow-2xl transition-all duration-200 flex flex-col"
+              className="rounded-xl overflow-hidden border border-[color:var(--ui-panel-border)] shadow-2xl transition-all duration-200 flex flex-col"
               style={{
                 width: previewSize.width || 'auto',
                 height: previewSize.height || 'auto',

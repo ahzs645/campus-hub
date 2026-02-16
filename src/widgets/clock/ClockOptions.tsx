@@ -71,7 +71,7 @@ export default function ClockOptions({ data, onChange }: WidgetOptionsProps) {
       </div>
 
       {/* Preview */}
-      <div className="border-t border-[var(--ui-item-border)] pt-6">
+      <div className="border-t border-[color:var(--ui-item-border)] pt-6">
         <h4 className="font-semibold text-[var(--ui-text)] mb-4">Preview</h4>
         <div className="bg-[var(--ui-item-bg)] rounded-xl p-6 text-right">
           <div className="text-4xl font-bold text-[var(--color-accent)] font-mono">

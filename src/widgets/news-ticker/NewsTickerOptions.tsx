@@ -75,7 +75,7 @@ export default function NewsTickerOptions({ data, onChange }: WidgetOptionsProps
       </div>
 
       {/* API Configuration */}
-      <div className="space-y-4 border-t border-[var(--ui-item-border)] pt-6">
+      <div className="space-y-4 border-t border-[color:var(--ui-item-border)] pt-6">
         <h3 className="font-semibold text-[var(--ui-text)] text-center">Data Source</h3>
 
         <FormSelect
@@ -133,7 +133,7 @@ export default function NewsTickerOptions({ data, onChange }: WidgetOptionsProps
       </div>
 
       {/* Preview */}
-      <div className="border-t border-[var(--ui-item-border)] pt-6">
+      <div className="border-t border-[color:var(--ui-item-border)] pt-6">
         <h4 className="font-semibold text-[var(--ui-text)] mb-4 text-center">Preview</h4>
         <div className="bg-[var(--color-accent)] rounded-xl overflow-hidden max-w-lg mx-auto">
           <div className="flex items-center">

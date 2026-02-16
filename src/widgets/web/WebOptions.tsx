@@ -61,7 +61,7 @@ export default function WebOptions({ data, onChange }: WidgetOptionsProps) {
       </div>
 
       {/* Preview */}
-      <div className="border-t border-[var(--ui-item-border)] pt-6">
+      <div className="border-t border-[color:var(--ui-item-border)] pt-6">
         <h4 className="font-semibold text-[var(--ui-text)] mb-4">Preview</h4>
         <div className="bg-[var(--ui-item-bg)] rounded-xl aspect-video flex items-center justify-center">
           {state.url ? (

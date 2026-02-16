@@ -95,7 +95,7 @@ export default function BusConnectionOptions({ data, onChange }: WidgetOptionsPr
         />
       </div>
 
-      <div className="border-t border-[var(--ui-item-border)] pt-6">
+      <div className="border-t border-[color:var(--ui-item-border)] pt-6">
         <div className="space-y-4">
           <h3 className="font-semibold text-[var(--ui-text)]">Live Data</h3>
 
@@ -113,7 +113,7 @@ export default function BusConnectionOptions({ data, onChange }: WidgetOptionsPr
         </div>
       </div>
 
-      <div className="border-t border-[var(--ui-item-border)] pt-6">
+      <div className="border-t border-[color:var(--ui-item-border)] pt-6">
         <h4 className="font-semibold text-[var(--ui-text)] mb-4">About</h4>
         <div className="text-sm text-[var(--ui-text-muted)] space-y-2">
           <p>Shows upcoming bus arrivals at UNBC Exchange using BC Transit schedule data.</p>

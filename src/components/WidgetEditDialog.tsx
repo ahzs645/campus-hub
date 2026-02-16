@@ -75,9 +75,9 @@ export default function WidgetEditDialog({
       className="backdrop:bg-[var(--ui-overlay)] bg-transparent fixed inset-0 m-0 p-4 w-full h-full max-w-none max-h-none flex items-center justify-center"
       onClick={handleBackdropClick}
     >
-      <div className="bg-[var(--ui-panel-solid)] border border-[var(--ui-panel-border)] rounded-xl shadow-2xl flex flex-col w-full max-w-2xl max-h-[90vh] text-white">
+      <div className="bg-[var(--ui-panel-solid)] border border-[color:var(--ui-panel-border)] rounded-xl shadow-2xl flex flex-col w-full max-w-2xl max-h-[90vh] text-white">
         {/* Header */}
-        <div className="flex-shrink-0 px-6 py-4 border-b border-[var(--ui-panel-border)]">
+        <div className="flex-shrink-0 px-6 py-4 border-b border-[color:var(--ui-panel-border)]">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <span className="text-2xl">{widgetDef.icon}</span>
@@ -101,7 +101,7 @@ export default function WidgetEditDialog({
         {/* Content - Scrollable */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           {/* Coming Soon Toggle */}
-          <div className="flex items-center justify-between p-3 rounded-lg bg-[var(--ui-panel-soft)] border border-[var(--ui-panel-border)]">
+          <div className="flex items-center justify-between p-3 rounded-lg bg-[var(--ui-panel-soft)] border border-[color:var(--ui-panel-border)]">
             <div>
               <div className="text-sm font-medium text-[var(--ui-text)]">Coming Soon</div>
               <div className="text-xs text-[var(--ui-text-muted)]">Gray out this widget with a &quot;Coming Soon&quot; overlay</div>
@@ -133,7 +133,7 @@ export default function WidgetEditDialog({
         </div>
 
         {/* Footer */}
-        <div className="flex-shrink-0 px-6 py-4 border-t border-[var(--ui-panel-border)] bg-[var(--ui-panel-soft)] rounded-b-xl">
+        <div className="flex-shrink-0 px-6 py-4 border-t border-[color:var(--ui-panel-border)] bg-[var(--ui-panel-soft)] rounded-b-xl">
           <div className="flex justify-end gap-3">
             <button
               onClick={onClose}
