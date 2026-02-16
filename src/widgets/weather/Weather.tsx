@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { WidgetComponentProps, registerWidget } from '@/lib/widget-registry';
 import { buildCacheKey, fetchJsonWithCache } from '@/lib/data-cache';
+import { useFitScale } from '@/hooks/useFitScale';
 import WeatherOptions from './WeatherOptions';
 
 interface WeatherData {
@@ -125,48 +126,67 @@ export default function Weather({ config, theme }: WidgetComponentProps) {
   const displayTemp = weather.temp;
   const tempUnit = units === 'celsius' ? '°C' : '°F';
 
+  // Design at a fixed reference size; useFitScale will scale to fill container
+  const DESIGN_W = 340;
+  const DESIGN_H = 260;
+  const { containerRef, scale } = useFitScale(DESIGN_W, DESIGN_H);
+
   return (
-    <div className="h-full flex flex-col justify-center p-6" style={{ backgroundColor: `${theme.primary}20` }}>
-      {/* Location */}
-      <div className="text-sm font-medium opacity-70 mb-2" style={{ color: theme.accent }}>
-        {weather.location}
+    <div
+      ref={containerRef}
+      className="w-full h-full overflow-hidden"
+      style={{ backgroundColor: `${theme.primary}20` }}
+    >
+      <div
+        style={{
+          width: DESIGN_W,
+          height: DESIGN_H,
+          transform: `scale(${scale})`,
+          transformOrigin: 'top left',
+        }}
+        className="flex flex-col justify-center p-6"
+      >
+        {/* Location */}
+        <div className="text-lg font-medium opacity-70 mb-1" style={{ color: theme.accent }}>
+          {weather.location}
+        </div>
+
+        {/* Main weather display */}
+        <div className="flex items-center gap-4">
+          <span className="text-7xl leading-none">
+            {WEATHER_ICONS[weather.icon] || WEATHER_ICONS.default}
+          </span>
+          <div>
+            <div className="text-6xl font-bold text-white leading-tight">
+              {displayTemp}{tempUnit}
+            </div>
+            <div className="text-lg text-white/70 capitalize">
+              {weather.condition.replace(/-/g, ' ')}
+            </div>
+          </div>
+        </div>
+
+        {/* Details */}
+        {showDetails && (
+          <div className="mt-4 flex gap-5 text-base text-white/60">
+            <div className="flex items-center gap-1.5">
+              <span>💧</span>
+              <span>{weather.humidity}%</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span>💨</span>
+              <span>{weather.wind} mph</span>
+            </div>
+          </div>
+        )}
+
+        {/* Last updated */}
+        {currentTime && (
+          <div className="mt-2 text-sm text-white/40">
+            Updated {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          </div>
+        )}
       </div>
-
-      {/* Main weather display */}
-      <div className="flex items-center gap-4">
-        <span className="text-5xl">
-          {WEATHER_ICONS[weather.icon] || WEATHER_ICONS.default}
-        </span>
-        <div>
-          <div className="text-4xl font-bold text-white">
-            {displayTemp}{tempUnit}
-          </div>
-          <div className="text-sm text-white/70 capitalize">
-            {weather.condition.replace(/-/g, ' ')}
-          </div>
-        </div>
-      </div>
-
-      {/* Details */}
-      {showDetails && (
-        <div className="mt-4 flex gap-4 text-sm text-white/60">
-          <div className="flex items-center gap-1">
-            <span>💧</span>
-            <span>{weather.humidity}%</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <span>💨</span>
-            <span>{weather.wind} mph</span>
-          </div>
-        </div>
-      )}
-
-      {/* Last updated */}
-      {currentTime && (
-        <div className="mt-3 text-xs text-white/40">
-          Updated {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-        </div>
-      )}
     </div>
   );
 }

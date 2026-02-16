@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { WidgetComponentProps, registerWidget } from '@/lib/widget-registry';
+import { useFitScale } from '@/hooks/useFitScale';
 import ClockOptions from './ClockOptions';
 
 interface ClockConfig {
@@ -17,6 +18,10 @@ export default function Clock({ config, theme }: WidgetComponentProps) {
   const showDate = clockConfig?.showDate ?? true;
   const format24h = clockConfig?.format24h ?? false;
 
+  const DESIGN_W = 320;
+  const DESIGN_H = 100;
+  const { containerRef, scale } = useFitScale(DESIGN_W, DESIGN_H);
+
   useEffect(() => {
     setTime(new Date());
     const timer = setInterval(() => setTime(new Date()), 1000);
@@ -25,7 +30,7 @@ export default function Clock({ config, theme }: WidgetComponentProps) {
 
   if (!time) {
     return (
-      <div className="h-full flex flex-col items-end justify-center p-4">
+      <div ref={containerRef} className="h-full flex flex-col items-end justify-center p-4">
         <div className="h-12 w-32 rounded animate-pulse" style={{ backgroundColor: `${theme.accent}20` }} />
       </div>
     );
@@ -39,22 +44,32 @@ export default function Clock({ config, theme }: WidgetComponentProps) {
   };
 
   return (
-    <div className="h-full flex flex-col items-end justify-center p-4 font-clock">
+    <div ref={containerRef} className="w-full h-full overflow-hidden">
       <div
-        className="text-4xl xl:text-5xl font-bold tracking-tight tabular-nums"
-        style={{ color: theme.accent }}
+        style={{
+          width: DESIGN_W,
+          height: DESIGN_H,
+          transform: `scale(${scale})`,
+          transformOrigin: 'top right',
+        }}
+        className="flex flex-col items-end justify-center font-clock px-4 ml-auto"
       >
-        {time.toLocaleTimeString([], timeOptions)}
-      </div>
-      {showDate && (
-        <div className="text-sm xl:text-base opacity-80 mt-1 font-medium tracking-wide text-white/80">
-          {time.toLocaleDateString([], {
-            weekday: 'long',
-            month: 'long',
-            day: 'numeric',
-          })}
+        <div
+          className="text-5xl font-bold tracking-tight tabular-nums"
+          style={{ color: theme.accent }}
+        >
+          {time.toLocaleTimeString([], timeOptions)}
         </div>
-      )}
+        {showDate && (
+          <div className="text-base opacity-80 mt-1 font-medium tracking-wide text-white/80">
+            {time.toLocaleDateString([], {
+              weekday: 'long',
+              month: 'long',
+              day: 'numeric',
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

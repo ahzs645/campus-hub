@@ -148,13 +148,13 @@ export default function EventsList({ config, theme }: WidgetComponentProps) {
   }, [apiUrl, sourceType, corsProxy, cacheTtlSeconds, maxItems]);
 
   return (
-    <div className="h-full flex flex-col min-h-0 p-4">
+    <div className="h-full flex flex-col min-h-0 p-6">
       {/* Header */}
       <h3
-        className="flex-shrink-0 text-lg font-bold mb-4 flex items-center gap-3"
+        className="flex-shrink-0 text-3xl font-bold mb-5 flex items-center gap-4"
         style={{ color: theme.accent }}
       >
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -167,24 +167,24 @@ export default function EventsList({ config, theme }: WidgetComponentProps) {
       </h3>
 
       {/* Events list */}
-      <div className="flex-1 space-y-2 overflow-y-auto min-h-0 hide-scrollbar pr-1">
+      <div className="flex-1 space-y-3 overflow-y-auto min-h-0 hide-scrollbar pr-1">
         {events.slice(0, maxItems).map((event, index) => (
           <div
             key={event.id ?? index}
-            className="p-3 rounded-xl border-l-4 transition-all duration-300 hover:translate-x-1"
+            className="p-5 rounded-xl border-l-4 transition-all duration-300 hover:translate-x-1"
             style={{
               backgroundColor: `${theme.primary}50`,
               borderColor: theme.accent,
               animationDelay: `${index * 50}ms`,
             }}
           >
-            <div className="font-semibold text-white text-sm leading-snug">
+            <div className="font-semibold text-white text-xl leading-snug">
               {event.title}
             </div>
-            <div className="text-xs opacity-90 flex items-center gap-2 mt-1.5 flex-wrap">
+            <div className="text-base opacity-90 flex items-center gap-3 mt-2 flex-wrap">
               {event.date && (
                 <span
-                  className="font-bold px-2 py-0.5 rounded"
+                  className="font-bold px-3 py-1 rounded text-base"
                   style={{ backgroundColor: `${theme.accent}20`, color: theme.accent }}
                 >
                   {event.date}
@@ -192,8 +192,8 @@ export default function EventsList({ config, theme }: WidgetComponentProps) {
               )}
               {event.time && <span className="text-white/70">{event.time}</span>}
               {event.location && (
-                <span className="text-white/50 flex items-center gap-1">
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <span className="text-white/50 flex items-center gap-1.5">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path
                       strokeLinecap="round"
                       strokeLinejoin="round"

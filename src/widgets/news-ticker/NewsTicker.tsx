@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { WidgetComponentProps, registerWidget } from '@/lib/widget-registry';
 import { buildCacheKey, fetchJsonWithCache, fetchTextWithCache } from '@/lib/data-cache';
 import { parseRss } from '@/lib/feeds';
@@ -95,49 +95,82 @@ export default function NewsTicker({ config, theme }: WidgetComponentProps) {
 
   const tickerContent = [...items, ...items]; // Duplicate for seamless loop
 
-  return (
-    <div className="relative overflow-hidden h-full" style={{ backgroundColor: theme.accent }}>
-      {/* Breaking News Label */}
-      <div
-        className="absolute left-0 top-0 bottom-0 z-10 flex items-center px-6 font-bold text-sm uppercase tracking-widest"
-        style={{ backgroundColor: theme.primary, color: theme.accent }}
-      >
-        <span className="relative flex h-2 w-2 mr-3">
-          <span
-            className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75"
-            style={{ backgroundColor: theme.accent }}
-          />
-          <span
-            className="relative inline-flex rounded-full h-2 w-2"
-            style={{ backgroundColor: theme.accent }}
-          />
-        </span>
-        {label}
-      </div>
+  // Uniformly scale the ticker to fill its row height (designed at 70px)
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [fitScale, setFitScale] = useState(1);
 
-      {/* Scrolling Content */}
+  const updateScale = useCallback(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    setFitScale(el.clientHeight / 70);
+  }, []);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    updateScale();
+    const ro = new ResizeObserver(updateScale);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [updateScale]);
+
+  return (
+    <div
+      ref={containerRef}
+      className="relative overflow-hidden h-full"
+      style={{ backgroundColor: theme.accent }}
+    >
       <div
-        className="flex whitespace-nowrap py-4 pl-40 items-center animate-ticker"
         style={{
-          animationDuration: `${speed}s`,
+          transform: `scale(${fitScale})`,
+          transformOrigin: 'top left',
+          width: `${100 / fitScale}%`,
+          height: `${100 / fitScale}%`,
         }}
+        className="relative"
       >
-        {tickerContent.map((item, idx) => (
-          <div key={`${item.id}-${idx}`} className="inline-flex items-center mx-8">
+        {/* Breaking News Label */}
+        <div
+          className="absolute left-0 top-0 bottom-0 z-10 flex items-center px-8 font-bold text-lg uppercase tracking-widest"
+          style={{ backgroundColor: theme.primary, color: theme.accent }}
+        >
+          <span className="relative flex h-3 w-3 mr-3">
             <span
-              className="px-3 py-1 rounded-full text-xs font-bold uppercase mr-3 tracking-wide"
-              style={{ backgroundColor: theme.primary, color: theme.accent }}
-            >
-              {item.label}
-            </span>
-            <span className="font-semibold text-base" style={{ color: theme.primary }}>
-              {item.text}
-            </span>
-            <span className="mx-8 text-2xl" style={{ color: `${theme.primary}50` }}>
-              •
-            </span>
-          </div>
-        ))}
+              className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75"
+              style={{ backgroundColor: theme.accent }}
+            />
+            <span
+              className="relative inline-flex rounded-full h-3 w-3"
+              style={{ backgroundColor: theme.accent }}
+            />
+          </span>
+          {label}
+        </div>
+
+        {/* Scrolling Content */}
+        <div
+          className="flex whitespace-nowrap py-4 pl-48 items-center animate-ticker h-full"
+          style={{
+            animationDuration: `${speed}s`,
+          }}
+        >
+          {tickerContent.map((item, idx) => (
+            <div key={`${item.id}-${idx}`} className="inline-flex items-center mx-10">
+              <span
+                className="px-4 py-1.5 rounded-full text-sm font-bold uppercase mr-4 tracking-wide"
+                style={{ backgroundColor: theme.primary, color: theme.accent }}
+              >
+                {item.label}
+              </span>
+              <span className="font-semibold text-xl" style={{ color: theme.primary }}>
+                {item.text}
+              </span>
+              <span className="mx-10 text-3xl" style={{ color: `${theme.primary}50` }}>
+                •
+              </span>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
