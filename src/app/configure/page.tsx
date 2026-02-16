@@ -476,6 +476,29 @@ export default function ConfigurePage() {
               )}
             </div>
 
+            {/* Coming Soon Toggle */}
+            <div className="flex items-center justify-between">
+              <div>
+                <label className="block text-sm font-medium text-white/80">Coming Soon</label>
+                <p className="text-xs text-white/40">Blur entire display with a &quot;Coming Soon&quot; overlay</p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={!!config.comingSoon}
+                onClick={() => setConfig((prev) => ({ ...prev, comingSoon: !prev.comingSoon || undefined }))}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors flex-shrink-0 ${
+                  config.comingSoon ? 'bg-[var(--ui-switch-on)]' : 'bg-[var(--ui-switch-off)]'
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    config.comingSoon ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
+
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-sm text-white/60 mb-1">Primary</label>

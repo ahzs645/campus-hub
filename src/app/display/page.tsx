@@ -239,9 +239,21 @@ function DisplayContent() {
         </div>
       )}
 
+      {/* Full-page Coming Soon overlay */}
+      {config.comingSoon && !loading && (
+        <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <span
+            className="text-3xl font-bold tracking-widest uppercase px-8 py-4 rounded-2xl backdrop-blur-sm"
+            style={{ color: config.theme.accent, backgroundColor: `${config.theme.primary}80` }}
+          >
+            Coming Soon
+          </span>
+        </div>
+      )}
+
       {/* CSS Grid Layout - 12 columns */}
       <div
-        className="flex-1 p-4 gap-4 min-h-0"
+        className={`flex-1 p-4 gap-4 min-h-0${config.comingSoon ? ' blur-sm grayscale pointer-events-none select-none' : ''}`}
         style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(12, 1fr)',

@@ -37,6 +37,7 @@ export interface DisplayConfig {
   };
   schoolName: string;
   tickerEnabled: boolean;
+  comingSoon?: boolean;
   gridRows?: number;
   logo?: LogoConfig;
 }
@@ -88,6 +89,7 @@ export function normalizeConfig(raw: Partial<DisplayConfig> | null | undefined):
         : DEFAULT_CONFIG.schoolName,
     tickerEnabled:
       typeof safe.tickerEnabled === 'boolean' ? safe.tickerEnabled : DEFAULT_CONFIG.tickerEnabled,
+    comingSoon: safe.comingSoon === true ? true : undefined,
     gridRows:
       typeof safe.gridRows === 'number' && Number.isFinite(safe.gridRows)
         ? safe.gridRows
