@@ -2,17 +2,10 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { WidgetComponentProps, registerWidget } from '@/lib/widget-registry';
-import { buildCacheKey, fetchJsonWithCache, fetchTextWithCache } from '@/lib/data-cache';
-import { parseICal, parseRss } from '@/lib/feeds';
+import { useEvents, type CalendarEvent } from '@/hooks/useEvents';
 import EventsListOptions from './EventsListOptions';
 
-interface Event {
-  id: string | number;
-  title: string;
-  date?: string;
-  time?: string;
-  location?: string;
-}
+type Event = CalendarEvent;
 
 type DisplayMode = 'scroll' | 'ticker' | 'paginate';
 
@@ -42,21 +35,6 @@ const CARD_HEIGHT = 120;
 // padding (24+24) + header+mb (56+20) + progress+dots (4+12+10+16) = ~166px
 const CHROME_HEIGHT = 170;
 
-const applyCorsProxy = (url: string, corsProxy?: string) => {
-  if (!corsProxy) return url;
-  return `${corsProxy}${url}`;
-};
-
-const formatDate = (value: Date | null): string => {
-  if (!value) return '';
-  return value.toLocaleDateString([], { month: 'short', day: 'numeric' });
-};
-
-const formatTime = (value: Date | null): string => {
-  if (!value) return '';
-  return value.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-};
-
 export default function EventsList({ config, theme }: WidgetComponentProps) {
   const eventsConfig = config as EventsListConfig | undefined;
   const apiUrl = eventsConfig?.apiUrl;
@@ -68,7 +46,16 @@ export default function EventsList({ config, theme }: WidgetComponentProps) {
   const displayMode = eventsConfig?.displayMode ?? 'scroll';
   const rotationSeconds = eventsConfig?.rotationSeconds ?? 5;
 
-  const [events, setEvents] = useState<Event[]>(eventsConfig?.events ?? DEFAULT_EVENTS);
+  const events = useEvents({
+    apiUrl,
+    sourceType,
+    corsProxy,
+    cacheTtlSeconds,
+    maxItems,
+    pollIntervalMs: 30_000,
+    defaultEvents: eventsConfig?.events ?? DEFAULT_EVENTS,
+  });
+
   const [currentIndex, setCurrentIndex] = useState(0);
   const [itemsPerPage, setItemsPerPage] = useState(3);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -92,95 +79,6 @@ export default function EventsList({ config, theme }: WidgetComponentProps) {
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
-
-  /* ---------- data fetching ---------- */
-
-  useEffect(() => {
-    if (apiUrl) return;
-    setEvents(eventsConfig?.events ?? DEFAULT_EVENTS);
-  }, [apiUrl, eventsConfig?.events]);
-
-  useEffect(() => {
-    if (!apiUrl) return;
-
-    let isMounted = true;
-    const fetchEvents = async () => {
-      try {
-        const fetchUrl = applyCorsProxy(apiUrl, corsProxy);
-        if (sourceType === 'ical') {
-          const { text } = await fetchTextWithCache(fetchUrl, {
-            cacheKey: buildCacheKey('events-ical', fetchUrl),
-            ttlMs: cacheTtlSeconds * 1000,
-          });
-          const parsed = parseICal(text);
-          const mapped = parsed.map((event, index) => {
-            const isAllDay = event.startRaw?.trim().length === 8;
-            return {
-              id: event.uid ?? `${event.summary}-${index}`,
-              title: event.summary,
-              date: formatDate(event.start ?? null),
-              time: isAllDay ? '' : formatTime(event.start ?? null),
-              location: event.location ?? '',
-            } satisfies Event;
-          });
-          if (isMounted) setEvents(mapped.slice(0, maxItems));
-          return;
-        }
-
-        if (sourceType === 'rss') {
-          const { text } = await fetchTextWithCache(fetchUrl, {
-            cacheKey: buildCacheKey('events-rss', fetchUrl),
-            ttlMs: cacheTtlSeconds * 1000,
-          });
-          const parsed = parseRss(text);
-          const mapped = parsed.map((item, index) => {
-            const dateObj = item.pubDate ? new Date(item.pubDate) : null;
-            return {
-              id: item.guid ?? item.link ?? `${item.title}-${index}`,
-              title: item.title,
-              date: formatDate(dateObj),
-              time: formatTime(dateObj),
-              location: item.categories?.[0] ?? '',
-            } satisfies Event;
-          });
-          if (isMounted) setEvents(mapped.slice(0, maxItems));
-          return;
-        }
-
-        const { data } = await fetchJsonWithCache<Record<string, unknown>[] | { events: Record<string, unknown>[] }>(fetchUrl, {
-          cacheKey: buildCacheKey('events-json', fetchUrl),
-          ttlMs: cacheTtlSeconds * 1000,
-        });
-        const list = Array.isArray(data) ? data : data.events;
-        if (Array.isArray(list) && isMounted) {
-          const normalized = list.map((item, index) => {
-            if (item.date && typeof item.date === 'string' && !/^\d{4}-/.test(item.date)) {
-              return { ...item, id: (item.id as string | number) ?? `${item.title}-${index}` } as unknown as Event;
-            }
-            const rawStart = (item.startDate ?? item.start_date ?? item.start ?? item.date) as string | undefined;
-            const startObj = rawStart ? new Date(rawStart) : null;
-            return {
-              id: (item.id as string | number) ?? `${item.title}-${index}`,
-              title: item.title as string,
-              date: formatDate(startObj),
-              time: startObj && !isNaN(startObj.getTime()) ? formatTime(startObj) : '',
-              location: (item.location ?? '') as string,
-            } satisfies Event;
-          });
-          setEvents(normalized.slice(0, maxItems));
-        }
-      } catch (error) {
-        console.error('Failed to fetch events:', error);
-      }
-    };
-
-    fetchEvents();
-    const interval = setInterval(fetchEvents, 30000);
-    return () => {
-      isMounted = false;
-      clearInterval(interval);
-    };
-  }, [apiUrl, sourceType, corsProxy, cacheTtlSeconds, maxItems]);
 
   /* ---------- ticker / paginate logic ---------- */
 

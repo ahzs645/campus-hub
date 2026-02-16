@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { WidgetComponentProps, registerWidget } from '@/lib/widget-registry';
 import { buildCacheKey, fetchJsonWithCache, fetchTextWithCache } from '@/lib/data-cache';
 import { parseRss } from '@/lib/feeds';
+import { useEvents, applyCorsProxy, type CalendarEvent } from '@/hooks/useEvents';
 import NewsTickerOptions from './NewsTickerOptions';
 
 interface TickerItem {
@@ -20,6 +21,12 @@ interface NewsTickerConfig {
   items?: TickerItem[];
   speed?: number;
   label?: string;
+  dataSource?: 'announcements' | 'events';
+  eventApiUrl?: string;
+  eventSourceType?: 'json' | 'ical' | 'rss';
+  eventCorsProxy?: string;
+  eventCacheTtlSeconds?: number;
+  eventMaxItems?: number;
 }
 
 const DEFAULT_TICKER_ITEMS: TickerItem[] = [
@@ -30,10 +37,21 @@ const DEFAULT_TICKER_ITEMS: TickerItem[] = [
   { id: 5, label: 'EVENT', text: 'Free pizza at Student Center — 12PM today while supplies last' },
 ];
 
-const applyCorsProxy = (url: string, corsProxy?: string) => {
-  if (!corsProxy) return url;
-  return `${corsProxy}${url}`;
-};
+const DEFAULT_TICKER_EVENTS: CalendarEvent[] = [
+  { id: 1, title: 'Club Fair', date: 'Mar 10', time: '11:00 AM', location: 'Student Center' },
+  { id: 2, title: 'Guest Lecture: AI Ethics', date: 'Mar 11', time: '2:00 PM', location: 'Hall B' },
+  { id: 3, title: 'Open Mic Night', date: 'Mar 12', time: '7:00 PM', location: 'Coffee House' },
+  { id: 4, title: 'Study Abroad Info Session', date: 'Mar 13', time: '3:30 PM', location: 'Room 204' },
+  { id: 5, title: 'Yoga on the Lawn', date: 'Mar 14', time: '8:00 AM', location: 'West Lawn' },
+];
+
+const EVENT_DOT_COLORS = [
+  '#6366f1', // blue
+  '#f43f5e', // rose
+  '#f59e0b', // amber
+  '#10b981', // emerald
+  '#06b6d4', // cyan
+];
 
 export default function NewsTicker({ config, theme }: WidgetComponentProps) {
   const tickerConfig = config as NewsTickerConfig | undefined;
@@ -43,16 +61,18 @@ export default function NewsTicker({ config, theme }: WidgetComponentProps) {
   const cacheTtlSeconds = tickerConfig?.cacheTtlSeconds ?? 120;
   const speed = tickerConfig?.speed ?? 30;
   const label = tickerConfig?.label ?? 'Breaking';
+  const dataSource = tickerConfig?.dataSource ?? 'announcements';
 
+  // Announcement items state
   const [items, setItems] = useState<TickerItem[]>(tickerConfig?.items ?? DEFAULT_TICKER_ITEMS);
 
   useEffect(() => {
-    if (apiUrl) return;
+    if (dataSource !== 'announcements' || apiUrl) return;
     setItems(tickerConfig?.items ?? DEFAULT_TICKER_ITEMS);
-  }, [apiUrl, tickerConfig?.items]);
+  }, [dataSource, apiUrl, tickerConfig?.items]);
 
   useEffect(() => {
-    if (!apiUrl) return;
+    if (dataSource !== 'announcements' || !apiUrl) return;
     let isMounted = true;
 
     const fetchTicker = async () => {
@@ -91,9 +111,22 @@ export default function NewsTicker({ config, theme }: WidgetComponentProps) {
       isMounted = false;
       clearInterval(interval);
     };
-  }, [apiUrl, sourceType, corsProxy, cacheTtlSeconds, label]);
+  }, [dataSource, apiUrl, sourceType, corsProxy, cacheTtlSeconds, label]);
 
-  const tickerContent = [...items, ...items]; // Duplicate for seamless loop
+  // Events data via shared hook
+  const events = useEvents({
+    apiUrl: dataSource === 'events' ? tickerConfig?.eventApiUrl : undefined,
+    sourceType: tickerConfig?.eventSourceType ?? 'json',
+    corsProxy: tickerConfig?.eventCorsProxy?.trim(),
+    cacheTtlSeconds: tickerConfig?.eventCacheTtlSeconds ?? 300,
+    maxItems: tickerConfig?.eventMaxItems ?? 10,
+    pollIntervalMs: 30_000,
+    defaultEvents: DEFAULT_TICKER_EVENTS,
+  });
+
+  const isEventsMode = dataSource === 'events';
+  const tickerContent = isEventsMode ? [] : [...items, ...items];
+  const tickerEvents = isEventsMode ? [...events, ...events] : [];
 
   // Uniformly scale the ticker to fill its row height (designed at 70px)
   const containerRef = useRef<HTMLDivElement>(null);
@@ -129,7 +162,7 @@ export default function NewsTicker({ config, theme }: WidgetComponentProps) {
         }}
         className="relative"
       >
-        {/* Breaking News Label */}
+        {/* Label */}
         <div
           className="absolute left-0 top-0 bottom-0 z-10 flex items-center px-8 font-bold text-lg uppercase tracking-widest"
           style={{ backgroundColor: theme.primary, color: theme.accent }}
@@ -154,22 +187,63 @@ export default function NewsTicker({ config, theme }: WidgetComponentProps) {
             animationDuration: `${speed}s`,
           }}
         >
-          {tickerContent.map((item, idx) => (
-            <div key={`${item.id}-${idx}`} className="inline-flex items-center mx-10">
-              <span
-                className="px-4 py-1.5 rounded-full text-sm font-bold uppercase mr-4 tracking-wide"
-                style={{ backgroundColor: theme.primary, color: theme.accent }}
-              >
-                {item.label}
-              </span>
-              <span className="font-semibold text-xl" style={{ color: theme.primary }}>
-                {item.text}
-              </span>
-              <span className="mx-10 text-3xl" style={{ color: `${theme.primary}50` }}>
-                •
-              </span>
-            </div>
-          ))}
+          {isEventsMode
+            ? tickerEvents.map((event, idx) => (
+                <div key={`${event.id}-${idx}`} className="inline-flex items-center mx-6 gap-3">
+                  {event.time && (
+                    <span
+                      className="px-3 py-1.5 rounded-lg text-sm font-bold tracking-wide whitespace-nowrap"
+                      style={{
+                        backgroundColor: theme.primary,
+                        color: theme.accent,
+                      }}
+                    >
+                      {event.time}
+                    </span>
+                  )}
+                  <span
+                    className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                    style={{
+                      backgroundColor: EVENT_DOT_COLORS[idx % EVENT_DOT_COLORS.length],
+                      boxShadow: `0 0 8px ${EVENT_DOT_COLORS[idx % EVENT_DOT_COLORS.length]}80`,
+                    }}
+                  />
+                  <span
+                    className="font-semibold text-xl whitespace-nowrap"
+                    style={{ color: theme.primary }}
+                  >
+                    {event.title}
+                  </span>
+                  {event.date && (
+                    <span
+                      className="text-sm opacity-60 whitespace-nowrap"
+                      style={{ color: theme.primary }}
+                    >
+                      {event.date}
+                    </span>
+                  )}
+                  <span className="mx-6 text-3xl" style={{ color: `${theme.primary}50` }}>
+                    &bull;
+                  </span>
+                </div>
+              ))
+            : tickerContent.map((item, idx) => (
+                <div key={`${item.id}-${idx}`} className="inline-flex items-center mx-10">
+                  <span
+                    className="px-4 py-1.5 rounded-full text-sm font-bold uppercase mr-4 tracking-wide"
+                    style={{ backgroundColor: theme.primary, color: theme.accent }}
+                  >
+                    {item.label}
+                  </span>
+                  <span className="font-semibold text-xl" style={{ color: theme.primary }}>
+                    {item.text}
+                  </span>
+                  <span className="mx-10 text-3xl" style={{ color: `${theme.primary}50` }}>
+                    &bull;
+                  </span>
+                </div>
+              ))
+          }
         </div>
       </div>
     </div>
@@ -191,8 +265,13 @@ registerWidget({
   defaultProps: {
     speed: 30,
     label: 'Breaking',
+    dataSource: 'announcements',
     sourceType: 'json',
     cacheTtlSeconds: 120,
     corsProxy: '',
+    eventSourceType: 'json',
+    eventCacheTtlSeconds: 300,
+    eventCorsProxy: '',
+    eventMaxItems: 10,
   },
 });
