@@ -81,20 +81,22 @@ export default function BusConnection({ config, theme }: WidgetComponentProps) {
     loadPixollettaFont().then(() => setFontReady(true));
   }, []);
 
+  // Live or simulated data provider
   useEffect(() => {
     const provider = createLiveTripProvider(
       (updatedTrips) => setTrips(updatedTrips),
-      proxyUrl,
+      simulate ? undefined : proxyUrl,
       () => simTimeRef.current
     );
     provider.start();
     return () => provider.stop();
   }, [proxyUrl, simulate]);
 
-  // Re-fetch when simulated time changes
+  // Re-fetch immediately when simulated time params change
   useEffect(() => {
     if (simulatedTime) {
-      setTrips(getScheduledTrips(simulatedTime));
+      const scheduled = getScheduledTrips(simulatedTime);
+      setTrips(scheduled);
     }
   }, [simulatedTime]);
 

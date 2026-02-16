@@ -56,6 +56,15 @@ export default function EditableWidget({ widget, theme, onEdit, onDelete }: Edit
     setShowDeleteConfirm(false);
   };
 
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Create a zero-size rect at cursor position so the menu appears there
+    anchorRectRef.current = new DOMRect(e.clientX, e.clientY, 0, 0);
+    setShowMenu(true);
+    setShowDeleteConfirm(false);
+  };
+
   useEffect(() => {
     if (!showMenu) return;
 
@@ -67,7 +76,8 @@ export default function EditableWidget({ widget, theme, onEdit, onDelete }: Edit
       const menuRect = menuEl.getBoundingClientRect();
       const padding = 8;
 
-      let top = anchorRect.bottom + 8;
+      // If anchor has zero size (right-click), position at cursor; otherwise below the button
+      let top = anchorRect.height === 0 ? anchorRect.top : anchorRect.bottom + 8;
       let left = anchorRect.left;
 
       if (left + menuRect.width + padding > window.innerWidth) {
@@ -181,7 +191,7 @@ export default function EditableWidget({ widget, theme, onEdit, onDelete }: Edit
   );
 
   return (
-    <div className="h-full relative group">
+    <div className="h-full relative group" onContextMenu={handleContextMenu}>
       {/* Widget Content */}
       <div className="h-full rounded-xl overflow-hidden" style={{ backgroundColor: `${theme.primary}40` }}>
         <WidgetComponent config={widget.props} theme={theme} />
@@ -194,14 +204,14 @@ export default function EditableWidget({ widget, theme, onEdit, onDelete }: Edit
       <button
         ref={buttonRef}
         onClick={handleMenuClick}
-        className={`absolute top-1 right-1 z-30 p-1.5 rounded-lg transition-all ${
+        className={`absolute top-3 right-3 z-30 p-2.5 rounded-xl transition-all ${
           showMenu
             ? 'bg-white text-gray-900'
             : 'bg-black/70 text-white opacity-0 group-hover:opacity-100 hover:bg-black/90'
         }`}
         title="Widget options"
       >
-        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+        <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
           <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z" />
         </svg>
       </button>

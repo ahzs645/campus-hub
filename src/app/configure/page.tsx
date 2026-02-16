@@ -819,7 +819,15 @@ export default function ConfigurePage() {
             style={{ backgroundColor: config.theme.background }}
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 className="font-bold text-lg">Share URL</h2>
+            <div className="flex items-center justify-between">
+              <h2 className="font-bold text-lg">Share URL</h2>
+              <button
+                onClick={() => setShowShareModal(false)}
+                className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-[var(--ui-item-hover)] text-white/60 hover:text-white transition-colors"
+              >
+                ✕
+              </button>
+            </div>
             <div className="space-y-2">
               <input
                 type="text"
@@ -827,6 +835,7 @@ export default function ConfigurePage() {
                 readOnly
                 className="w-full px-3 py-2 rounded-lg bg-[var(--ui-item-bg)] border border-[color:var(--ui-item-border)] text-xs font-mono"
               />
+              <p className="text-xs text-white/40">{shareUrl.length.toLocaleString()} characters</p>
               <button
                 onClick={copyUrl}
                 className="w-full py-2 rounded-lg bg-[var(--ui-item-bg)] hover:bg-[var(--ui-item-hover)] text-sm font-medium"
