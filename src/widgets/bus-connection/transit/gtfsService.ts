@@ -1,10 +1,11 @@
 /**
  * GTFS Service for Prince George Transit - UNBC Exchange
  *
- * Uses static schedule data to provide upcoming trip information.
+ * Combines static schedule data with optional GTFS-realtime trip updates.
  */
 
-import { ROUTES, STOP_SCHEDULE, SERVICE_DATES } from './gtfsData';
+import GtfsRealtimeBindings from 'gtfs-realtime-bindings';
+import { ROUTES, STOP_SCHEDULE, SERVICE_DATES, STOP_INFO } from './gtfsData';
 
 const POLL_INTERVAL = 30000;
 
@@ -78,12 +79,94 @@ export function getScheduledTrips(simulatedNow: Date | null = null): Trip[] {
   return trips;
 }
 
-export function createLiveTripProvider(onUpdate: (trips: Trip[]) => void) {
-  let intervalId: ReturnType<typeof setInterval> | null = null;
+interface RealtimeUpdate {
+  arrivalDelay: number;
+  departureDelay: number;
+  arrivalTime: number | null;
+  departureTime: number | null;
+}
 
-  function refresh() {
+async function fetchRealtimeUpdates(proxyUrl: string): Promise<Map<string, RealtimeUpdate>> {
+  try {
+    const url = proxyUrl.endsWith('/')
+      ? `${proxyUrl}tripupdates.pb?operatorIds=22`
+      : `${proxyUrl}/tripupdates.pb?operatorIds=22`;
+
+    const res = await fetch(url);
+    if (!res.ok) return new Map();
+
+    const buffer = await res.arrayBuffer();
+    const feed = GtfsRealtimeBindings.transit_realtime.FeedMessage.decode(
+      new Uint8Array(buffer)
+    );
+
+    const updates = new Map<string, RealtimeUpdate>();
+
+    for (const entity of feed.entity) {
+      if (!entity.tripUpdate) continue;
+
+      const tripId = entity.tripUpdate.trip?.tripId;
+      if (!tripId) continue;
+
+      for (const stu of entity.tripUpdate.stopTimeUpdate || []) {
+        if (String(stu.stopId) === STOP_INFO.stopId) {
+          const arrivalTime = stu.arrival?.time;
+          const departureTime = stu.departure?.time;
+          updates.set(tripId, {
+            arrivalDelay: stu.arrival?.delay ?? 0,
+            departureDelay: stu.departure?.delay ?? 0,
+            arrivalTime: arrivalTime ? Number(arrivalTime) : null,
+            departureTime: departureTime ? Number(departureTime) : null,
+          });
+          break;
+        }
+      }
+    }
+
+    return updates;
+  } catch (err) {
+    console.warn('Failed to fetch realtime updates:', err);
+    return new Map();
+  }
+}
+
+function applyRealtimeUpdates(trips: Trip[], rtUpdates: Map<string, RealtimeUpdate>): Trip[] {
+  return trips.map(trip => {
+    const update = rtUpdates.get(trip.tripId);
+    if (!update) return trip;
+
+    if (update.arrivalTime) {
+      return {
+        ...trip,
+        arrivalTime: update.arrivalTime * 1000,
+        departureTime: (update.departureTime || update.arrivalTime) * 1000,
+        isRealtime: true,
+      };
+    }
+
+    return {
+      ...trip,
+      arrivalTime: trip.arrivalTime + update.arrivalDelay * 1000,
+      departureTime: trip.departureTime + update.departureDelay * 1000,
+      isRealtime: true,
+    };
+  });
+}
+
+export function createLiveTripProvider(
+  onUpdate: (trips: Trip[]) => void,
+  proxyUrl?: string
+) {
+  let intervalId: ReturnType<typeof setInterval> | null = null;
+  let rtUpdates = new Map<string, RealtimeUpdate>();
+
+  async function refresh() {
+    if (proxyUrl) {
+      rtUpdates = await fetchRealtimeUpdates(proxyUrl);
+    }
     const scheduled = getScheduledTrips();
-    onUpdate(scheduled);
+    const merged = proxyUrl ? applyRealtimeUpdates(scheduled, rtUpdates) : scheduled;
+    onUpdate(merged);
   }
 
   return {

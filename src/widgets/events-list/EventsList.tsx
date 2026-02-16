@@ -119,7 +119,7 @@ export default function EventsList({ config, theme }: WidgetComponentProps) {
           const normalized = list.map((item, index) => {
             // If the event already has date/time strings, use as-is
             if (item.date && typeof item.date === 'string' && !/^\d{4}-/.test(item.date)) {
-              return item as unknown as Event;
+              return { ...item, id: (item.id as string | number) ?? `${item.title}-${index}` } as unknown as Event;
             }
             // Normalize events with ISO startDate/endDate (e.g. WordPress REST APIs)
             const rawStart = (item.startDate ?? item.start_date ?? item.start ?? item.date) as string | undefined;
@@ -170,7 +170,7 @@ export default function EventsList({ config, theme }: WidgetComponentProps) {
       <div className="flex-1 space-y-2 overflow-y-auto min-h-0 hide-scrollbar pr-1">
         {events.slice(0, maxItems).map((event, index) => (
           <div
-            key={event.id}
+            key={event.id ?? index}
             className="p-3 rounded-xl border-l-4 transition-all duration-300 hover:translate-x-1"
             style={{
               backgroundColor: `${theme.primary}50`,
