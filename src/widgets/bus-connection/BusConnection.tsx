@@ -11,15 +11,13 @@ import BusConnectionOptions from './BusConnectionOptions';
 interface BusConnectionConfig {
   glow?: boolean;
   scrollHeadsigns?: boolean;
-  displayHeight?: number;
+  pixelPitch?: number;
   padding?: number;
   proxyUrl?: string;
   simulate?: boolean;
   simMode?: 'weekday' | 'saturday';
   simTime?: number;
 }
-
-const DISPLAY_WIDTH = 128;
 
 function findWeekdayDate(): string | null {
   return SERVICE_DATES['4795']?.[0] || null;
@@ -42,7 +40,7 @@ export default function BusConnection({ config, theme }: WidgetComponentProps) {
   const busConfig = config as BusConnectionConfig | undefined;
   const glow = busConfig?.glow ?? true;
   const scrollHeadsigns = busConfig?.scrollHeadsigns ?? true;
-  const displayHeight = busConfig?.displayHeight ?? 32;
+  const pixelPitch = busConfig?.pixelPitch ?? 6;
   const padding = busConfig?.padding ?? 8;
   const proxyUrl = busConfig?.proxyUrl?.trim() || undefined;
   const simulate = busConfig?.simulate ?? false;
@@ -62,18 +60,47 @@ export default function BusConnection({ config, theme }: WidgetComponentProps) {
   const simTimeRef = useRef(simulatedTime);
   simTimeRef.current = simulatedTime;
 
+  // Compute simulation trips synchronously (no effect delay)
+  const simulatedTrips = useMemo(() => {
+    if (!simulatedTime) return null;
+    return getScheduledTrips(simulatedTime);
+  }, [simulatedTime]);
+
   const [fontReady, setFontReady] = useState(false);
-  const [trips, setTrips] = useState<Trip[]>([]);
+  const [liveTrips, setLiveTrips] = useState<Trip[]>([]);
   const startTimeRef = useRef(Date.now());
-  const tripsRef = useRef(trips);
-  tripsRef.current = trips;
+  const tripsRef = useRef<Trip[]>([]);
+  // Use simulated trips when available, otherwise live trips
+  tripsRef.current = simulatedTrips ?? liveTrips;
+
+  // Derive virtual pixel grid from container size and pixel pitch
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const [displaySize, setDisplaySize] = useState<{ w: number; h: number } | null>(null);
+
+  useEffect(() => {
+    const el = wrapperRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver((entries) => {
+      const { width, height } = entries[0].contentRect;
+      if (width === 0 || height === 0) return;
+      const w = Math.floor(width / pixelPitch);
+      const h = Math.floor(height / pixelPitch);
+      if (w < 1 || h < 1) return;
+      setDisplaySize(prev => (prev && prev.w === w && prev.h === h) ? prev : { w, h });
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [pixelPitch]);
+
+  const displayW = displaySize?.w ?? 64;
+  const displayH = displaySize?.h ?? 16;
 
   const { containerRef, rendererRef } = usePixelDisplay({
-    width: DISPLAY_WIDTH,
-    height: displayHeight,
+    width: displayW,
+    height: displayH,
     renderer: 'imagedata',
     glow,
-    scale: 6,
+    scale: pixelPitch,
     pixelGap: 0.15,
   });
 
@@ -81,27 +108,19 @@ export default function BusConnection({ config, theme }: WidgetComponentProps) {
     loadPixollettaFont().then(() => setFontReady(true));
   }, []);
 
-  // Live or simulated data provider
+  // Live data provider (only active when not simulating)
   useEffect(() => {
+    if (simulate) return;
     const provider = createLiveTripProvider(
-      (updatedTrips) => setTrips(updatedTrips),
-      simulate ? undefined : proxyUrl,
-      () => simTimeRef.current
+      (updatedTrips) => setLiveTrips(updatedTrips),
+      proxyUrl
     );
     provider.start();
     return () => provider.stop();
   }, [proxyUrl, simulate]);
 
-  // Re-fetch immediately when simulated time params change
   useEffect(() => {
-    if (simulatedTime) {
-      const scheduled = getScheduledTrips(simulatedTime);
-      setTrips(scheduled);
-    }
-  }, [simulatedTime]);
-
-  useEffect(() => {
-    if (!fontReady) return;
+    if (!fontReady || !displaySize) return;
 
     let running = true;
     let animId: number;
@@ -119,7 +138,7 @@ export default function BusConnection({ config, theme }: WidgetComponentProps) {
       const currentTrips = tripsRef.current.filter(t => t.arrivalTime > now - 30000);
 
       const pixels = renderTransitDisplay(
-        currentTrips, DISPLAY_WIDTH, displayHeight, now, uptimeMs, null, scrollHeadsigns
+        currentTrips, displayW, displayH, now, uptimeMs, null, scrollHeadsigns
       );
 
       rendererRef.current.setData(pixels);
@@ -133,7 +152,7 @@ export default function BusConnection({ config, theme }: WidgetComponentProps) {
       running = false;
       cancelAnimationFrame(animId);
     };
-  }, [fontReady, displayHeight, glow, scrollHeadsigns, rendererRef]);
+  }, [fontReady, displaySize, displayW, displayH, glow, scrollHeadsigns, rendererRef]);
 
   return (
     <div
@@ -146,10 +165,19 @@ export default function BusConnection({ config, theme }: WidgetComponentProps) {
       }}
     >
       <div
-        ref={containerRef}
+        ref={wrapperRef}
         className="w-full h-full"
-        style={{ lineHeight: 0 }}
-      />
+        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+      >
+        <div
+          ref={containerRef}
+          style={{
+            lineHeight: 0,
+            width: displayW * pixelPitch,
+            height: displayH * pixelPitch,
+          }}
+        />
+      </div>
     </div>
   );
 }
@@ -170,7 +198,7 @@ registerWidget({
   defaultProps: {
     glow: true,
     scrollHeadsigns: true,
-    displayHeight: 32,
+    pixelPitch: 6,
     padding: 8,
     proxyUrl: '',
     simulate: false,

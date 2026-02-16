@@ -7,7 +7,7 @@ import type { WidgetOptionsProps } from '@/lib/widget-registry';
 interface BusConnectionData {
   glow: boolean;
   scrollHeadsigns: boolean;
-  displayHeight: number;
+  pixelPitch: number;
   padding: number;
   proxyUrl: string;
   simulate: boolean;
@@ -19,7 +19,7 @@ export default function BusConnectionOptions({ data, onChange }: WidgetOptionsPr
   const [state, setState] = useState<BusConnectionData>({
     glow: (data?.glow as boolean) ?? true,
     scrollHeadsigns: (data?.scrollHeadsigns as boolean) ?? true,
-    displayHeight: (data?.displayHeight as number) ?? 32,
+    pixelPitch: (data?.pixelPitch as number) ?? 6,
     padding: (data?.padding as number) ?? 8,
     proxyUrl: (data?.proxyUrl as string) ?? '',
     simulate: (data?.simulate as boolean) ?? false,
@@ -32,7 +32,7 @@ export default function BusConnectionOptions({ data, onChange }: WidgetOptionsPr
       setState({
         glow: (data.glow as boolean) ?? true,
         scrollHeadsigns: (data.scrollHeadsigns as boolean) ?? true,
-        displayHeight: (data.displayHeight as number) ?? 32,
+        pixelPitch: (data.pixelPitch as number) ?? 6,
         padding: (data.padding as number) ?? 8,
         proxyUrl: (data.proxyUrl as string) ?? '',
         simulate: (data.simulate as boolean) ?? false,
@@ -94,13 +94,15 @@ export default function BusConnectionOptions({ data, onChange }: WidgetOptionsPr
         />
 
         <FormSelect
-          label="Display Height"
-          name="displayHeight"
-          value={String(state.displayHeight)}
+          label="Pixel Pitch"
+          name="pixelPitch"
+          value={String(state.pixelPitch)}
           onChange={handleSelectChange}
           options={[
-            { label: '128 x 32 (Compact)', value: '32' },
-            { label: '128 x 64 (Expanded)', value: '64' },
+            { label: 'Fine (4px)', value: '4' },
+            { label: 'Medium (6px)', value: '6' },
+            { label: 'Coarse (8px)', value: '8' },
+            { label: 'Extra Coarse (10px)', value: '10' },
           ]}
         />
 
