@@ -4,7 +4,6 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { WidgetComponentProps, registerWidget } from '@/lib/widget-registry';
 import { buildCacheKey, fetchJsonWithCache, fetchTextWithCache } from '@/lib/data-cache';
 import { parseICal, parseRss } from '@/lib/feeds';
-import { useFitScale } from '@/hooks/useFitScale';
 import EventsListOptions from './EventsListOptions';
 
 interface Event {
@@ -74,8 +73,6 @@ export default function EventsList({ config, theme }: WidgetComponentProps) {
   const [itemsPerPage, setItemsPerPage] = useState(3);
   const containerRef = useRef<HTMLDivElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
-
-  const { containerRef: scaleRef, scale } = useFitScale(480, 380);
 
   /* ---------- measure container & compute items per page ---------- */
 
@@ -294,15 +291,6 @@ export default function EventsList({ config, theme }: WidgetComponentProps) {
   /* ---------- render ---------- */
 
   return (
-    <div ref={scaleRef} className="w-full h-full overflow-hidden">
-      <div
-        style={{
-          transform: `scale(${scale})`,
-          transformOrigin: 'top left',
-          width: `${100 / scale}%`,
-          height: `${100 / scale}%`,
-        }}
-      >
     <div ref={containerRef} className="w-full h-full overflow-hidden flex flex-col min-h-0 p-6">
       {/* Header */}
       <h3
@@ -395,8 +383,6 @@ export default function EventsList({ config, theme }: WidgetComponentProps) {
           {totalPages > 1 && renderDots(totalPages, currentPage)}
         </div>
       )}
-    </div>
-      </div>
     </div>
   );
 }

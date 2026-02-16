@@ -50,7 +50,10 @@ const GridStackWrapper = forwardRef<GridStackWrapperRef, GridStackWrapperProps>(
       const grid = GridStack.init(
         {
           column: columns,
-          maxRow: rows, // Keep widgets within grid boundaries
+          // Note: maxRow is intentionally omitted. Setting it constrains the grid
+          // boundary and causes infinite _fixCollisions loops when overlapping
+          // widgets can't be pushed beyond the limit. The visual row constraint
+          // is handled by the wrapper's CSS height instead.
           cellHeight,
           margin,
           float: true, // Allow widgets to float (not stack)
@@ -70,11 +73,13 @@ const GridStackWrapper = forwardRef<GridStackWrapperRef, GridStackWrapperProps>(
 
       gridInstanceRef.current = grid;
 
-      // Make all existing children into widgets
+      // Make all existing children into widgets (batched to prevent collision loops)
+      grid.batchUpdate();
       const children = gridRef.current.querySelectorAll('.grid-stack-item');
       children.forEach((el) => {
         grid.makeWidget(el as HTMLElement);
       });
+      grid.batchUpdate(false);
 
       // Throttled change handler to prevent rapid updates
       let changeTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -113,6 +118,9 @@ const GridStackWrapper = forwardRef<GridStackWrapperRef, GridStackWrapperProps>(
 
       isSyncingRef.current = true;
       try {
+        // Batch all updates so collision detection only runs once at the end
+        grid.batchUpdate();
+
         const itemIds = new Set(items.map((item) => item.id));
         const nodes = [...grid.engine.nodes];
         const nodesById = new Map(nodes.map((node) => [String(node.id), node]));
@@ -161,6 +169,8 @@ const GridStackWrapper = forwardRef<GridStackWrapperRef, GridStackWrapperProps>(
             });
           }
         });
+
+        grid.batchUpdate(false);
       } finally {
         isSyncingRef.current = false;
       }
