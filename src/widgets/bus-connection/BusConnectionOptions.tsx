@@ -10,6 +10,9 @@ interface BusConnectionData {
   displayHeight: number;
   padding: number;
   proxyUrl: string;
+  simulate: boolean;
+  simMode: 'weekday' | 'saturday';
+  simTime: number;
 }
 
 export default function BusConnectionOptions({ data, onChange }: WidgetOptionsProps) {
@@ -19,6 +22,9 @@ export default function BusConnectionOptions({ data, onChange }: WidgetOptionsPr
     displayHeight: (data?.displayHeight as number) ?? 32,
     padding: (data?.padding as number) ?? 8,
     proxyUrl: (data?.proxyUrl as string) ?? '',
+    simulate: (data?.simulate as boolean) ?? false,
+    simMode: (data?.simMode as 'weekday' | 'saturday') ?? 'weekday',
+    simTime: (data?.simTime as number) ?? 540,
   });
 
   useEffect(() => {
@@ -27,8 +33,11 @@ export default function BusConnectionOptions({ data, onChange }: WidgetOptionsPr
         glow: (data.glow as boolean) ?? true,
         scrollHeadsigns: (data.scrollHeadsigns as boolean) ?? true,
         displayHeight: (data.displayHeight as number) ?? 32,
-        padding: (data.padding as number) ?? 0,
+        padding: (data.padding as number) ?? 8,
         proxyUrl: (data.proxyUrl as string) ?? '',
+        simulate: (data.simulate as boolean) ?? false,
+        simMode: (data.simMode as 'weekday' | 'saturday') ?? 'weekday',
+        simTime: (data.simTime as number) ?? 540,
       });
     }
   }, [data]);
@@ -49,6 +58,20 @@ export default function BusConnectionOptions({ data, onChange }: WidgetOptionsPr
     const newState = { ...state, [name]: String(value) };
     setState(newState);
     onChange(newState);
+  };
+
+  const handleSimModeChange = (name: string, value: string) => {
+    const newState = { ...state, [name]: value };
+    setState(newState);
+    onChange(newState);
+  };
+
+  const formatTimeLabel = (minutes: number) => {
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    const h12 = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
+    return `${h12}:${String(mins).padStart(2, '0')} ${ampm}`;
   };
 
   return (
@@ -93,6 +116,65 @@ export default function BusConnectionOptions({ data, onChange }: WidgetOptionsPr
             { label: 'Large (24px)', value: '24' },
           ]}
         />
+      </div>
+
+      <div className="border-t border-[color:var(--ui-item-border)] pt-6">
+        <div className="space-y-4">
+          <h3 className="font-semibold text-[var(--ui-text)]">Simulation</h3>
+
+          <FormSwitch
+            label="Simulate Schedule"
+            name="simulate"
+            checked={state.simulate}
+            onChange={handleSwitchChange}
+          />
+
+          {state.simulate && (
+            <>
+              <FormSelect
+                label="Day Type"
+                name="simMode"
+                value={state.simMode}
+                onChange={handleSimModeChange}
+                options={[
+                  { label: 'Weekday', value: 'weekday' },
+                  { label: 'Saturday', value: 'saturday' },
+                ]}
+              />
+
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-[var(--ui-text)]">
+                  Time: {formatTimeLabel(state.simTime)}
+                </label>
+                <input
+                  type="range"
+                  min="300"
+                  max="1440"
+                  step="5"
+                  value={state.simTime}
+                  onChange={e => {
+                    const newState = { ...state, simTime: Number(e.target.value) };
+                    setState(newState);
+                    onChange(newState);
+                  }}
+                  className="w-full accent-[var(--color-accent)]"
+                />
+                <div className="flex justify-between text-xs text-[var(--ui-text-muted)]">
+                  <span>5 AM</span>
+                  <span>9 AM</span>
+                  <span>1 PM</span>
+                  <span>5 PM</span>
+                  <span>9 PM</span>
+                  <span>12 AM</span>
+                </div>
+              </div>
+
+              <p className="text-xs text-[var(--ui-text-muted)]">
+                Shows scheduled trips for the selected day and time. Realtime data is disabled during simulation.
+              </p>
+            </>
+          )}
+        </div>
       </div>
 
       <div className="border-t border-[color:var(--ui-item-border)] pt-6">

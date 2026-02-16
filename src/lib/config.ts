@@ -40,6 +40,7 @@ export interface DisplayConfig {
   comingSoon?: boolean;
   gridRows?: number;
   logo?: LogoConfig;
+  aspectRatio?: number;
 }
 
 export const DEFAULT_CONFIG: DisplayConfig = {
@@ -101,6 +102,10 @@ export function normalizeConfig(raw: Partial<DisplayConfig> | null | undefined):
       typeof safe.logo.value === 'string' &&
       safe.logo.value.trim().length > 0
         ? { type: safe.logo.type, value: safe.logo.value }
+        : undefined,
+    aspectRatio:
+      typeof safe.aspectRatio === 'number' && Number.isFinite(safe.aspectRatio) && safe.aspectRatio > 0
+        ? safe.aspectRatio
         : undefined,
   };
 }

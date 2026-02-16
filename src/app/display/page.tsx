@@ -1,7 +1,7 @@
 'use client';
 
 import { useSearchParams } from 'next/navigation';
-import { Suspense, useEffect, useMemo, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   decodeConfig,
   DEFAULT_CONFIG,
@@ -205,95 +205,118 @@ function DisplayContent() {
     return config.layout;
   }, [config, gridRows]);
 
+  // Fixed reference resolution — the layout is rendered at this size and then
+  // uniformly scaled (via CSS transform) to fill the actual viewport.
+  // This ensures pixel-perfect consistency across all screen sizes.
+  const REF_HEIGHT = 1080;
+  const configAspectRatio = config.aspectRatio ?? 16 / 9;
+  const REF_WIDTH = Math.round(REF_HEIGHT * configAspectRatio);
+
+  const [scale, setScale] = useState(1);
+
+  const updateScale = useCallback(() => {
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    // Scale to fit: pick the smaller ratio so nothing overflows
+    setScale(Math.min(vw / REF_WIDTH, vh / REF_HEIGHT));
+  }, [REF_WIDTH]);
+
+  useEffect(() => {
+    updateScale();
+    window.addEventListener('resize', updateScale);
+    return () => window.removeEventListener('resize', updateScale);
+  }, [updateScale]);
+
+  // Grid margin matches the editor formula: height * 0.0075
+  const gridMargin = Math.max(2, Math.round(REF_HEIGHT * 0.0075));
+
   return (
     <div
-      className="w-full h-screen flex flex-col text-white overflow-hidden relative"
-      style={{
-        backgroundColor: config.theme.background,
-        '--background': config.theme.background,
-        '--foreground': '#ffffff',
-        '--color-primary': config.theme.primary,
-        '--color-accent': config.theme.accent,
-      } as React.CSSProperties}
+      className="w-full h-screen overflow-hidden relative"
+      style={{ backgroundColor: config.theme.background }}
     >
-      {(config.schoolName || config.logo?.value) && (
-        <div
-          className="absolute top-4 left-4 z-20 px-3 py-1.5 rounded-lg text-sm font-semibold backdrop-blur bg-black/30 flex items-center gap-2"
-          style={{ color: config.theme.accent, border: `1px solid ${config.theme.accent}40` }}
-        >
-          {config.logo?.value && (
-            config.logo.type === 'url' ? (
-              /* eslint-disable-next-line @next/next/no-img-element */
-              <img src={config.logo.value} alt="" className="h-6 w-auto object-contain" />
-            ) : (
-              <div className="h-6 [&>svg]:h-6 [&>svg]:w-auto" dangerouslySetInnerHTML={{ __html: config.logo.value }} />
-            )
-          )}
-          {config.schoolName}
-        </div>
-      )}
-
-      {loading && (
-        <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-          <div className="text-white/70 text-lg">Loading display…</div>
-        </div>
-      )}
-
-      {/* Full-page Coming Soon overlay */}
-      {config.comingSoon && !loading && (
-        <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <span
-            className="text-3xl font-bold tracking-widest uppercase px-8 py-4 rounded-2xl backdrop-blur-sm"
-            style={{ color: config.theme.accent, backgroundColor: `${config.theme.primary}80` }}
-          >
-            Coming Soon
-          </span>
-        </div>
-      )}
-
-      {/* CSS Grid Layout - viewport-proportional spacing matches the configure preview */}
+      {/* Scaled container — rendered at fixed reference resolution, then scaled to fit viewport */}
       <div
-        className={`flex-1 min-h-0${config.comingSoon ? ' blur-sm grayscale pointer-events-none select-none' : ''}`}
         style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(12, 1fr)',
-          gridTemplateRows: `repeat(${gridRows}, 1fr)`,
-          gap: '1.5vh',
-          padding: '0.75vh',
-        }}
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          width: REF_WIDTH,
+          height: REF_HEIGHT,
+          transform: `translate(-50%, -50%) scale(${scale})`,
+          transformOrigin: 'center center',
+          backgroundColor: config.theme.background,
+          '--background': config.theme.background,
+          '--foreground': '#ffffff',
+          '--color-primary': config.theme.primary,
+          '--color-accent': config.theme.accent,
+        } as React.CSSProperties}
       >
-        {layout.map((widget) => (
-          <div
-            key={widget.id}
-            className="min-w-0 min-h-0 overflow-hidden rounded-xl"
-            style={{
-              gridColumn: `${widget.x + 1} / span ${widget.w}`,
-              gridRow: `${widget.y + 1} / span ${widget.h}`,
-              backgroundColor:
-                widget.type === 'events-list' || widget.type === 'clock'
-                  ? `${config.theme.primary}40`
-                  : undefined,
-            }}
-          >
-            <WidgetRenderer widget={widget} theme={config.theme} />
-          </div>
-        ))}
+        <div className="w-full h-full flex flex-col text-white overflow-hidden relative">
 
-        {/* Empty state */}
-        {layout.length === 0 && !loading && (
+          {loading && (
+            <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+              <div className="text-white/70 text-lg">Loading display…</div>
+            </div>
+          )}
+
+          {/* Full-page Coming Soon overlay */}
+          {config.comingSoon && !loading && (
+            <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+              <span
+                className="text-3xl font-bold tracking-widest uppercase px-8 py-4 rounded-2xl backdrop-blur-sm"
+                style={{ color: config.theme.accent, backgroundColor: `${config.theme.primary}80` }}
+              >
+                Coming Soon
+              </span>
+            </div>
+          )}
+
+          {/* CSS Grid Layout — fixed px spacing matches the editor exactly */}
           <div
-            className="flex items-center justify-center text-white/30"
+            className={`flex-1 min-h-0${config.comingSoon ? ' blur-sm grayscale pointer-events-none select-none' : ''}`}
             style={{
-              gridColumn: '1 / -1',
-              gridRow: '1 / -1',
+              display: 'grid',
+              gridTemplateColumns: 'repeat(12, 1fr)',
+              gridTemplateRows: `repeat(${gridRows}, 1fr)`,
+              gap: `${gridMargin * 2}px`,
+              padding: `${gridMargin}px`,
             }}
           >
-            <div className="text-center">
-              <p className="text-2xl mb-2">No widgets configured</p>
-              <p className="text-lg">Use the configurator to set up your display</p>
-            </div>
+            {layout.map((widget) => (
+              <div
+                key={widget.id}
+                className="min-w-0 min-h-0 overflow-hidden rounded-xl"
+                style={{
+                  gridColumn: `${widget.x + 1} / span ${widget.w}`,
+                  gridRow: `${widget.y + 1} / span ${widget.h}`,
+                  backgroundColor:
+                    widget.type === 'events-list' || widget.type === 'clock'
+                      ? `${config.theme.primary}40`
+                      : undefined,
+                }}
+              >
+                <WidgetRenderer widget={widget} theme={config.theme} />
+              </div>
+            ))}
+
+            {/* Empty state */}
+            {layout.length === 0 && !loading && (
+              <div
+                className="flex items-center justify-center text-white/30"
+                style={{
+                  gridColumn: '1 / -1',
+                  gridRow: '1 / -1',
+                }}
+              >
+                <div className="text-center">
+                  <p className="text-2xl mb-2">No widgets configured</p>
+                  <p className="text-lg">Use the configurator to set up your display</p>
+                </div>
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
     </div>
   );

@@ -106,8 +106,13 @@ const findPlacement = (
 export default function ConfigurePage() {
   const [config, setConfig] = useState<DisplayConfig>(DEFAULT_CONFIG);
   const [shareUrl, setShareUrl] = useState<string>('');
+  const [showShareModal, setShowShareModal] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [aspectRatio, setAspectRatio] = useState(16 / 9);
+  const [aspectRatio, setAspectRatioRaw] = useState(config.aspectRatio ?? 16 / 9);
+  const setAspectRatio = useCallback((ratio: number) => {
+    setAspectRatioRaw(ratio);
+    setConfig((prev) => ({ ...prev, aspectRatio: ratio }));
+  }, []);
   const [previewSize, setPreviewSize] = useState({ width: 0, height: 0 });
   const [editingWidget, setEditingWidget] = useState<WidgetConfig | null>(null);
   const [placementError, setPlacementError] = useState<string | null>(null);
@@ -124,7 +129,9 @@ export default function ConfigurePage() {
       const saved = localStorage.getItem(CONFIG_STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved) as DisplayConfig;
-        setConfig(normalizeConfig(parsed));
+        const normalized = normalizeConfig(parsed);
+        setConfig(normalized);
+        if (normalized.aspectRatio) setAspectRatioRaw(normalized.aspectRatio);
       }
     } catch {
       // Ignore corrupted cache
@@ -149,6 +156,12 @@ export default function ConfigurePage() {
       setGridRows(config.gridRows);
     }
   }, [config.gridRows, gridRows]);
+
+  useEffect(() => {
+    if (config.aspectRatio && config.aspectRatio !== aspectRatio) {
+      setAspectRatioRaw(config.aspectRatio);
+    }
+  }, [config.aspectRatio]);
 
   // Calculate preview size to fit container while maintaining aspect ratio
   useEffect(() => {
@@ -294,6 +307,8 @@ export default function ConfigurePage() {
   const generateUrl = useCallback(() => {
     const url = generateShareUrl(config, window.location.origin);
     setShareUrl(url);
+    setShowShareModal(true);
+    setCopied(false);
   }, [config]);
 
   const copyUrl = useCallback(async () => {
@@ -330,6 +345,10 @@ export default function ConfigurePage() {
   // Calculate cell height based on preview dimensions
   const cellHeight = previewSize.height > 0 ? previewSize.height / gridRows : 80;
 
+  // Scale widget content so it looks the same as the 1080p display reference
+  const REF_HEIGHT = 1080;
+  const contentScale = previewSize.height > 0 ? previewSize.height / REF_HEIGHT : 1;
+
   return (
     <div
       className="h-screen flex flex-col text-white overflow-hidden"
@@ -343,17 +362,17 @@ export default function ConfigurePage() {
         '--ui-panel-solid': `${config.theme.primary}`,
         '--ui-panel-soft': `${config.theme.primary}14`,
         '--ui-panel-hover': `${config.theme.primary}33`,
-        '--ui-panel-border': `${config.theme.accent}33`,
+        '--ui-panel-border': `${config.theme.accent}55`,
         '--ui-item-bg': `${config.theme.primary}1a`,
         '--ui-item-hover': `${config.theme.primary}26`,
-        '--ui-item-border': `${config.theme.primary}33`,
+        '--ui-item-border': 'rgba(255, 255, 255, 0.15)',
         '--ui-item-border-hover': `${config.theme.accent}66`,
         '--ui-accent-soft': `${config.theme.accent}33`,
         '--ui-accent-strong': `${config.theme.accent}66`,
         '--ui-text': '#ffffff',
         '--ui-text-muted': 'rgba(255, 255, 255, 0.6)',
         '--ui-input-bg': `${config.theme.primary}1a`,
-        '--ui-input-border': `${config.theme.primary}33`,
+        '--ui-input-border': 'rgba(255, 255, 255, 0.18)',
         '--ui-input-focus': `${config.theme.accent}`,
         '--ui-switch-off': `${config.theme.primary}33`,
         '--ui-switch-on': `${config.theme.accent}`,
@@ -703,26 +722,6 @@ export default function ConfigurePage() {
             </div>
           </div>
 
-          {/* Share URL */}
-          {shareUrl && (
-            <div className="bg-[var(--ui-panel-bg)] border border-[color:var(--ui-panel-border)] rounded-xl p-4 space-y-3">
-              <h2 className="font-bold text-lg">Share URL</h2>
-              <div className="space-y-2">
-                <input
-                  type="text"
-                  value={shareUrl}
-                  readOnly
-                  className="w-full px-3 py-2 rounded-lg bg-[var(--ui-item-bg)] border border-[color:var(--ui-item-border)] text-xs font-mono"
-                />
-                <button
-                  onClick={copyUrl}
-                  className="w-full py-2 rounded-lg bg-[var(--ui-item-bg)] hover:bg-[var(--ui-item-hover)] text-sm font-medium"
-                >
-                  {copied ? 'Copied!' : 'Copy URL'}
-                </button>
-              </div>
-            </div>
-          )}
         </aside>
 
         {/* Preview Area */}
@@ -787,6 +786,7 @@ export default function ConfigurePage() {
                     rows={gridRows}
                     cellHeight={cellHeight}
                     margin={gridMargin}
+                    contentScale={contentScale}
                     onLayoutChange={handleLayoutChange}
                     renderItem={renderGridItem}
                   />
@@ -806,6 +806,37 @@ export default function ConfigurePage() {
           </div>
         </main>
       </div>
+
+      {/* Share URL Modal */}
+      {showShareModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{ backgroundColor: 'var(--ui-overlay)' }}
+          onClick={() => setShowShareModal(false)}
+        >
+          <div
+            className="bg-[var(--ui-panel-bg)] border border-[color:var(--ui-panel-border)] rounded-xl p-4 space-y-3 w-full max-w-lg mx-4 backdrop-blur-xl"
+            style={{ backgroundColor: config.theme.background }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="font-bold text-lg">Share URL</h2>
+            <div className="space-y-2">
+              <input
+                type="text"
+                value={shareUrl}
+                readOnly
+                className="w-full px-3 py-2 rounded-lg bg-[var(--ui-item-bg)] border border-[color:var(--ui-item-border)] text-xs font-mono"
+              />
+              <button
+                onClick={copyUrl}
+                className="w-full py-2 rounded-lg bg-[var(--ui-item-bg)] hover:bg-[var(--ui-item-hover)] text-sm font-medium"
+              >
+                {copied ? 'Copied!' : 'Copy URL'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Widget Edit Dialog */}
       {editingWidget && (

@@ -44,32 +44,86 @@ function gtfsTimeToDate(timeStr: string, baseDate: Date): Date {
   return base;
 }
 
+/**
+ * Check if a headsign indicates the bus is heading TO UNBC.
+ */
+function isUNBCBound(headsign: string): boolean {
+  const h = (headsign || '').toLowerCase();
+  return h === 'unbc' || h === 'n unbc via cnc';
+}
+
+/**
+ * Headsign overrides for loop routes where the GTFS headsign is just "UNBC".
+ */
+const LOOP_ROUTE_HEADSIGNS: Record<string, string> = {
+  '19-PRG': 'Westgate Mall',
+};
+
+/**
+ * Get scheduled trips departing from UNBC Exchange.
+ *
+ * - Deduplicates loop routes (same tripId at stop twice) to only show departures
+ * - Filters out UNBC-bound arrivals for routes with outbound trips (15, 16)
+ * - Shows departure times with combined "UNBC/{destination}" headsigns
+ */
 export function getScheduledTrips(simulatedNow: Date | null = null): Trip[] {
   const now = simulatedNow || new Date();
   const dateStr = dateToStr(now);
   const activeServiceIds = getActiveServiceIds(dateStr);
   if (activeServiceIds.length === 0) return [];
 
+  // Collect active entries
+  const activeEntries = STOP_SCHEDULE.filter(entry =>
+    activeServiceIds.includes(String(entry.serviceId))
+  );
+
+  // Deduplicate: loop routes visit the same stop twice per trip.
+  // Keep only the earliest occurrence (the departure, not the return).
+  const tripMap = new Map<string, typeof STOP_SCHEDULE[0]>();
+  for (const entry of activeEntries) {
+    const existing = tripMap.get(entry.tripId);
+    if (!existing || entry.departureTime < existing.departureTime) {
+      tripMap.set(entry.tripId, entry);
+    }
+  }
+  const dedupedEntries = [...tripMap.values()];
+
+  // Find which routes have non-UNBC headsigns (outbound directions)
+  const routesWithOutbound = new Set<string>();
+  for (const entry of dedupedEntries) {
+    if (!isUNBCBound(entry.headsign)) {
+      routesWithOutbound.add(entry.routeId);
+    }
+  }
+
   const trips: Trip[] = [];
 
-  for (const entry of STOP_SCHEDULE) {
-    if (!activeServiceIds.includes(String(entry.serviceId))) continue;
+  for (const entry of dedupedEntries) {
+    // For routes with outbound trips, skip UNBC-bound entries (those are inbound arrivals)
+    if (isUNBCBound(entry.headsign) && routesWithOutbound.has(entry.routeId)) continue;
 
-    const arrivalDate = gtfsTimeToDate(entry.arrivalTime, now);
     const departureDate = gtfsTimeToDate(entry.departureTime, now);
-
-    if (arrivalDate.getTime() < now.getTime() - 30000) continue;
+    if (departureDate.getTime() < now.getTime() - 30000) continue;
 
     const route = ROUTES[entry.routeId];
     if (!route) continue;
+
+    // Build headsign: loop routes get override, others get "UNBC/{destination}"
+    let headsign: string;
+    if (isUNBCBound(entry.headsign)) {
+      const override = LOOP_ROUTE_HEADSIGNS[entry.routeId];
+      headsign = override ? `UNBC/${override}` : entry.headsign;
+    } else {
+      headsign = `UNBC/${entry.headsign}`;
+    }
 
     trips.push({
       tripId: entry.tripId,
       routeId: entry.routeId,
       routeName: route.shortName,
       routeColor: route.color,
-      headsign: entry.headsign,
-      arrivalTime: arrivalDate.getTime(),
+      headsign,
+      arrivalTime: departureDate.getTime(),
       departureTime: departureDate.getTime(),
       isRealtime: false,
     });
@@ -155,17 +209,20 @@ function applyRealtimeUpdates(trips: Trip[], rtUpdates: Map<string, RealtimeUpda
 
 export function createLiveTripProvider(
   onUpdate: (trips: Trip[]) => void,
-  proxyUrl?: string
+  proxyUrl?: string,
+  getSimulatedNow?: () => Date | null
 ) {
   let intervalId: ReturnType<typeof setInterval> | null = null;
   let rtUpdates = new Map<string, RealtimeUpdate>();
 
   async function refresh() {
-    if (proxyUrl) {
+    const simNow = getSimulatedNow ? getSimulatedNow() : null;
+    // Only fetch realtime if not simulating
+    if (!simNow && proxyUrl) {
       rtUpdates = await fetchRealtimeUpdates(proxyUrl);
     }
-    const scheduled = getScheduledTrips();
-    const merged = proxyUrl ? applyRealtimeUpdates(scheduled, rtUpdates) : scheduled;
+    const scheduled = getScheduledTrips(simNow);
+    const merged = simNow ? scheduled : (proxyUrl ? applyRealtimeUpdates(scheduled, rtUpdates) : scheduled);
     onUpdate(merged);
   }
 
@@ -178,5 +235,6 @@ export function createLiveTripProvider(
       if (intervalId) clearInterval(intervalId);
       intervalId = null;
     },
+    refresh,
   };
 }

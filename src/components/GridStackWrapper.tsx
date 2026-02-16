@@ -27,12 +27,13 @@ interface GridStackWrapperProps {
   rows?: number;
   cellHeight?: number | string;
   margin?: number;
+  contentScale?: number;
   onLayoutChange?: (items: GridStackItem[]) => void;
   renderItem: (item: GridStackItem) => ReactNode;
 }
 
 const GridStackWrapper = forwardRef<GridStackWrapperRef, GridStackWrapperProps>(
-  ({ items, columns = 12, rows = 8, cellHeight = 'auto', margin = 8, onLayoutChange, renderItem }, ref) => {
+  ({ items, columns = 12, rows = 8, cellHeight = 'auto', margin = 8, contentScale, onLayoutChange, renderItem }, ref) => {
     const gridRef = useRef<HTMLDivElement>(null);
     const gridInstanceRef = useRef<GridStack | null>(null);
     const onLayoutChangeRef = useRef(onLayoutChange);
@@ -209,7 +210,20 @@ const GridStackWrapper = forwardRef<GridStackWrapperRef, GridStackWrapperProps>(
               gs-max-h={item.maxH}
             >
               <div className="grid-stack-item-content">
-                {renderItem(item)}
+                {contentScale && contentScale !== 1 ? (
+                  <div
+                    style={{
+                      transform: `scale(${contentScale})`,
+                      transformOrigin: 'top left',
+                      width: `${100 / contentScale}%`,
+                      height: `${100 / contentScale}%`,
+                    }}
+                  >
+                    {renderItem(item)}
+                  </div>
+                ) : (
+                  renderItem(item)
+                )}
               </div>
             </div>
           );

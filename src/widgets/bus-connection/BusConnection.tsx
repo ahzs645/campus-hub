@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { usePixelDisplay } from 'react-pixel-display';
 import { WidgetComponentProps, registerWidget } from '@/lib/widget-registry';
 import { renderTransitDisplay, loadPixollettaFont } from './transit/renderer';
-import { createLiveTripProvider, type Trip } from './transit/gtfsService';
+import { createLiveTripProvider, getScheduledTrips, type Trip } from './transit/gtfsService';
+import { SERVICE_DATES } from './transit/gtfsData';
 import BusConnectionOptions from './BusConnectionOptions';
 
 interface BusConnectionConfig {
@@ -13,9 +14,29 @@ interface BusConnectionConfig {
   displayHeight?: number;
   padding?: number;
   proxyUrl?: string;
+  simulate?: boolean;
+  simMode?: 'weekday' | 'saturday';
+  simTime?: number;
 }
 
 const DISPLAY_WIDTH = 128;
+
+function findWeekdayDate(): string | null {
+  return SERVICE_DATES['4795']?.[0] || null;
+}
+
+function findSaturdayDate(): string | null {
+  return SERVICE_DATES['4800']?.[0] || null;
+}
+
+function parseDateStr(str: string | null): { y: number; m: number; d: number } | null {
+  if (!str) return null;
+  return {
+    y: parseInt(str.slice(0, 4)),
+    m: parseInt(str.slice(4, 6)) - 1,
+    d: parseInt(str.slice(6, 8)),
+  };
+}
 
 export default function BusConnection({ config, theme }: WidgetComponentProps) {
   const busConfig = config as BusConnectionConfig | undefined;
@@ -24,6 +45,22 @@ export default function BusConnection({ config, theme }: WidgetComponentProps) {
   const displayHeight = busConfig?.displayHeight ?? 32;
   const padding = busConfig?.padding ?? 8;
   const proxyUrl = busConfig?.proxyUrl?.trim() || undefined;
+  const simulate = busConfig?.simulate ?? false;
+  const simMode = busConfig?.simMode ?? 'weekday';
+  const simTime = busConfig?.simTime ?? 540;
+
+  const simulatedTime = useMemo(() => {
+    if (!simulate) return null;
+    const dateStr = simMode === 'saturday' ? findSaturdayDate() : findWeekdayDate();
+    const parsed = parseDateStr(dateStr);
+    if (!parsed) return null;
+    const hours = Math.floor(simTime / 60);
+    const mins = simTime % 60;
+    return new Date(parsed.y, parsed.m, parsed.d, hours, mins, 0);
+  }, [simulate, simMode, simTime]);
+
+  const simTimeRef = useRef(simulatedTime);
+  simTimeRef.current = simulatedTime;
 
   const [fontReady, setFontReady] = useState(false);
   const [trips, setTrips] = useState<Trip[]>([]);
@@ -47,11 +84,19 @@ export default function BusConnection({ config, theme }: WidgetComponentProps) {
   useEffect(() => {
     const provider = createLiveTripProvider(
       (updatedTrips) => setTrips(updatedTrips),
-      proxyUrl
+      proxyUrl,
+      () => simTimeRef.current
     );
     provider.start();
     return () => provider.stop();
-  }, [proxyUrl]);
+  }, [proxyUrl, simulate]);
+
+  // Re-fetch when simulated time changes
+  useEffect(() => {
+    if (simulatedTime) {
+      setTrips(getScheduledTrips(simulatedTime));
+    }
+  }, [simulatedTime]);
 
   useEffect(() => {
     if (!fontReady) return;
@@ -66,8 +111,9 @@ export default function BusConnection({ config, theme }: WidgetComponentProps) {
         return;
       }
 
-      const now = Date.now();
-      const uptimeMs = now - startTimeRef.current;
+      const simNow = simTimeRef.current;
+      const now = simNow ? simNow.getTime() : Date.now();
+      const uptimeMs = Date.now() - startTimeRef.current;
       const currentTrips = tripsRef.current.filter(t => t.arrivalTime > now - 30000);
 
       const pixels = renderTransitDisplay(
@@ -125,5 +171,8 @@ registerWidget({
     displayHeight: 32,
     padding: 8,
     proxyUrl: '',
+    simulate: false,
+    simMode: 'weekday',
+    simTime: 540,
   },
 });
