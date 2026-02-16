@@ -110,6 +110,16 @@ body {
   }
 }
 
+/* Events progress bar */
+@keyframes events-progress {
+  0% {
+    width: 0%;
+  }
+  100% {
+    width: 100%;
+  }
+}
+
 /* Fade in animation */
 @keyframes fade-in {
   0% {

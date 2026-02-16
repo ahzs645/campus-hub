@@ -189,8 +189,6 @@ registerWidget({
   icon: '🚌',
   minW: 3,
   minH: 2,
-  maxW: 12,
-  maxH: 4,
   defaultW: 6,
   defaultH: 2,
   component: BusConnection,

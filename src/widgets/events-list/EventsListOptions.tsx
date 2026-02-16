@@ -4,9 +4,13 @@ import { useState, useEffect } from 'react';
 import { FormInput, FormSelect } from '@/components/ui';
 import type { WidgetOptionsProps } from '@/lib/widget-registry';
 
+type DisplayMode = 'scroll' | 'ticker' | 'paginate';
+
 interface EventsListData {
   title: string;
   maxItems: number;
+  displayMode: DisplayMode;
+  rotationSeconds: number;
   apiUrl: string;
   sourceType: 'json' | 'ical' | 'rss';
   corsProxy: string;
@@ -17,6 +21,8 @@ export default function EventsListOptions({ data, onChange }: WidgetOptionsProps
   const [state, setState] = useState<EventsListData>({
     title: (data?.title as string) ?? 'Upcoming Events',
     maxItems: (data?.maxItems as number) ?? 10,
+    displayMode: (data?.displayMode as DisplayMode) ?? 'scroll',
+    rotationSeconds: (data?.rotationSeconds as number) ?? 5,
     apiUrl: (data?.apiUrl as string) ?? '',
     sourceType: (data?.sourceType as 'json' | 'ical' | 'rss') ?? 'json',
     corsProxy: (data?.corsProxy as string) ?? '',
@@ -28,6 +34,8 @@ export default function EventsListOptions({ data, onChange }: WidgetOptionsProps
       setState({
         title: (data.title as string) ?? 'Upcoming Events',
         maxItems: (data.maxItems as number) ?? 10,
+        displayMode: (data.displayMode as DisplayMode) ?? 'scroll',
+        rotationSeconds: (data.rotationSeconds as number) ?? 5,
         apiUrl: (data.apiUrl as string) ?? '',
         sourceType: (data.sourceType as 'json' | 'ical' | 'rss') ?? 'json',
         corsProxy: (data.corsProxy as string) ?? '',
@@ -44,7 +52,7 @@ export default function EventsListOptions({ data, onChange }: WidgetOptionsProps
 
   return (
     <div className="space-y-6">
-      {/* Settings */}
+      {/* Display Settings */}
       <div className="space-y-4">
         <h3 className="font-semibold text-[var(--ui-text)]">Display Settings</h3>
 
@@ -66,6 +74,37 @@ export default function EventsListOptions({ data, onChange }: WidgetOptionsProps
           max={20}
           onChange={handleChange}
         />
+
+        <FormSelect
+          label="Display Mode"
+          name="displayMode"
+          value={state.displayMode}
+          options={[
+            { value: 'scroll', label: 'Scroll (static list)' },
+            { value: 'ticker', label: 'Ticker (one at a time)' },
+            { value: 'paginate', label: 'Paginate (auto-fit)' },
+          ]}
+          onChange={handleChange}
+        />
+
+        {state.displayMode !== 'scroll' && (
+          <>
+            <FormInput
+              label="Rotation Speed (seconds)"
+              name="rotationSeconds"
+              type="number"
+              value={state.rotationSeconds}
+              min={2}
+              max={30}
+              onChange={handleChange}
+            />
+            {state.displayMode === 'paginate' && (
+              <div className="text-xs text-[var(--ui-text-muted)]">
+                Items per page adjusts automatically based on widget height.
+              </div>
+            )}
+          </>
+        )}
       </div>
 
       {/* API Configuration */}
@@ -141,15 +180,33 @@ export default function EventsListOptions({ data, onChange }: WidgetOptionsProps
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
             <span className="font-bold">{state.title}</span>
+            {state.displayMode !== 'scroll' && (
+              <span className="text-white/40 text-xs ml-auto">
+                {state.displayMode === 'ticker' ? 'auto-cycles' : 'auto-fit pages'}
+              </span>
+            )}
           </div>
           <div className="space-y-2">
-            {['Club Fair', 'Guest Lecture', 'Open Mic Night'].slice(0, Math.min(3, state.maxItems)).map((event, i) => (
-              <div key={i} className="p-2 rounded-lg bg-white/10 border-l-2 border-[var(--color-accent)]">
-                <div className="text-white text-sm font-medium">{event}</div>
-                <div className="text-white/60 text-xs">Mar {10 + i} • 11:00 AM</div>
-              </div>
-            ))}
+            {['Club Fair', 'Guest Lecture', 'Open Mic Night']
+              .slice(0, state.displayMode === 'ticker' ? 1 : Math.min(3, state.maxItems))
+              .map((event, i) => (
+                <div key={i} className="p-2 rounded-lg bg-white/10 border-l-2 border-[var(--color-accent)]">
+                  <div className="text-white text-sm font-medium">{event}</div>
+                  <div className="text-white/60 text-xs">Mar {10 + i} • 11:00 AM</div>
+                </div>
+              ))}
           </div>
+          {state.displayMode !== 'scroll' && (
+            <div className="flex items-center justify-center gap-1.5 mt-3">
+              {Array.from({ length: state.displayMode === 'ticker' ? 3 : 2 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="w-1.5 h-1.5 rounded-full"
+                  style={{ backgroundColor: i === 0 ? 'var(--color-accent)' : 'rgba(255,255,255,0.2)' }}
+                />
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

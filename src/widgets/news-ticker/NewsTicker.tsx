@@ -182,10 +182,9 @@ registerWidget({
   name: 'News Ticker',
   description: 'Scrolling announcements and alerts',
   icon: '📢',
-  minW: 12,
+  minW: 4,
   minH: 1,
-  maxH: 1,
-  defaultW: 12,
+  defaultW: 99, // Sentinel: addWidget clamps to gridCols for full-width
   defaultH: 1,
   component: NewsTicker,
   OptionsComponent: NewsTickerOptions,

@@ -39,6 +39,7 @@ export interface DisplayConfig {
   tickerEnabled: boolean;
   comingSoon?: boolean;
   gridRows?: number;
+  gridCols?: number;
   logo?: LogoConfig;
   aspectRatio?: number;
 }
@@ -95,6 +96,10 @@ export function normalizeConfig(raw: Partial<DisplayConfig> | null | undefined):
       typeof safe.gridRows === 'number' && Number.isFinite(safe.gridRows)
         ? safe.gridRows
         : DEFAULT_CONFIG.gridRows,
+    gridCols:
+      typeof safe.gridCols === 'number' && Number.isFinite(safe.gridCols)
+        ? safe.gridCols
+        : undefined,
     logo:
       safe.logo &&
       typeof safe.logo === 'object' &&

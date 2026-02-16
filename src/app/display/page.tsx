@@ -190,6 +190,7 @@ function DisplayContent() {
   const config: DisplayConfig = activeConfig;
 
   const gridRows = config.gridRows ?? 8;
+  const gridCols = config.gridCols ?? 12;
   const layout: WidgetConfig[] = useMemo(() => {
     if (config.tickerEnabled && !config.layout.some((w) => w.type === 'news-ticker')) {
       const tickerWidget: WidgetConfig = {
@@ -197,13 +198,13 @@ function DisplayContent() {
         type: 'news-ticker',
         x: 0,
         y: gridRows - 1,
-        w: 12,
+        w: gridCols,
         h: 1,
       };
       return [...config.layout, tickerWidget];
     }
     return config.layout;
-  }, [config, gridRows]);
+  }, [config, gridRows, gridCols]);
 
   // Fixed reference resolution — the layout is rendered at this size and then
   // uniformly scaled (via CSS transform) to fill the actual viewport.
@@ -277,7 +278,7 @@ function DisplayContent() {
             className={`flex-1 min-h-0${config.comingSoon ? ' blur-sm grayscale pointer-events-none select-none' : ''}`}
             style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(12, 1fr)',
+              gridTemplateColumns: `repeat(${gridCols}, 1fr)`,
               gridTemplateRows: `repeat(${gridRows}, 1fr)`,
               gap: `${gridMargin * 2}px`,
               padding: `${gridMargin}px`,

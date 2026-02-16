@@ -44,16 +44,50 @@ const COLOR_PRESETS = [
   { name: 'Royal', primary: '#1a1040', accent: '#9b59b6', background: '#0d0a20' },
 ];
 
-const GRID_COLUMNS = 12;
-const GRID_GRANULARITY_OPTIONS = [
-  { label: 'Coarse', rows: 8 },
-  { label: 'Medium', rows: 12 },
-  { label: 'Fine', rows: 16 },
+const DEFAULT_GRID_COLS = 12;
+const DEFAULT_GRID_ROWS = 8;
+
+const ROW_OPTIONS = [
+  { label: 'Coarse', value: 8 },
+  { label: 'Medium', value: 12 },
+  { label: 'Fine', value: 16 },
 ];
-const DEFAULT_GRID_ROWS = GRID_GRANULARITY_OPTIONS[0].rows;
+
+const COL_OPTIONS = [
+  { label: 'Coarse', value: 8 },
+  { label: 'Standard', value: 12 },
+  { label: 'Fine', value: 16 },
+  { label: 'Ultra', value: 24 },
+];
+
 const CONFIG_STORAGE_KEY = 'campus-hub:config';
 
 type GridPlacement = { x: number; y: number; w: number; h: number };
+
+/** Remap widget positions proportionally when grid dimensions change.
+ *  Uses ceil for sizes (never shrink) and floor for positions (don't overflow). */
+const remapLayout = (
+  layout: WidgetConfig[],
+  axis: 'x' | 'y',
+  prevSize: number,
+  nextSize: number,
+): WidgetConfig[] => {
+  const ratio = nextSize / prevSize;
+  const posKey = axis;                        // 'x' or 'y'
+  const sizeKey = axis === 'x' ? 'w' : 'h';  // 'w' or 'h'
+  const minKey = axis === 'x' ? 'minW' : 'minH';
+
+  return layout.map((widget) => {
+    const newSize = Math.max(
+      getWidget(widget.type)?.[minKey] ?? 1,
+      Math.ceil(widget[sizeKey] * ratio),
+    );
+    const clampedSize = Math.min(newSize, nextSize);
+    const newPos = Math.floor(widget[posKey] * ratio);
+    const clampedPos = Math.max(0, Math.min(newPos, nextSize - clampedSize));
+    return { ...widget, [posKey]: clampedPos, [sizeKey]: clampedSize };
+  });
+};
 
 const findPlacement = (
   layout: WidgetConfig[],
@@ -117,6 +151,7 @@ export default function ConfigurePage() {
   const [editingWidget, setEditingWidget] = useState<WidgetConfig | null>(null);
   const [placementError, setPlacementError] = useState<string | null>(null);
   const [gridRows, setGridRows] = useState(DEFAULT_CONFIG.gridRows ?? DEFAULT_GRID_ROWS);
+  const [gridCols, setGridCols] = useState(DEFAULT_CONFIG.gridCols ?? DEFAULT_GRID_COLS);
   const [sidebarTab, setSidebarTab] = useState<'widgets' | 'settings' | 'presets'>('widgets');
   const [showWidgetLibrary, setShowWidgetLibrary] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -158,6 +193,13 @@ export default function ConfigurePage() {
       setGridRows(config.gridRows);
     }
   }, [config.gridRows, gridRows]);
+
+  useEffect(() => {
+    if (!config.gridCols) return;
+    if (config.gridCols !== gridCols) {
+      setGridCols(config.gridCols);
+    }
+  }, [config.gridCols, gridCols]);
 
   useEffect(() => {
     if (config.aspectRatio && config.aspectRatio !== aspectRatio) {
@@ -217,14 +259,14 @@ export default function ConfigurePage() {
     setConfig((prev) => {
       const minW = widgetDef.minW ?? 1;
       const minH = widgetDef.minH ?? 1;
-      const maxW = widgetDef.maxW ?? GRID_COLUMNS;
+      const maxW = widgetDef.maxW ?? gridCols;
       const maxH = widgetDef.maxH ?? gridRows;
-      const desiredW = Math.min(widgetDef.defaultW, maxW, GRID_COLUMNS);
+      const desiredW = Math.min(widgetDef.defaultW, maxW, gridCols);
       const desiredH = Math.min(widgetDef.defaultH, maxH, gridRows);
 
       const placement = findPlacement(
         prev.layout,
-        GRID_COLUMNS,
+        gridCols,
         gridRows,
         desiredW,
         desiredH,
@@ -763,27 +805,49 @@ export default function ConfigurePage() {
             </h2>
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2 text-xs text-white/60">
-                <label htmlFor="grid-granularity" className="text-xs text-white/60">
-                  Grid Granularity
-                </label>
+                <span className="text-white/40">Grid</span>
                 <select
-                  id="grid-granularity"
+                  id="grid-cols"
+                  value={gridCols}
+                  onChange={(e) => {
+                    const nextCols = Number(e.target.value);
+                    const prevCols = gridCols;
+                    setGridCols(nextCols);
+                    setConfig((prev) => ({
+                      ...prev,
+                      gridCols: nextCols,
+                      layout: remapLayout(prev.layout, 'x', prevCols, nextCols),
+                    }));
+                  }}
+                  className="px-2 py-1 rounded-lg bg-[var(--ui-item-bg)] border border-[color:var(--ui-item-border)] text-white/80 text-xs outline-none focus:border-[var(--ui-item-border-hover)]"
+                  title="Columns"
+                >
+                  {COL_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.value}c
+                    </option>
+                  ))}
+                </select>
+                <span className="text-white/30">x</span>
+                <select
+                  id="grid-rows"
                   value={gridRows}
                   onChange={(e) => {
                     const nextRows = Number(e.target.value);
+                    const prevRows = gridRows;
                     setGridRows(nextRows);
-                    setConfig((prev) => ({ ...prev, gridRows: nextRows }));
+                    setConfig((prev) => ({
+                      ...prev,
+                      gridRows: nextRows,
+                      layout: remapLayout(prev.layout, 'y', prevRows, nextRows),
+                    }));
                   }}
                   className="px-2 py-1 rounded-lg bg-[var(--ui-item-bg)] border border-[color:var(--ui-item-border)] text-white/80 text-xs outline-none focus:border-[var(--ui-item-border-hover)]"
-                  title={`Current layout uses ${minRowsNeeded} rows`}
+                  title="Rows"
                 >
-                  {GRID_GRANULARITY_OPTIONS.map((option) => (
-                    <option
-                      key={option.rows}
-                      value={option.rows}
-                      disabled={option.rows < minRowsNeeded}
-                    >
-                      {option.label} ({option.rows})
+                  {ROW_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.value}r
                     </option>
                   ))}
                 </select>
@@ -813,7 +877,7 @@ export default function ConfigurePage() {
                   <GridStackWrapper
                     ref={gridRef}
                     items={gridItems}
-                    columns={GRID_COLUMNS}
+                    columns={gridCols}
                     rows={gridRows}
                     cellHeight={cellHeight}
                     margin={gridMargin}

@@ -199,8 +199,6 @@ registerWidget({
   icon: '🌤️',
   minW: 2,
   minH: 2,
-  maxW: 4,
-  maxH: 3,
   defaultW: 3,
   defaultH: 2,
   component: Weather,
