@@ -12,6 +12,7 @@ import './image/Image';
 import './media-player/MediaPlayer';
 import './slideshow/Slideshow';
 import './poster-feed/PosterFeed';
+import './bus-connection/BusConnection';
 
 // Re-export registry functions
 export { getWidget, getAllWidgets, getWidgetComponent } from '@/lib/widget-registry';
