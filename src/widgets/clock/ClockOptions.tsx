@@ -5,17 +5,24 @@ import { FormSelect, FormSwitch } from '@/components/ui';
 import type { WidgetOptionsProps } from '@/lib/widget-registry';
 
 type ClockAlignment = 'left' | 'center' | 'right';
+type ClockVerticalAlignment = 'top' | 'center' | 'bottom';
 
 interface ClockData {
   showSeconds: boolean;
   showDate: boolean;
   format24h: boolean;
   alignment: ClockAlignment;
+  verticalAlignment: ClockVerticalAlignment;
 }
 
 function normalizeAlignment(value: unknown): ClockAlignment {
   if (value === 'left' || value === 'center' || value === 'right') return value;
   return 'right';
+}
+
+function normalizeVerticalAlignment(value: unknown): ClockVerticalAlignment {
+  if (value === 'top' || value === 'center' || value === 'bottom') return value;
+  return 'top';
 }
 
 export default function ClockOptions({ data, onChange }: WidgetOptionsProps) {
@@ -24,6 +31,7 @@ export default function ClockOptions({ data, onChange }: WidgetOptionsProps) {
     showDate: (data?.showDate as boolean) ?? true,
     format24h: (data?.format24h as boolean) ?? false,
     alignment: normalizeAlignment(data?.alignment),
+    verticalAlignment: normalizeVerticalAlignment(data?.verticalAlignment),
   });
 
   useEffect(() => {
@@ -33,6 +41,7 @@ export default function ClockOptions({ data, onChange }: WidgetOptionsProps) {
         showDate: (data.showDate as boolean) ?? true,
         format24h: (data.format24h as boolean) ?? false,
         alignment: normalizeAlignment(data.alignment),
+        verticalAlignment: normalizeVerticalAlignment(data.verticalAlignment),
       });
     }
   }, [data]);
@@ -57,6 +66,12 @@ export default function ClockOptions({ data, onChange }: WidgetOptionsProps) {
       : state.alignment === 'center'
         ? 'text-center'
         : 'text-right';
+  const previewVerticalAlignmentClass =
+    state.verticalAlignment === 'top'
+      ? 'justify-start'
+      : state.verticalAlignment === 'center'
+        ? 'justify-center'
+        : 'justify-end';
 
   return (
     <div className="space-y-6">
@@ -96,12 +111,26 @@ export default function ClockOptions({ data, onChange }: WidgetOptionsProps) {
           ]}
           onChange={handleChange}
         />
+
+        <FormSelect
+          label="Vertical Alignment"
+          name="verticalAlignment"
+          value={state.verticalAlignment}
+          options={[
+            { value: 'top', label: 'Top' },
+            { value: 'center', label: 'Center' },
+            { value: 'bottom', label: 'Bottom' },
+          ]}
+          onChange={handleChange}
+        />
       </div>
 
       {/* Preview */}
       <div className="border-t border-[color:var(--ui-item-border)] pt-6">
         <h4 className="font-semibold text-[var(--ui-text)] mb-4">Preview</h4>
-        <div className={`bg-[var(--ui-item-bg)] rounded-xl p-6 ${previewAlignmentClass}`}>
+        <div
+          className={`bg-[var(--ui-item-bg)] rounded-xl p-6 h-32 flex flex-col ${previewAlignmentClass} ${previewVerticalAlignmentClass}`}
+        >
           <div className="text-4xl font-bold text-[var(--color-accent)] font-mono">
             {now.toLocaleTimeString([], timeOptions)}
           </div>

@@ -68,6 +68,32 @@ type JsonTransferMessage = { tone: 'success' | 'error'; text: string };
 const EXPORT_FILE_PREFIX = 'campus-hub-config';
 const EXPORT_SCHEMA_VERSION = 1;
 
+const copyText = async (value: string): Promise<boolean> => {
+  if (typeof navigator !== 'undefined' && typeof navigator.clipboard?.writeText === 'function') {
+    try {
+      await navigator.clipboard.writeText(value);
+      return true;
+    } catch {
+      // Fall through to legacy copy path when clipboard API is blocked.
+    }
+  }
+
+  if (typeof document === 'undefined') return false;
+
+  const textArea = document.createElement('textarea');
+  textArea.value = value;
+  textArea.setAttribute('readonly', '');
+  textArea.style.position = 'fixed';
+  textArea.style.opacity = '0';
+  textArea.style.pointerEvents = 'none';
+  document.body.append(textArea);
+  textArea.focus();
+  textArea.select();
+  const didCopy = document.execCommand('copy');
+  textArea.remove();
+  return didCopy;
+};
+
 const getConfigFromImport = (raw: unknown): Partial<DisplayConfig> => {
   if (!raw || typeof raw !== 'object') {
     throw new Error('Invalid JSON payload');
@@ -380,10 +406,14 @@ export default function ConfigurePage() {
   }, [config]);
 
   const copyUrl = useCallback(async () => {
-    if (shareUrl) {
-      await navigator.clipboard.writeText(shareUrl);
+    if (!shareUrl) return;
+    try {
+      const didCopy = await copyText(shareUrl);
+      if (!didCopy) return;
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setCopied(false);
     }
   }, [shareUrl]);
 

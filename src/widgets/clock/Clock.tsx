@@ -10,6 +10,7 @@ interface ClockConfig {
   showDate?: boolean;
   format24h?: boolean;
   alignment?: 'left' | 'center' | 'right';
+  verticalAlignment?: 'top' | 'center' | 'bottom';
 }
 
 export default function Clock({ config, theme }: WidgetComponentProps) {
@@ -23,6 +24,13 @@ export default function Clock({ config, theme }: WidgetComponentProps) {
     rawAlignment === 'left' || rawAlignment === 'center' || rawAlignment === 'right'
       ? rawAlignment
       : 'right';
+  const rawVerticalAlignment = clockConfig?.verticalAlignment;
+  const verticalAlignment =
+    rawVerticalAlignment === 'top' ||
+    rawVerticalAlignment === 'center' ||
+    rawVerticalAlignment === 'bottom'
+      ? rawVerticalAlignment
+      : 'top';
 
   const DESIGN_W = 320;
   const DESIGN_H = 100;
@@ -30,20 +38,36 @@ export default function Clock({ config, theme }: WidgetComponentProps) {
 
   const alignmentStyles = {
     left: {
-      containerClass: 'mr-auto items-start text-left',
-      transformOrigin: 'top left',
+      containerClass: 'self-start items-start text-left',
+      transformOriginX: 'left',
     },
     center: {
-      containerClass: 'mx-auto items-center text-center',
-      transformOrigin: 'center top',
+      containerClass: 'self-center items-center text-center',
+      transformOriginX: 'center',
     },
     right: {
-      containerClass: 'ml-auto items-end text-right',
-      transformOrigin: 'top right',
+      containerClass: 'self-end items-end text-right',
+      transformOriginX: 'right',
     },
   } as const;
 
-  const layout = alignmentStyles[alignment];
+  const verticalAlignmentStyles = {
+    top: {
+      containerClass: 'justify-start',
+      transformOriginY: 'top',
+    },
+    center: {
+      containerClass: 'justify-center',
+      transformOriginY: 'center',
+    },
+    bottom: {
+      containerClass: 'justify-end',
+      transformOriginY: 'bottom',
+    },
+  } as const;
+
+  const horizontalLayout = alignmentStyles[alignment];
+  const verticalLayout = verticalAlignmentStyles[verticalAlignment];
 
   useEffect(() => {
     setTime(new Date());
@@ -55,9 +79,12 @@ export default function Clock({ config, theme }: WidgetComponentProps) {
     return (
       <div
         ref={containerRef}
-        className={`h-full flex flex-col justify-center p-4 ${layout.containerClass}`}
+        className={`h-full flex flex-col p-4 ${verticalLayout.containerClass}`}
       >
-        <div className="h-12 w-32 rounded animate-pulse" style={{ backgroundColor: `${theme.accent}20` }} />
+        <div
+          className={`h-12 w-32 rounded animate-pulse ${horizontalLayout.containerClass}`}
+          style={{ backgroundColor: `${theme.accent}20` }}
+        />
       </div>
     );
   }
@@ -70,15 +97,18 @@ export default function Clock({ config, theme }: WidgetComponentProps) {
   };
 
   return (
-    <div ref={containerRef} className="w-full h-full overflow-hidden">
+    <div
+      ref={containerRef}
+      className={`w-full h-full overflow-hidden flex flex-col ${verticalLayout.containerClass}`}
+    >
       <div
         style={{
           width: DESIGN_W,
           height: DESIGN_H,
           transform: `scale(${scale})`,
-          transformOrigin: layout.transformOrigin,
+          transformOrigin: `${horizontalLayout.transformOriginX} ${verticalLayout.transformOriginY}`,
         }}
-        className={`flex flex-col justify-center font-clock px-4 ${layout.containerClass}`}
+        className={`flex flex-col justify-center font-clock px-4 ${horizontalLayout.containerClass}`}
       >
         <div
           className="text-5xl font-bold tracking-tight tabular-nums"
@@ -117,5 +147,6 @@ registerWidget({
     showDate: true,
     format24h: false,
     alignment: 'right',
+    verticalAlignment: 'top',
   },
 });
