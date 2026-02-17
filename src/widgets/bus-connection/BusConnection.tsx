@@ -11,6 +11,7 @@ import BusConnectionOptions from './BusConnectionOptions';
 interface BusConnectionConfig {
   glow?: boolean;
   scrollHeadsigns?: boolean;
+  departureTimeOnly?: boolean;
   pixelPitch?: number;
   padding?: number;
   proxyUrl?: string;
@@ -40,6 +41,7 @@ export default function BusConnection({ config, theme }: WidgetComponentProps) {
   const busConfig = config as BusConnectionConfig | undefined;
   const glow = busConfig?.glow ?? true;
   const scrollHeadsigns = busConfig?.scrollHeadsigns ?? true;
+  const departureTimeOnly = busConfig?.departureTimeOnly ?? false;
   const pixelPitch = busConfig?.pixelPitch ?? 6;
   const padding = busConfig?.padding ?? 8;
   const proxyUrl = busConfig?.proxyUrl?.trim() || undefined;
@@ -138,7 +140,7 @@ export default function BusConnection({ config, theme }: WidgetComponentProps) {
       const currentTrips = tripsRef.current.filter(t => t.arrivalTime > now - 30000);
 
       const pixels = renderTransitDisplay(
-        currentTrips, displayW, displayH, now, uptimeMs, null, scrollHeadsigns
+        currentTrips, displayW, displayH, now, uptimeMs, null, scrollHeadsigns, departureTimeOnly
       );
 
       rendererRef.current.setData(pixels);
@@ -152,7 +154,7 @@ export default function BusConnection({ config, theme }: WidgetComponentProps) {
       running = false;
       cancelAnimationFrame(animId);
     };
-  }, [fontReady, displaySize, displayW, displayH, glow, scrollHeadsigns, rendererRef]);
+  }, [fontReady, displaySize, displayW, displayH, glow, scrollHeadsigns, departureTimeOnly, rendererRef]);
 
   return (
     <div
@@ -196,6 +198,7 @@ registerWidget({
   defaultProps: {
     glow: true,
     scrollHeadsigns: true,
+    departureTimeOnly: false,
     pixelPitch: 6,
     padding: 8,
     proxyUrl: '',

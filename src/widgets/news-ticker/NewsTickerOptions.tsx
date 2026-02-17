@@ -7,6 +7,7 @@ import type { WidgetOptionsProps } from '@/lib/widget-registry';
 interface NewsTickerData {
   label: string;
   speed: number;
+  scale: number;
   dataSource: 'announcements' | 'events';
   apiUrl: string;
   sourceType: 'json' | 'rss';
@@ -20,11 +21,16 @@ interface NewsTickerData {
 }
 
 const EVENT_DOT_COLORS = ['#6366f1', '#f43f5e', '#f59e0b', '#10b981', '#06b6d4'];
+const clampScale = (value: unknown) => {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return 1;
+  return Math.min(2, Math.max(0.5, value));
+};
 
 export default function NewsTickerOptions({ data, onChange }: WidgetOptionsProps) {
   const [state, setState] = useState<NewsTickerData>({
     label: (data?.label as string) ?? 'Breaking',
     speed: (data?.speed as number) ?? 30,
+    scale: clampScale(data?.scale),
     dataSource: (data?.dataSource as 'announcements' | 'events') ?? 'announcements',
     apiUrl: (data?.apiUrl as string) ?? '',
     sourceType: (data?.sourceType as 'json' | 'rss') ?? 'json',
@@ -42,6 +48,7 @@ export default function NewsTickerOptions({ data, onChange }: WidgetOptionsProps
       setState({
         label: (data.label as string) ?? 'Breaking',
         speed: (data.speed as number) ?? 30,
+        scale: clampScale(data.scale),
         dataSource: (data.dataSource as 'announcements' | 'events') ?? 'announcements',
         apiUrl: (data.apiUrl as string) ?? '',
         sourceType: (data.sourceType as 'json' | 'rss') ?? 'json',
@@ -57,7 +64,8 @@ export default function NewsTickerOptions({ data, onChange }: WidgetOptionsProps
   }, [data]);
 
   const handleChange = (name: string, value: string | number | boolean) => {
-    const newState = { ...state, [name]: value };
+    const nextValue = name === 'scale' ? clampScale(value) : value;
+    const newState = { ...state, [name]: nextValue };
     setState(newState);
     onChange(newState);
   };
@@ -100,10 +108,24 @@ export default function NewsTickerOptions({ data, onChange }: WidgetOptionsProps
             max={120}
             onChange={handleChange}
           />
+
+          <FormInput
+            label="Size Scale"
+            name="scale"
+            type="number"
+            value={state.scale}
+            min={0.5}
+            max={2}
+            step={0.05}
+            onChange={handleChange}
+          />
         </div>
 
         <div className="text-sm text-[var(--ui-text-muted)] text-center">
           Lower values = faster scrolling. The ticker will complete one full scroll in {state.speed} seconds.
+        </div>
+        <div className="text-sm text-[var(--ui-text-muted)] text-center">
+          Scale {state.scale.toFixed(2)}x. Use 1.00x for default sizing.
         </div>
       </div>
 

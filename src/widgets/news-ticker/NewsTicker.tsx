@@ -20,6 +20,7 @@ interface NewsTickerConfig {
   cacheTtlSeconds?: number;
   items?: TickerItem[];
   speed?: number;
+  scale?: number;
   label?: string;
   dataSource?: 'announcements' | 'events';
   eventApiUrl?: string;
@@ -60,6 +61,11 @@ export default function NewsTicker({ config, theme }: WidgetComponentProps) {
   const corsProxy = tickerConfig?.corsProxy?.trim();
   const cacheTtlSeconds = tickerConfig?.cacheTtlSeconds ?? 120;
   const speed = tickerConfig?.speed ?? 30;
+  const configuredScale = tickerConfig?.scale;
+  const userScale =
+    typeof configuredScale === 'number' && Number.isFinite(configuredScale)
+      ? Math.min(2, Math.max(0.5, configuredScale))
+      : 1;
   const label = tickerConfig?.label ?? 'Breaking';
   const dataSource = tickerConfig?.dataSource ?? 'announcements';
 
@@ -128,14 +134,16 @@ export default function NewsTicker({ config, theme }: WidgetComponentProps) {
   const tickerContent = isEventsMode ? [] : [...items, ...items];
   const tickerEvents = isEventsMode ? [...events, ...events] : [];
 
-  // Uniformly scale the ticker to fill its row height (designed at 70px)
+  // Uniformly scale the ticker to fill its row height (designed at 70px),
+  // then apply user scale from widget options.
   const containerRef = useRef<HTMLDivElement>(null);
   const [fitScale, setFitScale] = useState(1);
 
   const updateScale = useCallback(() => {
     const el = containerRef.current;
     if (!el) return;
-    setFitScale(el.clientHeight / 70);
+    const nextScale = el.clientHeight / 70;
+    setFitScale(nextScale > 0 ? nextScale : 1);
   }, []);
 
   useEffect(() => {
@@ -147,6 +155,8 @@ export default function NewsTicker({ config, theme }: WidgetComponentProps) {
     return () => ro.disconnect();
   }, [updateScale]);
 
+  const renderScale = Math.max(0.01, fitScale * userScale);
+
   return (
     <div
       ref={containerRef}
@@ -155,10 +165,10 @@ export default function NewsTicker({ config, theme }: WidgetComponentProps) {
     >
       <div
         style={{
-          transform: `scale(${fitScale})`,
+          transform: `scale(${renderScale})`,
           transformOrigin: 'top left',
-          width: `${100 / fitScale}%`,
-          height: `${100 / fitScale}%`,
+          width: `${100 / renderScale}%`,
+          height: `${100 / renderScale}%`,
         }}
         className="relative"
       >
@@ -264,6 +274,7 @@ registerWidget({
   OptionsComponent: NewsTickerOptions,
   defaultProps: {
     speed: 30,
+    scale: 1,
     label: 'Breaking',
     dataSource: 'announcements',
     sourceType: 'json',

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, type ChangeEvent } from 'react';
 import dynamic from 'next/dynamic';
 import {
   encodeConfig,
@@ -63,6 +63,22 @@ const COL_OPTIONS = [
 const CONFIG_STORAGE_KEY = 'campus-hub:config';
 
 type GridPlacement = { x: number; y: number; w: number; h: number };
+type JsonTransferMessage = { tone: 'success' | 'error'; text: string };
+
+const EXPORT_FILE_PREFIX = 'campus-hub-config';
+const EXPORT_SCHEMA_VERSION = 1;
+
+const getConfigFromImport = (raw: unknown): Partial<DisplayConfig> => {
+  if (!raw || typeof raw !== 'object') {
+    throw new Error('Invalid JSON payload');
+  }
+
+  if ('config' in raw && raw.config && typeof raw.config === 'object') {
+    return raw.config as Partial<DisplayConfig>;
+  }
+
+  return raw as Partial<DisplayConfig>;
+};
 
 /** Remap widget positions proportionally when grid dimensions change.
  *  Uses ceil for sizes (never shrink) and floor for positions (don't overflow). */
@@ -142,6 +158,7 @@ export default function ConfigurePage() {
   const [shareUrl, setShareUrl] = useState<string>('');
   const [showShareModal, setShowShareModal] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [jsonTransferMessage, setJsonTransferMessage] = useState<JsonTransferMessage | null>(null);
   const [aspectRatio, setAspectRatioRaw] = useState(config.aspectRatio ?? 16 / 9);
   const setAspectRatio = useCallback((ratio: number) => {
     setAspectRatioRaw(ratio);
@@ -156,6 +173,7 @@ export default function ConfigurePage() {
   const [showWidgetLibrary, setShowWidgetLibrary] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<GridStackWrapperRef>(null);
+  const importInputRef = useRef<HTMLInputElement>(null);
 
   const availableWidgets = getAllWidgets();
   const hasTicker = config.layout.some((widget) => widget.type === 'news-ticker');
@@ -206,6 +224,12 @@ export default function ConfigurePage() {
       setAspectRatioRaw(config.aspectRatio);
     }
   }, [config.aspectRatio]);
+
+  useEffect(() => {
+    if (!jsonTransferMessage) return;
+    const timeout = setTimeout(() => setJsonTransferMessage(null), 3500);
+    return () => clearTimeout(timeout);
+  }, [jsonTransferMessage]);
 
   // Calculate preview size to fit container while maintaining aspect ratio
   useEffect(() => {
@@ -363,6 +387,62 @@ export default function ConfigurePage() {
     }
   }, [shareUrl]);
 
+  const exportJson = useCallback(() => {
+    try {
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const payload = JSON.stringify(
+        {
+          version: EXPORT_SCHEMA_VERSION,
+          exportedAt: new Date().toISOString(),
+          config,
+        },
+        null,
+        2,
+      );
+      const blob = new Blob([payload], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `${EXPORT_FILE_PREFIX}-${timestamp}.json`;
+      document.body.append(anchor);
+      anchor.click();
+      anchor.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 0);
+      setJsonTransferMessage({ tone: 'success', text: 'JSON exported.' });
+    } catch {
+      setJsonTransferMessage({ tone: 'error', text: 'Export failed. Try again.' });
+    }
+  }, [config]);
+
+  const openImportDialog = useCallback(() => {
+    importInputRef.current?.click();
+  }, []);
+
+  const importJson = useCallback(async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text) as unknown;
+      const importedConfig = getConfigFromImport(parsed);
+      const normalized = normalizeConfig(importedConfig);
+      setConfig(normalized);
+      setEditingWidget(null);
+      setPlacementError(null);
+      setShowShareModal(false);
+      setShareUrl('');
+      setCopied(false);
+      setJsonTransferMessage({ tone: 'success', text: `Imported ${file.name}.` });
+    } catch {
+      setJsonTransferMessage({
+        tone: 'error',
+        text: 'Import failed. Upload a valid Campus Hub config JSON.',
+      });
+    }
+  }, []);
+
   const renderGridItem = useCallback(
     (item: GridStackItem) => {
       const widget = config.layout.find((w) => w.id === item.id);
@@ -433,22 +513,52 @@ export default function ConfigurePage() {
             />
             Campus Hub Configurator
           </h1>
-          <div className="flex items-center gap-4">
-            <button
-              onClick={generateUrl}
-              className="px-4 py-2 rounded-lg font-medium transition-all hover:scale-105"
-              style={{ backgroundColor: config.theme.accent, color: config.theme.primary }}
-            >
-              Generate URL
-            </button>
-            <a
-              href={`/display?config=${encodeConfig(config)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-4 py-2 rounded-lg font-medium border border-[color:var(--ui-panel-border)] hover:bg-[var(--ui-item-hover)] transition-all"
-            >
-              Open Fullscreen
-            </a>
+          <div className="flex flex-col items-end gap-1">
+            <div className="flex items-center justify-end flex-wrap gap-2">
+              <input
+                ref={importInputRef}
+                type="file"
+                accept="application/json,.json"
+                onChange={importJson}
+                className="hidden"
+              />
+              <button
+                onClick={openImportDialog}
+                className="px-4 py-2 rounded-lg font-medium border border-[color:var(--ui-panel-border)] hover:bg-[var(--ui-item-hover)] transition-all"
+              >
+                Import JSON
+              </button>
+              <button
+                onClick={exportJson}
+                className="px-4 py-2 rounded-lg font-medium border border-[color:var(--ui-panel-border)] hover:bg-[var(--ui-item-hover)] transition-all"
+              >
+                Export JSON
+              </button>
+              <button
+                onClick={generateUrl}
+                className="px-4 py-2 rounded-lg font-medium transition-all hover:scale-105"
+                style={{ backgroundColor: config.theme.accent, color: config.theme.primary }}
+              >
+                Generate URL
+              </button>
+              <a
+                href={`/display?config=${encodeConfig(config)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-4 py-2 rounded-lg font-medium border border-[color:var(--ui-panel-border)] hover:bg-[var(--ui-item-hover)] transition-all"
+              >
+                Open Fullscreen
+              </a>
+            </div>
+            {jsonTransferMessage && (
+              <p
+                className={`text-xs ${
+                  jsonTransferMessage.tone === 'success' ? 'text-emerald-300' : 'text-red-300'
+                }`}
+              >
+                {jsonTransferMessage.text}
+              </p>
+            )}
           </div>
         </div>
       </header>

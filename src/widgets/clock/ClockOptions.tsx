@@ -1,13 +1,21 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { FormSwitch } from '@/components/ui';
+import { FormSelect, FormSwitch } from '@/components/ui';
 import type { WidgetOptionsProps } from '@/lib/widget-registry';
+
+type ClockAlignment = 'left' | 'center' | 'right';
 
 interface ClockData {
   showSeconds: boolean;
   showDate: boolean;
   format24h: boolean;
+  alignment: ClockAlignment;
+}
+
+function normalizeAlignment(value: unknown): ClockAlignment {
+  if (value === 'left' || value === 'center' || value === 'right') return value;
+  return 'right';
 }
 
 export default function ClockOptions({ data, onChange }: WidgetOptionsProps) {
@@ -15,6 +23,7 @@ export default function ClockOptions({ data, onChange }: WidgetOptionsProps) {
     showSeconds: (data?.showSeconds as boolean) ?? false,
     showDate: (data?.showDate as boolean) ?? true,
     format24h: (data?.format24h as boolean) ?? false,
+    alignment: normalizeAlignment(data?.alignment),
   });
 
   useEffect(() => {
@@ -23,11 +32,12 @@ export default function ClockOptions({ data, onChange }: WidgetOptionsProps) {
         showSeconds: (data.showSeconds as boolean) ?? false,
         showDate: (data.showDate as boolean) ?? true,
         format24h: (data.format24h as boolean) ?? false,
+        alignment: normalizeAlignment(data.alignment),
       });
     }
   }, [data]);
 
-  const handleChange = (name: string, value: boolean) => {
+  const handleChange = (name: string, value: string | boolean) => {
     const newState = { ...state, [name]: value };
     setState(newState);
     onChange(newState);
@@ -41,6 +51,12 @@ export default function ClockOptions({ data, onChange }: WidgetOptionsProps) {
     ...(state.showSeconds ? { second: '2-digit' } : {}),
     hour12: !state.format24h,
   };
+  const previewAlignmentClass =
+    state.alignment === 'left'
+      ? 'text-left'
+      : state.alignment === 'center'
+        ? 'text-center'
+        : 'text-right';
 
   return (
     <div className="space-y-6">
@@ -68,12 +84,24 @@ export default function ClockOptions({ data, onChange }: WidgetOptionsProps) {
           checked={state.format24h}
           onChange={handleChange}
         />
+
+        <FormSelect
+          label="Alignment"
+          name="alignment"
+          value={state.alignment}
+          options={[
+            { value: 'left', label: 'Left' },
+            { value: 'center', label: 'Center' },
+            { value: 'right', label: 'Right' },
+          ]}
+          onChange={handleChange}
+        />
       </div>
 
       {/* Preview */}
       <div className="border-t border-[color:var(--ui-item-border)] pt-6">
         <h4 className="font-semibold text-[var(--ui-text)] mb-4">Preview</h4>
-        <div className="bg-[var(--ui-item-bg)] rounded-xl p-6 text-right">
+        <div className={`bg-[var(--ui-item-bg)] rounded-xl p-6 ${previewAlignmentClass}`}>
           <div className="text-4xl font-bold text-[var(--color-accent)] font-mono">
             {now.toLocaleTimeString([], timeOptions)}
           </div>

@@ -7,6 +7,7 @@ import type { WidgetOptionsProps } from '@/lib/widget-registry';
 interface BusConnectionData {
   glow: boolean;
   scrollHeadsigns: boolean;
+  departureTimeOnly: boolean;
   pixelPitch: number;
   padding: number;
   proxyUrl: string;
@@ -19,6 +20,7 @@ export default function BusConnectionOptions({ data, onChange }: WidgetOptionsPr
   const [state, setState] = useState<BusConnectionData>({
     glow: (data?.glow as boolean) ?? true,
     scrollHeadsigns: (data?.scrollHeadsigns as boolean) ?? true,
+    departureTimeOnly: (data?.departureTimeOnly as boolean) ?? false,
     pixelPitch: (data?.pixelPitch as number) ?? 6,
     padding: (data?.padding as number) ?? 8,
     proxyUrl: (data?.proxyUrl as string) ?? '',
@@ -32,6 +34,7 @@ export default function BusConnectionOptions({ data, onChange }: WidgetOptionsPr
       setState({
         glow: (data.glow as boolean) ?? true,
         scrollHeadsigns: (data.scrollHeadsigns as boolean) ?? true,
+        departureTimeOnly: (data.departureTimeOnly as boolean) ?? false,
         pixelPitch: (data.pixelPitch as number) ?? 6,
         padding: (data.padding as number) ?? 8,
         proxyUrl: (data.proxyUrl as string) ?? '',
@@ -90,6 +93,13 @@ export default function BusConnectionOptions({ data, onChange }: WidgetOptionsPr
           label="Scroll Long Names"
           name="scrollHeadsigns"
           checked={state.scrollHeadsigns}
+          onChange={handleSwitchChange}
+        />
+
+        <FormSwitch
+          label="Departure Time Only"
+          name="departureTimeOnly"
+          checked={state.departureTimeOnly}
           onChange={handleSwitchChange}
         />
 

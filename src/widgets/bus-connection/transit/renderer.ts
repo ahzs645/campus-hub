@@ -224,7 +224,8 @@ export function renderTransitDisplay(
   now: number,
   uptimeMs: number = 0,
   limit: number | null = null,
-  scrollHeadsigns: boolean = true
+  scrollHeadsigns: boolean = true,
+  departureTimeOnly: boolean = false
 ): string[] {
   const pixels = new Array(width * height).fill(COLOR_BG);
 
@@ -236,7 +237,7 @@ export function renderTransitDisplay(
   const displayTrips = trips.slice(0, limit);
 
   if (displayTrips.length === 0) {
-    const msg = 'No upcoming arrivals';
+    const msg = departureTimeOnly ? 'No upcoming departures' : 'No upcoming arrivals';
     const tw = measureText(msg);
     const x = Math.floor((width - tw) / 2);
     const y = Math.floor((height - NOMINAL_HEIGHT) / 2);
@@ -250,9 +251,11 @@ export function renderTransitDisplay(
   let longestOverflow = 0;
 
   let maxRouteWidth = 0;
-  for (const trip of displayTrips) {
-    const rw = measureText(trip.routeName || '');
-    if (rw > maxRouteWidth) maxRouteWidth = rw;
+  if (!departureTimeOnly) {
+    for (const trip of displayTrips) {
+      const rw = measureText(trip.routeName || '');
+      if (rw > maxRouteWidth) maxRouteWidth = rw;
+    }
   }
 
   const tripLayouts = displayTrips.map((trip, i) => {
@@ -264,7 +267,7 @@ export function renderTransitDisplay(
       : COLOR_DEFAULT_ROUTE;
 
     const prevTrip = i > 0 ? displayTrips[i - 1] : null;
-    const showRouteName = !prevTrip || prevTrip.routeId !== trip.routeId;
+    const showRouteName = !departureTimeOnly && (!prevTrip || prevTrip.routeId !== trip.routeId);
 
     const timeStr = formatTime(trip.arrivalTime, now);
     const timeColor = trip.isRealtime ? COLOR_TIME_REALTIME : COLOR_TIME_SCHEDULED;
@@ -272,11 +275,11 @@ export function renderTransitDisplay(
     const routeWidth = maxRouteWidth;
     const timeWidth = measureText(timeStr);
 
-    let headsignClipStart = routeWidth + 3;
+    const headsignClipStart = routeWidth + 3;
     let headsignClipEnd = width - timeWidth - 2;
     if (trip.isRealtime) headsignClipEnd -= 8;
 
-    const headsign = trip.headsign || '';
+    const headsign = departureTimeOnly ? '' : (trip.headsign || '');
     const headsignWidth = measureText(headsign);
     const clipWidth = headsignClipEnd - headsignClipStart;
     const overflow = Math.max(0, headsignWidth - clipWidth);

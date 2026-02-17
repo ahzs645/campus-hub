@@ -9,6 +9,7 @@ interface ClockConfig {
   showSeconds?: boolean;
   showDate?: boolean;
   format24h?: boolean;
+  alignment?: 'left' | 'center' | 'right';
 }
 
 export default function Clock({ config, theme }: WidgetComponentProps) {
@@ -17,10 +18,32 @@ export default function Clock({ config, theme }: WidgetComponentProps) {
   const showSeconds = clockConfig?.showSeconds ?? false;
   const showDate = clockConfig?.showDate ?? true;
   const format24h = clockConfig?.format24h ?? false;
+  const rawAlignment = clockConfig?.alignment;
+  const alignment =
+    rawAlignment === 'left' || rawAlignment === 'center' || rawAlignment === 'right'
+      ? rawAlignment
+      : 'right';
 
   const DESIGN_W = 320;
   const DESIGN_H = 100;
   const { containerRef, scale } = useFitScale(DESIGN_W, DESIGN_H);
+
+  const alignmentStyles = {
+    left: {
+      containerClass: 'mr-auto items-start text-left',
+      transformOrigin: 'top left',
+    },
+    center: {
+      containerClass: 'mx-auto items-center text-center',
+      transformOrigin: 'center top',
+    },
+    right: {
+      containerClass: 'ml-auto items-end text-right',
+      transformOrigin: 'top right',
+    },
+  } as const;
+
+  const layout = alignmentStyles[alignment];
 
   useEffect(() => {
     setTime(new Date());
@@ -30,7 +53,10 @@ export default function Clock({ config, theme }: WidgetComponentProps) {
 
   if (!time) {
     return (
-      <div ref={containerRef} className="h-full flex flex-col items-end justify-center p-4">
+      <div
+        ref={containerRef}
+        className={`h-full flex flex-col justify-center p-4 ${layout.containerClass}`}
+      >
         <div className="h-12 w-32 rounded animate-pulse" style={{ backgroundColor: `${theme.accent}20` }} />
       </div>
     );
@@ -50,9 +76,9 @@ export default function Clock({ config, theme }: WidgetComponentProps) {
           width: DESIGN_W,
           height: DESIGN_H,
           transform: `scale(${scale})`,
-          transformOrigin: 'top right',
+          transformOrigin: layout.transformOrigin,
         }}
-        className="flex flex-col items-end justify-center font-clock px-4 ml-auto"
+        className={`flex flex-col justify-center font-clock px-4 ${layout.containerClass}`}
       >
         <div
           className="text-5xl font-bold tracking-tight tabular-nums"
@@ -90,5 +116,6 @@ registerWidget({
     showSeconds: false,
     showDate: true,
     format24h: false,
+    alignment: 'right',
   },
 });
