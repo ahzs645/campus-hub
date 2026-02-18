@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { WidgetComponentProps, registerWidget } from '@/lib/widget-registry';
-import { buildCacheKey, fetchTextWithCache } from '@/lib/data-cache';
+import { buildCacheKey, buildProxyUrl, fetchTextWithCache } from '@/lib/data-cache';
 import { useFitScale } from '@/hooks/useFitScale';
 import AppIcon from '@/components/AppIcon';
 import ClimbingGymOptions from './ClimbingGymOptions';
@@ -100,19 +100,6 @@ const parseOccupancyData = (html: string): OccupancyData | null => {
   }
 };
 
-/** Build the proxied fetch URL */
-const buildProxiedUrl = (corsProxy: string, targetUrl: string): string => {
-  if (corsProxy.includes('cors.lol')) {
-    return `https://api.cors.lol/?url=${targetUrl.replace('https://', '')}#!`;
-  }
-  if (corsProxy.includes('corsproxy.io')) {
-    return `https://corsproxy.io/?${targetUrl}`;
-  }
-  if (corsProxy.includes('allorigins.win')) {
-    return `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
-  }
-  return `${corsProxy}${targetUrl}`;
-};
 
 /** Get occupancy level for color-coding */
 const getOccupancyLevel = (count: number, capacity: number): 'low' | 'moderate' | 'high' => {
@@ -147,7 +134,7 @@ export default function ClimbingGym({ config, theme, corsProxy: globalCorsProxy 
   const fetchOccupancy = useCallback(async () => {
     try {
       setError(null);
-      const fetchUrl = buildProxiedUrl(corsProxy, portalUrl);
+      const fetchUrl = buildProxyUrl(corsProxy, portalUrl);
       const { text } = await fetchTextWithCache(fetchUrl, {
         cacheKey: buildCacheKey('climbing-gym', portalUrl),
         ttlMs: refreshMs,

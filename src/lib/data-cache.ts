@@ -71,6 +71,21 @@ const setCacheEntry = (key: string, value: string, ttlMs: number): void => {
 
 export const isEntryFresh = (entry: CacheEntry): boolean => entry.expiresAt > Date.now();
 
+/**
+ * Build a proxied URL from a CORS proxy base and a target URL.
+ * The proxy base can be provided in any format — the function normalizes it
+ * and constructs `{base}/?url={encodedTarget}`.
+ *
+ * Returns the target URL unchanged when no proxy is provided.
+ */
+export function buildProxyUrl(corsProxy: string | undefined, targetUrl: string): string {
+  if (!corsProxy) return targetUrl;
+
+  // Normalize: strip trailing /, ?, and any partial ?url= the user may have typed
+  const base = corsProxy.replace(/\/?\??(?:url=)?$/i, '');
+  return `${base}/?url=${encodeURIComponent(targetUrl)}`;
+}
+
 export async function fetchTextWithCache(
   url: string,
   { cacheKey, ttlMs = 60_000, allowStale = true, fetchInit }: FetchCacheOptions = {}

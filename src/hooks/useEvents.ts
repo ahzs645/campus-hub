@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { buildCacheKey, fetchJsonWithCache, fetchTextWithCache } from '@/lib/data-cache';
+import { buildCacheKey, buildProxyUrl, fetchJsonWithCache, fetchTextWithCache } from '@/lib/data-cache';
 import { parseICal, parseRss } from '@/lib/feeds';
 
 export interface CalendarEvent {
@@ -28,8 +28,7 @@ export interface UseEventsOptions {
 }
 
 export const applyCorsProxy = (url: string, corsProxy?: string) => {
-  if (!corsProxy) return url;
-  return `${corsProxy}${url}`;
+  return buildProxyUrl(corsProxy, url);
 };
 
 export const formatDate = (value: Date | null): string => {

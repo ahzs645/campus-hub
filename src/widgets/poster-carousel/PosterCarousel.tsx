@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { WidgetComponentProps, registerWidget } from '@/lib/widget-registry';
-import { fetchTextWithCache, buildCacheKey } from '@/lib/data-cache';
+import { fetchTextWithCache, buildCacheKey, buildProxyUrl } from '@/lib/data-cache';
 import PosterCarouselOptions from './PosterCarouselOptions';
 
 interface Poster {
@@ -53,19 +53,6 @@ const DEFAULT_POSTERS: Poster[] = [
 
 const UNBC_NEWS_URL = 'https://www.unbc.ca/our-stories/releases';
 
-/** Build the proxied UNBC news fetch URL based on the selected CORS proxy */
-const buildProxiedUrl = (corsProxy: string, targetUrl: string): string => {
-  if (corsProxy.includes('cors.lol')) {
-    return `https://api.cors.lol/?url=${targetUrl.replace('https://', '')}#!`;
-  }
-  if (corsProxy.includes('corsproxy.io')) {
-    return `https://corsproxy.io/?${targetUrl}`;
-  }
-  if (corsProxy.includes('allorigins.win')) {
-    return `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
-  }
-  return `${corsProxy}${targetUrl}`;
-};
 
 /** Parse the UNBC news releases page HTML into poster items */
 const parseUNBCNewsPage = (html: string, maxStories: number): Poster[] => {
@@ -158,7 +145,7 @@ export default function PosterCarousel({ config, theme, corsProxy: globalCorsPro
 
     const fetchNews = async () => {
       try {
-        const proxiedUrl = buildProxiedUrl(corsProxy, UNBC_NEWS_URL);
+        const proxiedUrl = buildProxyUrl(corsProxy, UNBC_NEWS_URL);
         const { text } = await fetchTextWithCache(proxiedUrl, {
           cacheKey: buildCacheKey('unbc-news', UNBC_NEWS_URL),
           ttlMs: refreshInterval * 60 * 1000,

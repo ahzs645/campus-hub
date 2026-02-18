@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { WidgetComponentProps, registerWidget } from '@/lib/widget-registry';
-import { buildCacheKey, fetchJsonWithCache, fetchTextWithCache } from '@/lib/data-cache';
+import { buildCacheKey, buildProxyUrl, fetchJsonWithCache, fetchTextWithCache } from '@/lib/data-cache';
 import { useFitScale } from '@/hooks/useFitScale';
 import AppIcon from '@/components/AppIcon';
 import type { IconName } from '@/lib/icon-names';
@@ -93,20 +93,6 @@ const mapWeatherIcon = (condition: string): WeatherIconKey => {
 
 const UNBC_URL = 'https://cyclone.unbc.ca/wx/data-table-std-1m.html';
 
-/** Build the proxied UNBC fetch URL based on the selected CORS proxy */
-const buildProxiedUNBCUrl = (corsProxy: string): string => {
-  if (corsProxy.includes('cors.lol')) {
-    return `https://api.cors.lol/?url=${UNBC_URL.replace('https://', '')}#!`;
-  }
-  if (corsProxy.includes('corsproxy.io')) {
-    return `https://corsproxy.io/?${UNBC_URL}`;
-  }
-  if (corsProxy.includes('allorigins.win')) {
-    return `https://api.allorigins.win/raw?url=${encodeURIComponent(UNBC_URL)}`;
-  }
-  // Custom proxy: append full URL
-  return `${corsProxy}${UNBC_URL}`;
-};
 
 /** Derive a simple condition string from UNBC rooftop sensor readings */
 const deriveConditionFromUNBC = (
@@ -211,8 +197,7 @@ export default function Weather({ config, theme, corsProxy: globalCorsProxy }: W
   const fetchUNBC = useCallback(async () => {
     try {
       setError(null);
-      const proxy = corsProxy || '';
-      const fetchUrl = buildProxiedUNBCUrl(proxy);
+      const fetchUrl = buildProxyUrl(corsProxy, UNBC_URL);
       const { text } = await fetchTextWithCache(fetchUrl, {
         cacheKey: buildCacheKey('weather-unbc', UNBC_URL),
         ttlMs: refreshMs,
