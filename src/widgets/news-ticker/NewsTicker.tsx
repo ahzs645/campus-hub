@@ -58,7 +58,7 @@ export default function NewsTicker({ config, theme, corsProxy: globalCorsProxy }
   const tickerConfig = config as NewsTickerConfig | undefined;
   const apiUrl = tickerConfig?.apiUrl;
   const sourceType = tickerConfig?.sourceType ?? 'json';
-  const corsProxy = tickerConfig?.corsProxy?.trim() || globalCorsProxy;
+  const corsProxy = tickerConfig?.corsProxy?.trim();
   const cacheTtlSeconds = tickerConfig?.cacheTtlSeconds ?? 120;
   const speed = tickerConfig?.speed ?? 30;
   const configuredScale = tickerConfig?.scale;

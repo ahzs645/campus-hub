@@ -36,11 +36,11 @@ const CARD_HEIGHT = 120;
 // padding (24+24) + header+mb (56+20) + progress+dots (4+12+10+16) = ~166px
 const CHROME_HEIGHT = 170;
 
-export default function EventsList({ config, theme, corsProxy: globalCorsProxy }: WidgetComponentProps) {
+export default function EventsList({ config, theme }: WidgetComponentProps) {
   const eventsConfig = config as EventsListConfig | undefined;
   const apiUrl = eventsConfig?.apiUrl;
   const sourceType = eventsConfig?.sourceType ?? 'json';
-  const corsProxy = eventsConfig?.corsProxy?.trim() || globalCorsProxy;
+  const corsProxy = eventsConfig?.corsProxy?.trim();
   const cacheTtlSeconds = eventsConfig?.cacheTtlSeconds ?? 300;
   const maxItems = eventsConfig?.maxItems ?? 10;
   const title = eventsConfig?.title ?? 'Upcoming Events';

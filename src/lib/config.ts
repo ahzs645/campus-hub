@@ -67,6 +67,24 @@ export const DEFAULT_CONFIG: DisplayConfig = {
 // Base path is no longer used - site runs at root domain
 export const getBasePath = (): string => '';
 
+/** Strip defunct third-party CORS proxy URLs from per-widget props so old
+ *  cached configs don't keep hitting dead proxies. */
+const DEFUNCT_PROXIES = ['corsproxy.io', 'cors.lol', 'allorigins.win'];
+const PROXY_KEYS = ['corsProxy', 'eventCorsProxy'];
+
+function migrateWidgetProps(props: Record<string, unknown>): Record<string, unknown> {
+  let changed = false;
+  const out = { ...props };
+  for (const key of PROXY_KEYS) {
+    const val = out[key];
+    if (typeof val === 'string' && DEFUNCT_PROXIES.some(d => val.includes(d))) {
+      out[key] = '';
+      changed = true;
+    }
+  }
+  return changed ? out : props;
+}
+
 export function normalizeConfig(raw: Partial<DisplayConfig> | null | undefined): DisplayConfig {
   const safe = raw && typeof raw === 'object' ? raw : {};
   const layout = Array.isArray(safe.layout)
@@ -79,7 +97,7 @@ export function normalizeConfig(raw: Partial<DisplayConfig> | null | undefined):
         h: Number.isFinite(item.h) ? item.h : 1,
         props:
           item.props && typeof item.props === 'object'
-            ? (item.props as Record<string, unknown>)
+            ? migrateWidgetProps(item.props as Record<string, unknown>)
             : undefined,
         comingSoon: item.comingSoon === true ? true : undefined,
       }))
