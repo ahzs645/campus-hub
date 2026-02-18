@@ -488,6 +488,7 @@ export default function ConfigurePage() {
         <EditableWidget
           widget={widget}
           theme={config.theme}
+          corsProxy={config.corsProxy}
           onEdit={handleEditWidget}
           onDelete={removeWidget}
         />
@@ -910,6 +911,21 @@ export default function ConfigurePage() {
                       className="w-full h-10 rounded-lg cursor-pointer"
                     />
                   </div>
+                </div>
+
+                {/* CORS Proxy */}
+                <div className="pt-2">
+                  <label className="block text-sm text-white/60 mb-1">CORS Proxy URL</label>
+                  <input
+                    type="text"
+                    value={config.corsProxy ?? ''}
+                    onChange={(e) => setConfig((prev) => ({ ...prev, corsProxy: e.target.value }))}
+                    placeholder="https://your-worker.workers.dev/?url="
+                    className="w-full px-3 py-2 rounded-lg bg-[var(--ui-item-bg)] border border-[color:var(--ui-item-border)] focus:border-[var(--ui-item-border-hover)] outline-none text-sm font-mono"
+                  />
+                  <p className="text-xs text-white/40 mt-1">
+                    Used by widgets that fetch external data (weather, news, climbing gym). Deploy your own Cloudflare Worker for reliable access.
+                  </p>
                 </div>
               </div>
             )}

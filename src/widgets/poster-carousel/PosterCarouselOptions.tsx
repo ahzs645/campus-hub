@@ -21,7 +21,7 @@ export default function PosterCarouselOptions({ data, onChange }: WidgetOptionsP
     dataSource: (data?.dataSource as DataSource) ?? 'default',
     apiUrl: (data?.apiUrl as string) ?? '',
     maxStories: (data?.maxStories as number) ?? 5,
-    corsProxy: (data?.corsProxy as string) ?? 'https://corsproxy.io/?',
+    corsProxy: (data?.corsProxy as string) ?? '',
     refreshInterval: (data?.refreshInterval as number) ?? 30,
   });
 
@@ -32,7 +32,7 @@ export default function PosterCarouselOptions({ data, onChange }: WidgetOptionsP
         dataSource: (data.dataSource as DataSource) ?? 'default',
         apiUrl: (data.apiUrl as string) ?? '',
         maxStories: (data.maxStories as number) ?? 5,
-        corsProxy: (data.corsProxy as string) ?? 'https://corsproxy.io/?',
+        corsProxy: (data.corsProxy as string) ?? '',
         refreshInterval: (data.refreshInterval as number) ?? 30,
       });
     }
@@ -151,11 +151,9 @@ export default function PosterCarouselOptions({ data, onChange }: WidgetOptionsP
             <FormSelect
               label="CORS Proxy"
               name="corsProxy"
-              value={state.corsProxy || 'https://corsproxy.io/?'}
+              value={state.corsProxy || ''}
               options={[
-                { value: 'https://corsproxy.io/?', label: 'corsproxy.io (default)' },
-                { value: 'https://api.cors.lol/?url=', label: 'cors.lol' },
-                { value: 'https://api.allorigins.win/raw?url=', label: 'allorigins.win' },
+                { value: '', label: 'Use global setting' },
                 { value: 'custom', label: 'Custom URL...' },
               ]}
               onChange={handleChange}

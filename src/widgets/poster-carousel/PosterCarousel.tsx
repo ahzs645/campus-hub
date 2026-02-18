@@ -104,13 +104,13 @@ const parseUNBCNewsPage = (html: string, maxStories: number): Poster[] => {
   return posters;
 };
 
-export default function PosterCarousel({ config, theme }: WidgetComponentProps) {
+export default function PosterCarousel({ config, theme, corsProxy: globalCorsProxy }: WidgetComponentProps) {
   const carouselConfig = config as PosterCarouselConfig | undefined;
   const rotationSeconds = carouselConfig?.rotationSeconds ?? 10;
   const dataSource = carouselConfig?.dataSource ?? 'default';
   const apiUrl = carouselConfig?.apiUrl;
   const maxStories = carouselConfig?.maxStories ?? 5;
-  const corsProxy = carouselConfig?.corsProxy?.trim() ?? 'https://corsproxy.io/?';
+  const corsProxy = carouselConfig?.corsProxy?.trim() || globalCorsProxy || '';
   const refreshInterval = carouselConfig?.refreshInterval ?? 30; // minutes
 
   const [posters, setPosters] = useState<Poster[]>(carouselConfig?.posters ?? DEFAULT_POSTERS);

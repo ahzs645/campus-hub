@@ -10,9 +10,10 @@ interface WidgetRendererProps {
     accent: string;
     background: string;
   };
+  corsProxy?: string;
 }
 
-export default function WidgetRenderer({ widget, theme }: WidgetRendererProps) {
+export default function WidgetRenderer({ widget, theme, corsProxy }: WidgetRendererProps) {
   const Component = getWidgetComponent(widget.type);
 
   if (!Component) {
@@ -29,7 +30,7 @@ export default function WidgetRenderer({ widget, theme }: WidgetRendererProps) {
   return (
     <div className="h-full w-full relative">
       <div className={widget.comingSoon ? 'h-full w-full blur-sm grayscale pointer-events-none select-none' : 'h-full w-full'}>
-        <Component config={widget.props} theme={theme} />
+        <Component config={widget.props} theme={theme} corsProxy={corsProxy} />
       </div>
       {widget.comingSoon && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-xl">

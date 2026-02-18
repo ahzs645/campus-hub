@@ -54,11 +54,11 @@ const EVENT_DOT_COLORS = [
   '#06b6d4', // cyan
 ];
 
-export default function NewsTicker({ config, theme }: WidgetComponentProps) {
+export default function NewsTicker({ config, theme, corsProxy: globalCorsProxy }: WidgetComponentProps) {
   const tickerConfig = config as NewsTickerConfig | undefined;
   const apiUrl = tickerConfig?.apiUrl;
   const sourceType = tickerConfig?.sourceType ?? 'json';
-  const corsProxy = tickerConfig?.corsProxy?.trim();
+  const corsProxy = tickerConfig?.corsProxy?.trim() || globalCorsProxy;
   const cacheTtlSeconds = tickerConfig?.cacheTtlSeconds ?? 120;
   const speed = tickerConfig?.speed ?? 30;
   const configuredScale = tickerConfig?.scale;
@@ -123,7 +123,7 @@ export default function NewsTicker({ config, theme }: WidgetComponentProps) {
   const events = useEvents({
     apiUrl: dataSource === 'events' ? tickerConfig?.eventApiUrl : undefined,
     sourceType: tickerConfig?.eventSourceType ?? 'json',
-    corsProxy: tickerConfig?.eventCorsProxy?.trim(),
+    corsProxy: tickerConfig?.eventCorsProxy?.trim() || globalCorsProxy,
     cacheTtlSeconds: tickerConfig?.eventCacheTtlSeconds ?? 300,
     maxItems: tickerConfig?.eventMaxItems ?? 10,
     pollIntervalMs: 30_000,

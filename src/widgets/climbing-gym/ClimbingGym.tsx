@@ -129,12 +129,12 @@ const LEVEL_COLORS = {
   high: '#ef4444',
 };
 
-export default function ClimbingGym({ config, theme }: WidgetComponentProps) {
+export default function ClimbingGym({ config, theme, corsProxy: globalCorsProxy }: WidgetComponentProps) {
   const cfg = config as ClimbingGymConfig | undefined;
   const gymName = cfg?.gymName ?? 'OVERhang';
   const portalUrl = cfg?.portalUrl?.trim() || DEFAULT_PORTAL_URL;
   const refreshInterval = cfg?.refreshInterval ?? 5;
-  const corsProxy = cfg?.corsProxy?.trim() || 'https://corsproxy.io/?';
+  const corsProxy = cfg?.corsProxy?.trim() || globalCorsProxy || '';
   const showCapacityBar = cfg?.showCapacityBar ?? true;
   const showHours = cfg?.showHours ?? true;
 
@@ -312,7 +312,7 @@ registerWidget({
     gymName: 'OVERhang',
     portalUrl: DEFAULT_PORTAL_URL,
     refreshInterval: 5,
-    corsProxy: 'https://corsproxy.io/?',
+    corsProxy: '',
     showCapacityBar: true,
     showHours: true,
   },

@@ -22,7 +22,7 @@ export default function ClimbingGymOptions({ data, onChange }: WidgetOptionsProp
     gymName: (data?.gymName as string) ?? 'OVERhang',
     portalUrl: (data?.portalUrl as string) ?? DEFAULT_PORTAL_URL,
     refreshInterval: (data?.refreshInterval as number) ?? 5,
-    corsProxy: (data?.corsProxy as string) ?? 'https://corsproxy.io/?',
+    corsProxy: (data?.corsProxy as string) ?? '',
     showCapacityBar: (data?.showCapacityBar as boolean) ?? true,
     showHours: (data?.showHours as boolean) ?? true,
   });
@@ -33,7 +33,7 @@ export default function ClimbingGymOptions({ data, onChange }: WidgetOptionsProp
         gymName: (data.gymName as string) ?? 'OVERhang',
         portalUrl: (data.portalUrl as string) ?? DEFAULT_PORTAL_URL,
         refreshInterval: (data.refreshInterval as number) ?? 5,
-        corsProxy: (data.corsProxy as string) ?? 'https://corsproxy.io/?',
+        corsProxy: (data.corsProxy as string) ?? '',
         showCapacityBar: (data.showCapacityBar as boolean) ?? true,
         showHours: (data.showHours as boolean) ?? true,
       });
@@ -121,11 +121,9 @@ export default function ClimbingGymOptions({ data, onChange }: WidgetOptionsProp
         <FormSelect
           label="CORS Proxy"
           name="corsProxy"
-          value={state.corsProxy || 'https://corsproxy.io/?'}
+          value={state.corsProxy || ''}
           options={[
-            { value: 'https://corsproxy.io/?', label: 'corsproxy.io (default)' },
-            { value: 'https://api.cors.lol/?url=', label: 'cors.lol' },
-            { value: 'https://api.allorigins.win/raw?url=', label: 'allorigins.win' },
+            { value: '', label: 'Use global setting' },
             { value: 'custom', label: 'Custom URL...' },
           ]}
           onChange={handleChange}

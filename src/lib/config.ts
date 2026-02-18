@@ -43,6 +43,7 @@ export interface DisplayConfig {
   gridCols?: number;
   logo?: LogoConfig;
   aspectRatio?: number;
+  corsProxy?: string;
 }
 
 export const DEFAULT_CONFIG: DisplayConfig = {
@@ -60,6 +61,7 @@ export const DEFAULT_CONFIG: DisplayConfig = {
   schoolName: 'Campus Hub',
   tickerEnabled: true,
   gridRows: 8,
+  corsProxy: '',
 };
 
 // Base path is no longer used - site runs at root domain
@@ -112,6 +114,10 @@ export function normalizeConfig(raw: Partial<DisplayConfig> | null | undefined):
     aspectRatio:
       typeof safe.aspectRatio === 'number' && Number.isFinite(safe.aspectRatio) && safe.aspectRatio > 0
         ? safe.aspectRatio
+        : undefined,
+    corsProxy:
+      typeof safe.corsProxy === 'string'
+        ? safe.corsProxy.trim()
         : undefined,
   };
 }

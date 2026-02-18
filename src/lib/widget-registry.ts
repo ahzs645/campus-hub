@@ -9,6 +9,7 @@ export interface WidgetComponentProps {
     accent: string;
     background: string;
   };
+  corsProxy?: string;
 }
 
 export interface WidgetOptionsProps {

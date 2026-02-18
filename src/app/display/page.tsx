@@ -297,7 +297,7 @@ function DisplayContent() {
                       : undefined,
                 }}
               >
-                <WidgetRenderer widget={widget} theme={config.theme} />
+                <WidgetRenderer widget={widget} theme={config.theme} corsProxy={config.corsProxy} />
               </div>
             ))}
 

@@ -188,7 +188,7 @@ const parseUNBCWeatherData = (html: string, units: 'celsius' | 'fahrenheit'): We
   };
 };
 
-export default function Weather({ config, theme }: WidgetComponentProps) {
+export default function Weather({ config, theme, corsProxy: globalCorsProxy }: WidgetComponentProps) {
   const weatherConfig = config as WeatherConfig | undefined;
   const units = weatherConfig?.units ?? 'fahrenheit';
   const showDetails = weatherConfig?.showDetails ?? true;
@@ -196,7 +196,7 @@ export default function Weather({ config, theme }: WidgetComponentProps) {
   const apiKey = weatherConfig?.apiKey?.trim();
   const dataSource = weatherConfig?.dataSource ?? 'openweathermap';
   const refreshInterval = weatherConfig?.refreshInterval ?? 10; // minutes
-  const corsProxy = weatherConfig?.corsProxy?.trim();
+  const corsProxy = weatherConfig?.corsProxy?.trim() || globalCorsProxy;
 
   const [weather, setWeather] = useState<WeatherData>({
     ...MOCK_WEATHER,
@@ -211,7 +211,7 @@ export default function Weather({ config, theme }: WidgetComponentProps) {
   const fetchUNBC = useCallback(async () => {
     try {
       setError(null);
-      const proxy = corsProxy || 'https://corsproxy.io/?';
+      const proxy = corsProxy || '';
       const fetchUrl = buildProxiedUNBCUrl(proxy);
       const { text } = await fetchTextWithCache(fetchUrl, {
         cacheKey: buildCacheKey('weather-unbc', UNBC_URL),
@@ -386,6 +386,6 @@ registerWidget({
     apiKey: '',
     dataSource: 'openweathermap',
     refreshInterval: 10,
-    corsProxy: 'https://corsproxy.io/?',
+    corsProxy: '',
   },
 });

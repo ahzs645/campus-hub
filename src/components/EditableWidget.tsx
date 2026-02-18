@@ -13,11 +13,12 @@ interface EditableWidgetProps {
     accent: string;
     background: string;
   };
+  corsProxy?: string;
   onEdit: (widgetId: string) => void;
   onDelete: (widgetId: string) => void;
 }
 
-export default function EditableWidget({ widget, theme, onEdit, onDelete }: EditableWidgetProps) {
+export default function EditableWidget({ widget, theme, corsProxy, onEdit, onDelete }: EditableWidgetProps) {
   const [showMenu, setShowMenu] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -196,7 +197,7 @@ export default function EditableWidget({ widget, theme, onEdit, onDelete }: Edit
     <div className="h-full relative group" onContextMenu={handleContextMenu}>
       {/* Widget Content */}
       <div className="h-full rounded-xl overflow-hidden" style={{ backgroundColor: `${theme.primary}40` }}>
-        <WidgetComponent config={widget.props} theme={theme} />
+        <WidgetComponent config={widget.props} theme={theme} corsProxy={corsProxy} />
       </div>
 
       {/* Drag Handle - leaves edges free for resize handles */}
