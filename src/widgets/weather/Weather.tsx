@@ -64,13 +64,12 @@ const mapWeatherIcon = (condition: string): string => {
   return 'default';
 };
 
-const UNBC_URL = 'https://cyclone.unbc.ca/asgweb/roofstn.php';
-const UNBC_URL_BARE = 'cyclone.unbc.ca/asgweb/roofstn.php';
+const UNBC_URL = 'https://cyclone.unbc.ca/wx/data-table-std-1m.html';
 
 /** Build the proxied UNBC fetch URL based on the selected CORS proxy */
 const buildProxiedUNBCUrl = (corsProxy: string): string => {
   if (corsProxy.includes('cors.lol')) {
-    return `https://api.cors.lol/?url=${UNBC_URL_BARE}#!`;
+    return `https://api.cors.lol/?url=${UNBC_URL.replace('https://', '')}#!`;
   }
   if (corsProxy.includes('corsproxy.io')) {
     return `https://corsproxy.io/?${UNBC_URL}`;
@@ -100,44 +99,44 @@ const deriveConditionFromUNBC = (
   return 'cloudy';
 };
 
-/** Parse the UNBC rooftop weather station HTML table and return the last data row */
+/** Parse the UNBC rooftop weather station HTML (unclosed td tags: <tr><td>val<td>val...) */
 const parseUNBCWeatherData = (html: string, units: 'celsius' | 'fahrenheit'): WeatherData | null => {
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(html, 'text/html');
-  const table = doc.querySelector('table[border="1"]');
-  if (!table) return null;
-
-  const rows = table.querySelectorAll('tr');
-  // Find the last data row (skip header rows and the trailing header repeat)
-  // Data rows have a date-like pattern in the first cell
-  let lastDataRow: Element | null = null;
-  for (let i = rows.length - 1; i >= 0; i--) {
-    const firstCell = rows[i].querySelector('td');
-    if (firstCell && /^\d{4}-\d{2}-\d{2}/.test(firstCell.textContent?.trim() ?? '')) {
-      lastDataRow = rows[i];
+  // Each data row looks like: <tr><td>2026-02-17 16:09:00<td>855726<td>-15.6<td>...
+  // Find all lines containing a date pattern
+  const lines = html.split('\n');
+  let lastDataLine: string | null = null;
+  for (let i = lines.length - 1; i >= 0; i--) {
+    if (/\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}/.test(lines[i])) {
+      lastDataLine = lines[i];
       break;
     }
   }
-  if (!lastDataRow) return null;
+  if (!lastDataLine) return null;
 
-  const cells = lastDataRow.querySelectorAll('td');
+  // Split by <td> to get cell values (first split element is before the first <td>)
+  const parts = lastDataLine.split(/<td>/i);
+  // Remove the first empty/tr part, keep the cell values
+  const cells = parts.slice(1).map(s => s.replace(/<\/td>|<\/tr>/gi, '').trim());
+
+  // Columns: 0=DateTime, 1=Record, 2=TAir, 3=TDew, 4=RH, 5=Pstn, 6=Pmsl,
+  //          7=Wspd_avg, 8=Wspd_vec, 9=Wdir, 10=Wstd, 11=Wgust, 12=Precip,
+  //          13=Kdown_tot, ...
   if (cells.length < 13) return null;
 
-  const tAir = parseFloat(cells[2]?.textContent?.trim() ?? '');
-  const tDew = parseFloat(cells[3]?.textContent?.trim() ?? '');
-  const rh = parseFloat(cells[4]?.textContent?.trim() ?? '');
-  const pmsl = parseFloat(cells[6]?.textContent?.trim() ?? '');
-  const wspdAvg = parseFloat(cells[7]?.textContent?.trim() ?? '');
-  const wdir = parseFloat(cells[9]?.textContent?.trim() ?? '');
-  const wgust = parseFloat(cells[11]?.textContent?.trim() ?? '');
-  const precip = parseFloat(cells[12]?.textContent?.trim() ?? '');
-  const kdownTot = cells.length > 13 ? parseFloat(cells[13]?.textContent?.trim() ?? '') : 0;
+  const tAir = parseFloat(cells[2] ?? '');
+  const tDew = parseFloat(cells[3] ?? '');
+  const rh = parseFloat(cells[4] ?? '');
+  const pmsl = parseFloat(cells[6] ?? '');
+  const wspdAvg = parseFloat(cells[7] ?? '');
+  const wdir = parseFloat(cells[9] ?? '');
+  const wgust = parseFloat(cells[11] ?? '');
+  const precip = parseFloat(cells[12] ?? '');
+  const kdownTot = cells.length > 13 ? parseFloat(cells[13] ?? '') : 0;
 
   if (isNaN(tAir)) return null;
 
   const tempC = tAir;
   const temp = units === 'fahrenheit' ? Math.round(tempC * 9 / 5 + 32) : Math.round(tempC * 10) / 10;
-  // Wind: m/s -> mph for Fahrenheit, keep m/s for Celsius
   const windDisplay = units === 'fahrenheit'
     ? Math.round(wspdAvg * 2.23694)
     : Math.round(wspdAvg * 10) / 10;
@@ -177,25 +176,35 @@ export default function Weather({ config, theme }: WidgetComponentProps) {
     location: dataSource === 'unbc-rooftop' ? 'UNBC Rooftop' : location,
   });
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const refreshMs = refreshInterval * 60 * 1000;
 
   // UNBC Rooftop data source
   const fetchUNBC = useCallback(async () => {
     try {
+      setError(null);
       const proxy = corsProxy || 'https://corsproxy.io/?';
       const fetchUrl = buildProxiedUNBCUrl(proxy);
+      console.log('[Weather] Fetching UNBC from:', fetchUrl);
       const { text } = await fetchTextWithCache(fetchUrl, {
-        cacheKey: buildCacheKey('weather-unbc', 'rooftop'),
+        cacheKey: buildCacheKey('weather-unbc', UNBC_URL),
         ttlMs: refreshMs,
       });
+      console.log('[Weather] Got response, length:', text.length);
+      console.log('[Weather] Has <table:', text.includes('<table'), 'Has border="1":', text.includes('border="1"'));
       const parsed = parseUNBCWeatherData(text, units);
       if (parsed) {
         setWeather(parsed);
         setLastUpdated(new Date());
+      } else {
+        console.error('[Weather] Failed to parse UNBC HTML — no table data found');
+        setError('Failed to parse weather data');
       }
-    } catch (error) {
-      console.error('Failed to fetch UNBC weather:', error);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error('[Weather] Failed to fetch UNBC weather:', msg);
+      setError(msg);
     }
   }, [corsProxy, units, refreshMs]);
 
@@ -320,8 +329,15 @@ export default function Weather({ config, theme }: WidgetComponentProps) {
           </div>
         )}
 
+        {/* Error */}
+        {error && (
+          <div className="mt-2 text-sm text-red-400 truncate">
+            {error}
+          </div>
+        )}
+
         {/* Last updated */}
-        {lastUpdated && (
+        {lastUpdated && !error && (
           <div className="mt-2 text-sm text-white/40">
             Updated {lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </div>
