@@ -300,10 +300,6 @@ export default function ConfigurePage() {
       maxH: widgetDef?.maxH,
     };
   });
-  const minRowsNeeded = config.layout.reduce(
-    (maxRows, widget) => Math.max(maxRows, widget.y + widget.h),
-    1
-  );
   const offGridIds = new Set(
     config.layout
       .filter((w) => !isWidgetInBounds(w, gridCols, gridRows))
@@ -967,10 +963,11 @@ export default function ConfigurePage() {
           </div>
         </aside>
 
-        {/* Preview Area */}
-        <main className="flex-1 p-6 flex flex-col min-w-0 overflow-hidden">
-          <div className="flex items-center justify-between mb-4 gap-4">
-            <h2 className="font-display font-bold text-lg" style={{ color: config.theme.accent }}>
+        {/* Editor Area */}
+        <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
+          {/* Editor Header */}
+          <div className="flex-shrink-0 flex items-center justify-between px-4 py-2 gap-4 border-b border-[color:var(--ui-panel-border)]">
+            <h2 className="font-display font-bold text-sm" style={{ color: config.theme.accent }}>
               Layout Editor
             </h2>
             <div className="flex items-center gap-4">
@@ -1023,61 +1020,61 @@ export default function ConfigurePage() {
                 </select>
               </div>
               <span className="text-xs text-white/40">
-                Drag widgets to reposition. Use handles to resize.
+                Drag to reposition. Handles to resize.
               </span>
             </div>
           </div>
 
-          {/* Preview Container */}
+          {/* Full-bleed Grid Area */}
           <div
             ref={containerRef}
-            className="flex-1 flex items-center justify-center min-h-0 overflow-hidden"
+            className="flex-1 min-h-0 overflow-x-hidden overflow-y-auto relative scrollbar-hide"
+            style={{ backgroundColor: config.theme.background }}
           >
-            <div
-              className="rounded-xl overflow-auto border border-[color:var(--ui-panel-border)] shadow-2xl transition-all duration-200 flex flex-col"
-              style={{
-                width: previewSize.width || 'auto',
-                maxHeight: '100%',
-                backgroundColor: config.theme.background,
-              }}
-            >
-              {/* Main Grid Area */}
-              <div style={{ minHeight: previewSize.height || 'auto' }} className="relative">
-                {/* Grid boundary indicator — visible when widgets overflow */}
-                {offGridCount > 0 && previewSize.height > 0 && (
-                  <div
-                    className="absolute left-0 right-0 border-b-2 border-dashed border-amber-500/50 pointer-events-none z-10"
-                    style={{ top: previewSize.height }}
-                  >
-                    <span className="absolute right-2 -top-5 text-[10px] text-amber-400/70 whitespace-nowrap">
-                      grid boundary
+            {/* GridStack container — centered horizontally, top-aligned */}
+            <div className="mx-auto relative" style={{ width: previewSize.width || '100%' }}>
+              {/* Export boundary indicator */}
+              {previewSize.width > 0 && previewSize.height > 0 && (
+                <div
+                  className="absolute inset-x-0 top-0 border-2 border-dashed pointer-events-none z-10 rounded-sm"
+                  style={{
+                    height: previewSize.height,
+                    borderColor: offGridCount > 0 ? 'rgba(245, 158, 11, 0.4)' : 'rgba(255, 255, 255, 0.08)',
+                  }}
+                >
+                  {offGridCount > 0 && (
+                    <span className="absolute right-1.5 bottom-1.5 text-[10px] text-amber-400/70 whitespace-nowrap bg-black/30 px-1.5 py-0.5 rounded">
+                      display boundary
                     </span>
-                  </div>
-                )}
-                {previewSize.width > 0 && previewSize.height > 0 && (
-                  <GridStackWrapper
-                    ref={gridRef}
-                    items={gridItems}
-                    columns={gridCols}
-                    rows={gridRows}
-                    cellHeight={cellHeight}
-                    margin={gridMargin}
-                    contentScale={contentScale}
-                    onLayoutChange={handleLayoutChange}
-                    renderItem={renderGridItem}
-                  />
-                )}
+                  )}
+                </div>
+              )}
 
-                {config.layout.length === 0 && (
-                  <div className="absolute inset-0 flex items-center justify-center text-white/30">
-                    <div className="text-center">
-                      <p className="text-lg mb-2">No widgets added</p>
-                      <p className="text-sm">Click widgets in the sidebar to add them</p>
-                    </div>
-                  </div>
-                )}
-              </div>
+              {previewSize.width > 0 && previewSize.height > 0 && (
+                <GridStackWrapper
+                  ref={gridRef}
+                  items={gridItems}
+                  columns={gridCols}
+                  rows={gridRows}
+                  cellHeight={cellHeight}
+                  margin={gridMargin}
+                  contentScale={contentScale}
+                  onLayoutChange={handleLayoutChange}
+                  renderItem={renderGridItem}
+                />
+              )}
 
+              {config.layout.length === 0 && previewSize.height > 0 && (
+                <div
+                  className="absolute inset-x-0 top-0 flex items-center justify-center text-white/30 pointer-events-none"
+                  style={{ height: previewSize.height }}
+                >
+                  <div className="text-center">
+                    <p className="text-lg mb-2">No widgets added</p>
+                    <p className="text-sm">Click widgets in the sidebar to add them</p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </main>

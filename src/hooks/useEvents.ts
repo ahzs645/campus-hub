@@ -12,6 +12,8 @@ export interface CalendarEvent {
   location?: string;
   category?: string;
   color?: string;
+  /** Raw start timestamp for sorting — not displayed */
+  _sortTs?: number;
 }
 
 export interface UseEventsOptions {
@@ -133,11 +135,17 @@ export function useEvents(options: UseEventsOptions): CalendarEvent[] {
               location: (item.location ?? '') as string,
               category: (item.category as string) ?? undefined,
               color: (item.color as string) ?? undefined,
+              _sortTs: startObj && !isNaN(startObj.getTime()) ? startObj.getTime() : Infinity,
             } satisfies CalendarEvent;
           });
+          // Filter out past events (keep today and future)
+          const todayStart = new Date();
+          todayStart.setHours(0, 0, 0, 0);
+          const upcoming = normalized.filter(e => !e._sortTs || e._sortTs === Infinity || e._sortTs >= todayStart.getTime());
+          upcoming.sort((a, b) => (a._sortTs ?? Infinity) - (b._sortTs ?? Infinity));
           const filtered = selectedCategories && selectedCategories.length > 0
-            ? normalized.filter(e => !e.category || selectedCategories.includes(e.category))
-            : normalized;
+            ? upcoming.filter(e => !e.category || selectedCategories.includes(e.category))
+            : upcoming;
           setEvents(filtered.slice(0, maxItems));
         }
       } catch (error) {

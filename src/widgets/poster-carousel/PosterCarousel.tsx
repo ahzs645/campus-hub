@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { WidgetComponentProps, registerWidget } from '@/lib/widget-registry';
+import { fetchTextWithCache, buildCacheKey } from '@/lib/data-cache';
 import PosterCarouselOptions from './PosterCarouselOptions';
 
 interface Poster {
@@ -11,10 +12,16 @@ interface Poster {
   image: string;
 }
 
+type DataSource = 'default' | 'api' | 'unbc-news';
+
 interface PosterCarouselConfig {
   rotationSeconds?: number;
   apiUrl?: string;
   posters?: Poster[];
+  dataSource?: DataSource;
+  maxStories?: number;
+  corsProxy?: string;
+  refreshInterval?: number;
 }
 
 const DEFAULT_POSTERS: Poster[] = [
@@ -44,27 +51,87 @@ const DEFAULT_POSTERS: Poster[] = [
   },
 ];
 
+const UNBC_NEWS_URL = 'https://www.unbc.ca/our-stories/releases';
+
+/** Build the proxied UNBC news fetch URL based on the selected CORS proxy */
+const buildProxiedUrl = (corsProxy: string, targetUrl: string): string => {
+  if (corsProxy.includes('cors.lol')) {
+    return `https://api.cors.lol/?url=${targetUrl.replace('https://', '')}#!`;
+  }
+  if (corsProxy.includes('corsproxy.io')) {
+    return `https://corsproxy.io/?${targetUrl}`;
+  }
+  if (corsProxy.includes('allorigins.win')) {
+    return `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
+  }
+  return `${corsProxy}${targetUrl}`;
+};
+
+/** Parse the UNBC news releases page HTML into poster items */
+const parseUNBCNewsPage = (html: string, maxStories: number): Poster[] => {
+  const posters: Poster[] = [];
+
+  // Match story blocks: an <a> with image followed by <h3> with title link
+  // Pattern: <a href="/our-stories/story/..."><img src="..." /></a> ... <h3><a href="...">Title</a></h3>
+  const storyPattern = /<a\s+href="(\/our-stories\/story\/[^"]+)"[^>]*>\s*<img\s+[^>]*src="([^"]+)"[^>]*\/?\s*>\s*<\/a>[\s\S]*?<h3>\s*<a\s+href="\/our-stories\/story\/[^"]*"[^>]*>\s*([\s\S]*?)\s*<\/a>\s*<\/h3>/gi;
+
+  let match: RegExpExecArray | null;
+  while ((match = storyPattern.exec(html)) !== null && posters.length < maxStories) {
+    const storyPath = match[1];
+    const imageSrc = match[2];
+    const title = match[3].replace(/<[^>]*>/g, '').trim();
+
+    if (!title || !imageSrc) continue;
+
+    // Make image URL absolute
+    const imageUrl = imageSrc.startsWith('http')
+      ? imageSrc
+      : `https://www.unbc.ca${imageSrc}`;
+
+    // Try to extract date text after the </h3> tag
+    const afterH3 = html.substring(match.index + match[0].length, match.index + match[0].length + 200);
+    const dateMatch = afterH3.match(/([A-Z][a-z]{2}\s+\d{1,2},\s+\d{4})/);
+    const subtitle = dateMatch ? dateMatch[1] : undefined;
+
+    posters.push({
+      id: storyPath,
+      title,
+      subtitle,
+      image: imageUrl,
+    });
+  }
+
+  return posters;
+};
+
 export default function PosterCarousel({ config, theme }: WidgetComponentProps) {
   const carouselConfig = config as PosterCarouselConfig | undefined;
   const rotationSeconds = carouselConfig?.rotationSeconds ?? 10;
+  const dataSource = carouselConfig?.dataSource ?? 'default';
   const apiUrl = carouselConfig?.apiUrl;
+  const maxStories = carouselConfig?.maxStories ?? 5;
+  const corsProxy = carouselConfig?.corsProxy?.trim() ?? 'https://corsproxy.io/?';
+  const refreshInterval = carouselConfig?.refreshInterval ?? 30; // minutes
 
   const [posters, setPosters] = useState<Poster[]>(carouselConfig?.posters ?? DEFAULT_POSTERS);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [progress, setProgress] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
+  // Reset to defaults when using default source
   useEffect(() => {
-    if (apiUrl) return;
+    if (dataSource !== 'default') return;
     setPosters(carouselConfig?.posters ?? DEFAULT_POSTERS);
     setCurrentIndex(0);
     setProgress(0);
     setIsTransitioning(false);
-  }, [apiUrl, carouselConfig?.posters]);
+    setError(null);
+  }, [dataSource, carouselConfig?.posters]);
 
-  // Fetch posters from API if provided
+  // Fetch posters from JSON API
   useEffect(() => {
-    if (!apiUrl) return;
+    if (dataSource !== 'api' || !apiUrl) return;
 
     const fetchPosters = async () => {
       try {
@@ -72,16 +139,50 @@ export default function PosterCarousel({ config, theme }: WidgetComponentProps) 
         const data = await response.json();
         if (Array.isArray(data) && data.length > 0) {
           setPosters(data);
+          setError(null);
         }
-      } catch (error) {
-        console.error('Failed to fetch posters:', error);
+      } catch (err) {
+        console.error('Failed to fetch posters:', err);
+        setError('Failed to load posters from API');
       }
     };
 
     fetchPosters();
-    const interval = setInterval(fetchPosters, 60000); // Refresh every minute
+    const interval = setInterval(fetchPosters, 60000);
     return () => clearInterval(interval);
-  }, [apiUrl]);
+  }, [dataSource, apiUrl]);
+
+  // Fetch UNBC news stories
+  useEffect(() => {
+    if (dataSource !== 'unbc-news') return;
+
+    const fetchNews = async () => {
+      try {
+        const proxiedUrl = buildProxiedUrl(corsProxy, UNBC_NEWS_URL);
+        const { text } = await fetchTextWithCache(proxiedUrl, {
+          cacheKey: buildCacheKey('unbc-news', UNBC_NEWS_URL),
+          ttlMs: refreshInterval * 60 * 1000,
+          allowStale: true,
+        });
+        const stories = parseUNBCNewsPage(text, maxStories);
+        if (stories.length > 0) {
+          setPosters(stories);
+          setCurrentIndex(0);
+          setProgress(0);
+          setError(null);
+        } else {
+          setError('No stories found on UNBC page');
+        }
+      } catch (err) {
+        console.error('Failed to fetch UNBC news:', err);
+        setError('Failed to load UNBC news');
+      }
+    };
+
+    fetchNews();
+    const interval = setInterval(fetchNews, refreshInterval * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [dataSource, corsProxy, maxStories, refreshInterval]);
 
   const nextSlide = useCallback(() => {
     setIsTransitioning(true);
@@ -115,10 +216,13 @@ export default function PosterCarousel({ config, theme }: WidgetComponentProps) 
   if (!current) {
     return (
       <div
-        className="h-full rounded-2xl flex items-center justify-center"
+        className="h-full rounded-2xl flex items-center justify-center flex-col gap-2"
         style={{ backgroundColor: `${theme.primary}40` }}
       >
-        <span className="text-white/50">No posters available</span>
+        <span className="text-white/50">{error ?? 'No posters available'}</span>
+        {dataSource === 'unbc-news' && error && (
+          <span className="text-white/30 text-sm">Check CORS proxy settings</span>
+        )}
       </div>
     );
   }
@@ -201,6 +305,16 @@ export default function PosterCarousel({ config, theme }: WidgetComponentProps) 
           background: `linear-gradient(135deg, ${theme.accent}40 0%, transparent 50%)`,
         }}
       />
+
+      {/* UNBC News badge */}
+      {dataSource === 'unbc-news' && (
+        <div
+          className="absolute top-3 left-3 px-3 py-1 rounded-full text-xs font-semibold text-white/90 backdrop-blur-sm"
+          style={{ backgroundColor: `${theme.primary}99` }}
+        >
+          UNBC News
+        </div>
+      )}
     </div>
   );
 }

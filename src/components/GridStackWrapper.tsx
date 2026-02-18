@@ -194,11 +194,12 @@ const GridStackWrapper = forwardRef<GridStackWrapperRef, GridStackWrapperProps>(
 
     return (
       <div
-        className="gs-wrapper relative w-full h-full"
+        className="gs-wrapper relative w-full"
         style={
           {
             '--grid-columns': columns,
             '--grid-rows': rows,
+            minHeight: typeof cellHeight === 'number' ? cellHeight * rows : undefined,
           } as CSSProperties
         }
       >

@@ -14,7 +14,8 @@ export interface WidgetConfig {
     | 'image'
     | 'media-player'
     | 'slideshow'
-    | 'poster-feed';
+    | 'poster-feed'
+    | 'widget-stack';
   x: number;
   y: number;
   w: number;

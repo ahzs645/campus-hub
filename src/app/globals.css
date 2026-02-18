@@ -158,6 +158,15 @@ body {
   box-shadow: 0 0 40px var(--color-accent), 0 0 80px rgba(183, 149, 39, 0.3);
 }
 
+/* Hide scrollbar but keep scroll functionality */
+.scrollbar-hide {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none; /* Chrome/Safari */
+}
+
 /* GridStack overrides */
 .grid-stack {
   background: transparent !important;

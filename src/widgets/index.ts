@@ -14,6 +14,8 @@ import './slideshow/Slideshow';
 import './poster-feed/PosterFeed';
 import './bus-connection/BusConnection';
 import './qrcode/QRCode';
+import './climbing-gym/ClimbingGym';
+import './widget-stack/WidgetStack';
 
 // Re-export registry functions
 export { getWidget, getAllWidgets, getWidgetComponent } from '@/lib/widget-registry';
