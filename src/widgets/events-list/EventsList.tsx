@@ -290,7 +290,7 @@ registerWidget({
   type: 'events-list',
   name: 'Events List',
   description: 'Display upcoming campus events',
-  icon: '📅',
+  icon: 'calendar',
   minW: 3,
   minH: 2,
   defaultW: 4,

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { FormInput } from '@/components/ui';
+import AppIcon from '@/components/AppIcon';
 import type { WidgetOptionsProps } from '@/lib/widget-registry';
 
 interface WebData {
@@ -66,13 +67,13 @@ export default function WebOptions({ data, onChange }: WidgetOptionsProps) {
         <div className="bg-[var(--ui-item-bg)] rounded-xl aspect-video flex items-center justify-center">
           {state.url ? (
             <div className="text-center">
-              <span className="text-4xl">🌐</span>
+              <AppIcon name="globe" className="w-9 h-9 mx-auto text-white/80" />
               <div className="text-white/70 text-sm mt-2">Web content configured</div>
               <div className="text-white/50 text-xs mt-1 truncate max-w-xs">{state.url}</div>
             </div>
           ) : (
             <div className="text-center">
-              <span className="text-4xl opacity-50">🌐</span>
+              <AppIcon name="globe" className="w-9 h-9 opacity-50 mx-auto text-white/70" />
               <div className="text-white/50 text-sm mt-2">No URL configured</div>
             </div>
           )}
@@ -82,7 +83,7 @@ export default function WebOptions({ data, onChange }: WidgetOptionsProps) {
       {/* Warning */}
       <div className="bg-[var(--ui-accent-soft)] border border-[var(--ui-accent-strong)] rounded-lg p-4">
         <div className="flex gap-2">
-          <span>⚠️</span>
+          <AppIcon name="warning" className="w-4 h-4 mt-0.5 flex-shrink-0" />
           <div className="text-sm text-[var(--color-accent)]">
             <strong>Note:</strong> Some websites block embedding in iframes for security reasons.
             If the content doesn&apos;t load, the website may not allow embedding.

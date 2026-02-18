@@ -1,6 +1,7 @@
 'use client';
 
 import { WidgetComponentProps, registerWidget } from '@/lib/widget-registry';
+import AppIcon from '@/components/AppIcon';
 import YouTubeOptions from './YouTubeOptions';
 
 interface YouTubeConfig {
@@ -36,7 +37,7 @@ export default function YouTube({ config, theme }: WidgetComponentProps) {
         className="h-full flex flex-col items-center justify-center p-6 text-center"
         style={{ backgroundColor: `${theme.primary}40` }}
       >
-        <span className="text-4xl mb-3">📺</span>
+        <AppIcon name="tv" className="w-9 h-9 mb-3 text-white/70" />
         <span className="text-white/70 text-sm">No video configured</span>
         <span className="text-white/50 text-xs mt-1">Add a YouTube URL in settings</span>
       </div>
@@ -71,7 +72,7 @@ registerWidget({
   type: 'youtube',
   name: 'YouTube',
   description: 'Embed YouTube videos',
-  icon: '📺',
+  icon: 'tv',
   minW: 3,
   minH: 2,
   defaultW: 6,

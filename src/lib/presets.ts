@@ -1,12 +1,13 @@
 // Demo presets for Campus Hub
 
 import type { DisplayConfig } from './config';
+import type { IconName } from './icon-names';
 
 export interface Preset {
   id: string;
   name: string;
   description: string;
-  icon: string;
+  icon: IconName;
   config: DisplayConfig;
 }
 
@@ -15,7 +16,7 @@ export const DEMO_PRESETS: Preset[] = [
     id: 'campus-classic',
     name: 'Campus Classic',
     description: 'Traditional campus display with clock, events, and news',
-    icon: '🏫',
+    icon: 'school',
     config: {
       layout: [
         { id: 'clock-1', type: 'clock', x: 9, y: 0, w: 3, h: 1, props: { showSeconds: true, showDate: true, format24h: false } },
@@ -48,7 +49,7 @@ export const DEMO_PRESETS: Preset[] = [
     id: 'media-showcase',
     name: 'Media Showcase',
     description: 'Video and image-focused display for visual content',
-    icon: '🎬',
+    icon: 'film',
     config: {
       layout: [
         { id: 'youtube-1', type: 'youtube', x: 0, y: 0, w: 8, h: 5, props: {
@@ -79,7 +80,7 @@ export const DEMO_PRESETS: Preset[] = [
     id: 'minimal-info',
     name: 'Minimal Info',
     description: 'Clean, minimalist layout with essential information',
-    icon: '✨',
+    icon: 'sparkles',
     config: {
       layout: [
         { id: 'clock-1', type: 'clock', x: 4, y: 2, w: 4, h: 2, props: { showSeconds: false, showDate: true, format24h: true } },
@@ -97,7 +98,7 @@ export const DEMO_PRESETS: Preset[] = [
     id: 'events-focus',
     name: 'Events Focus',
     description: 'Large events list with supporting content',
-    icon: '📅',
+    icon: 'calendar',
     config: {
       layout: [
         { id: 'events-1', type: 'events-list', x: 0, y: 0, w: 7, h: 5, props: {
@@ -133,7 +134,7 @@ export const DEMO_PRESETS: Preset[] = [
     id: 'web-dashboard',
     name: 'Web Dashboard',
     description: 'Embed external websites and live content',
-    icon: '🌐',
+    icon: 'globe',
     config: {
       layout: [
         { id: 'web-1', type: 'web', x: 0, y: 0, w: 8, h: 5, props: {
@@ -155,7 +156,7 @@ export const DEMO_PRESETS: Preset[] = [
     id: 'slideshow-gallery',
     name: 'Photo Gallery',
     description: 'Beautiful slideshow with campus photos',
-    icon: '🖼️',
+    icon: 'image',
     config: {
       layout: [
         { id: 'slideshow-1', type: 'slideshow', x: 0, y: 0, w: 9, h: 5, props: {

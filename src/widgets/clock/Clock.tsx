@@ -135,7 +135,7 @@ registerWidget({
   type: 'clock',
   name: 'Clock',
   description: 'Displays current time and date',
-  icon: '🕐',
+  icon: 'clock',
   minW: 2,
   minH: 1,
   defaultW: 3,

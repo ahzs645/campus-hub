@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { FormInput, FormSelect, FormSwitch } from '@/components/ui';
+import AppIcon from '@/components/AppIcon';
 import type { WidgetOptionsProps } from '@/lib/widget-registry';
 
 interface WeatherData {
@@ -189,7 +190,10 @@ export default function WeatherOptions({ data, onChange }: WidgetOptionsProps) {
             {isUNBC ? 'UNBC Rooftop' : state.location}
           </div>
           <div className="flex items-center gap-3">
-            <span className="text-3xl">{isUNBC ? '❄️' : '⛅'}</span>
+            <AppIcon
+              name={isUNBC ? 'snowflake' : 'cloudSun'}
+              className="w-8 h-8 text-white/80"
+            />
             <div>
               <div className="text-2xl font-bold text-white">
                 {isUNBC
@@ -203,11 +207,22 @@ export default function WeatherOptions({ data, onChange }: WidgetOptionsProps) {
           </div>
           {state.showDetails && (
             <div className="mt-2 flex gap-3 text-xs text-white/60">
-              <span>💧 {isUNBC ? '40%' : '45%'}</span>
-              <span>💨 {isUNBC
-                ? (state.units === 'celsius' ? '5.0 m/s' : '11 mph')
-                : '8 mph'}</span>
-              {isUNBC && <span>🔽 1010 hPa</span>}
+              <span className="flex items-center gap-1">
+                <AppIcon name="droplets" className="w-3.5 h-3.5" />
+                {isUNBC ? '40%' : '45%'}
+              </span>
+              <span className="flex items-center gap-1">
+                <AppIcon name="wind" className="w-3.5 h-3.5" />
+                {isUNBC
+                  ? (state.units === 'celsius' ? '5.0 m/s' : '11 mph')
+                  : '8 mph'}
+              </span>
+              {isUNBC && (
+                <span className="flex items-center gap-1">
+                  <AppIcon name="gauge" className="w-3.5 h-3.5" />
+                  1010 hPa
+                </span>
+              )}
             </div>
           )}
         </div>

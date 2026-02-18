@@ -265,7 +265,7 @@ registerWidget({
   type: 'news-ticker',
   name: 'News Ticker',
   description: 'Scrolling announcements and alerts',
-  icon: '📢',
+  icon: 'megaphone',
   minW: 4,
   minH: 1,
   defaultW: 99, // Sentinel: addWidget clamps to gridCols for full-width

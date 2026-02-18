@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { FormInput, FormSelect } from '@/components/ui';
+import AppIcon from '@/components/AppIcon';
 import type { WidgetOptionsProps } from '@/lib/widget-registry';
 
 interface ImageData {
@@ -161,7 +162,7 @@ export default function ImageOptions({ data, onChange }: WidgetOptionsProps) {
             />
           ) : (
             <div className="text-center">
-              <span className="text-4xl opacity-50">🖼️</span>
+              <AppIcon name="image" className="w-9 h-9 opacity-50 mx-auto text-white/70" />
               <div className="text-white/50 text-sm mt-2">No image URL</div>
             </div>
           )}

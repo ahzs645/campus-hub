@@ -188,7 +188,7 @@ registerWidget({
   type: 'bus-connection',
   name: 'Bus Connection',
   description: 'Live bus arrival display for UNBC Exchange',
-  icon: '🚌',
+  icon: 'bus',
   minW: 3,
   minH: 2,
   defaultW: 6,

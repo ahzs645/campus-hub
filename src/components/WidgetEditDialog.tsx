@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { getWidget } from '@/lib/widget-registry';
+import AppIcon from '@/components/AppIcon';
 
 interface WidgetEditDialogProps {
   isOpen: boolean;
@@ -80,7 +81,7 @@ export default function WidgetEditDialog({
         <div className="flex-shrink-0 px-6 py-4 border-b border-[color:var(--ui-panel-border)]">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <span className="text-2xl">{widgetDef.icon}</span>
+              <AppIcon name={widgetDef.icon} className="w-7 h-7 text-[var(--ui-text)]" />
               <div>
                 <h2 className="text-xl font-bold text-[var(--ui-text)]">Configure {widgetDef.name}</h2>
                 <p className="text-sm text-[var(--ui-text-muted)]">{widgetDef.description}</p>

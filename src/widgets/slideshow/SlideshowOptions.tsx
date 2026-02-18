@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { FormInput, FormSelect, FormSwitch } from '@/components/ui';
+import AppIcon from '@/components/AppIcon';
 import type { WidgetOptionsProps } from '@/lib/widget-registry';
 
 interface Slide {
@@ -82,7 +83,7 @@ export default function SlideshowOptions({ data, onChange }: WidgetOptionsProps)
 
         {state.slides.length === 0 ? (
           <div className="text-center py-8 bg-[var(--ui-panel-soft)] rounded-lg border-2 border-dashed border-[color:var(--ui-item-border)]">
-            <span className="text-3xl">🖼️</span>
+            <AppIcon name="image" className="w-8 h-8 mx-auto text-[var(--ui-text-muted)]" />
             <p className="text-[var(--ui-text-muted)] text-sm mt-2">No slides yet</p>
             <p className="text-[var(--ui-text-muted)] text-xs">Click &quot;Add Slide&quot; to get started</p>
           </div>
@@ -182,7 +183,7 @@ export default function SlideshowOptions({ data, onChange }: WidgetOptionsProps)
             </div>
           ) : (
             <div className="text-center">
-              <span className="text-4xl opacity-50">🎞️</span>
+              <AppIcon name="slideshow" className="w-9 h-9 opacity-50 mx-auto text-white/70" />
               <div className="text-white/50 text-sm mt-2">No slides configured</div>
             </div>
           )}

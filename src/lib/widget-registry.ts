@@ -1,5 +1,6 @@
 // Widget Registry - Central hub for all widget types
 import { ComponentType } from 'react';
+import type { IconName } from './icon-names';
 
 export interface WidgetComponentProps {
   config?: Record<string, unknown>;
@@ -19,7 +20,7 @@ export interface WidgetDefinition {
   type: string;
   name: string;
   description: string;
-  icon: string;
+  icon: IconName;
   minW: number;
   minH: number;
   maxW?: number;

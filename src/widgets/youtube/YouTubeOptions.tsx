@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { FormInput, FormSwitch } from '@/components/ui';
+import AppIcon from '@/components/AppIcon';
 import type { WidgetOptionsProps } from '@/lib/widget-registry';
 
 interface YouTubeData {
@@ -88,13 +89,13 @@ export default function YouTubeOptions({ data, onChange }: WidgetOptionsProps) {
         <div className="bg-[var(--ui-item-bg)] rounded-xl aspect-video flex items-center justify-center">
           {state.videoId ? (
             <div className="text-center">
-              <span className="text-4xl">📺</span>
+              <AppIcon name="tv" className="w-9 h-9 mx-auto text-white/80" />
               <div className="text-white/70 text-sm mt-2">Video configured</div>
               <div className="text-white/50 text-xs mt-1 font-mono">{state.videoId}</div>
             </div>
           ) : (
             <div className="text-center">
-              <span className="text-4xl opacity-50">📺</span>
+              <AppIcon name="tv" className="w-9 h-9 opacity-50 mx-auto text-white/70" />
               <div className="text-white/50 text-sm mt-2">No video URL</div>
             </div>
           )}

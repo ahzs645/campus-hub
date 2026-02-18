@@ -210,7 +210,7 @@ registerWidget({
   type: 'poster-carousel',
   name: 'Poster Carousel',
   description: 'Rotating display of event posters and announcements',
-  icon: '🎠',
+  icon: 'carousel',
   minW: 4,
   minH: 3,
   defaultW: 8,

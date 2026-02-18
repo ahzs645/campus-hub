@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { getWidget } from '@/lib/widget-registry';
 import type { WidgetConfig } from '@/lib/config';
+import AppIcon from '@/components/AppIcon';
 
 interface EditableWidgetProps {
   widget: WidgetConfig;
@@ -118,8 +119,9 @@ export default function EditableWidget({ widget, theme, onEdit, onDelete }: Edit
     >
       {/* Widget Name */}
       <div className="px-3 py-2 border-b border-white/10 mb-2">
-        <span className="text-sm font-medium text-white">
-          {widgetDef?.icon} {widgetDef?.name}
+        <span className="text-sm font-medium text-white flex items-center gap-2">
+          {widgetDef && <AppIcon name={widgetDef.icon} className="w-4 h-4" />}
+          {widgetDef?.name}
         </span>
       </div>
 

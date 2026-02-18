@@ -12,6 +12,7 @@ import {
 } from '@/lib/config';
 import { DEMO_PRESETS } from '@/lib/presets';
 import { getAllWidgets, getWidget } from '@/widgets';
+import AppIcon from '@/components/AppIcon';
 import EditableWidget from '@/components/EditableWidget';
 import WidgetEditDialog from '@/components/WidgetEditDialog';
 import type { GridStackItem, GridStackWrapperRef } from '@/components/GridStackWrapper';
@@ -675,7 +676,7 @@ export default function ConfigurePage() {
                           className="bg-[var(--ui-panel-bg)] border border-[color:var(--ui-panel-border)] rounded-lg p-3 space-y-2"
                         >
                           <div className="flex items-center gap-3">
-                            <span className="text-xl">{widgetDef.icon}</span>
+                            <AppIcon name={widgetDef.icon} className="w-5 h-5 text-white/90" />
                             <div className="flex-1 min-w-0">
                               <div className="font-medium text-sm">{widgetDef.name}</div>
                               <div className="text-xs text-white/40">
@@ -905,7 +906,9 @@ export default function ConfigurePage() {
                         onClick={() => setConfig(normalizeConfig(preset.config))}
                         className="p-2 rounded-lg bg-[var(--ui-item-bg)] hover:bg-[var(--ui-item-hover)] border border-[color:var(--ui-item-border)] hover:border-[var(--ui-item-border-hover)] transition-all text-left group"
                       >
-                        <div className="text-lg mb-1">{preset.icon}</div>
+                        <div className="mb-1">
+                          <AppIcon name={preset.icon} className="w-5 h-5 text-white/80" />
+                        </div>
                         <div className="text-xs font-medium group-hover:text-[var(--color-accent)] transition-colors">{preset.name}</div>
                       </button>
                     ))}
@@ -1082,7 +1085,7 @@ export default function ConfigurePage() {
                         : 'bg-[var(--ui-item-bg)] border-[color:var(--ui-item-border)]'
                     }`}
                   >
-                    <span className="text-2xl">{widget.icon}</span>
+                    <AppIcon name={widget.icon} className="w-6 h-6 text-white/90" />
                     <div className="flex-1 min-w-0">
                       <div className="font-medium text-sm">{widget.name}</div>
                       <div className="text-xs text-white/50">{widget.description}</div>

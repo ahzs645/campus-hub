@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { FormInput, FormSelect, FormSwitch } from '@/components/ui';
+import AppIcon from '@/components/AppIcon';
 import type { WidgetOptionsProps } from '@/lib/widget-registry';
 
 interface MediaPlayerData {
@@ -112,13 +113,19 @@ export default function MediaPlayerOptions({ data, onChange }: WidgetOptionsProp
         <div className="bg-[var(--ui-item-bg)] rounded-xl aspect-video flex items-center justify-center">
           {state.url ? (
             <div className="text-center">
-              <span className="text-4xl">{state.type === 'audio' ? '🎵' : '🎬'}</span>
+              <AppIcon
+                name={state.type === 'audio' ? 'music' : 'film'}
+                className="w-9 h-9 mx-auto text-white/80"
+              />
               <div className="text-white/70 text-sm mt-2">{state.type === 'audio' ? 'Audio' : 'Video'} configured</div>
               <div className="text-white/50 text-xs mt-1 truncate max-w-xs">{state.url}</div>
             </div>
           ) : (
             <div className="text-center">
-              <span className="text-4xl opacity-50">{state.type === 'audio' ? '🎵' : '🎬'}</span>
+              <AppIcon
+                name={state.type === 'audio' ? 'music' : 'film'}
+                className="w-9 h-9 opacity-50 mx-auto text-white/70"
+              />
               <div className="text-white/50 text-sm mt-2">No media URL</div>
             </div>
           )}

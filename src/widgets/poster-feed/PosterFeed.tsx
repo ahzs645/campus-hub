@@ -443,7 +443,7 @@ registerWidget({
   type: 'poster-feed',
   name: 'Poster Feed',
   description: 'RSS feed posters with stack, carousel, or fade animations',
-  icon: '📰',
+  icon: 'newspaper',
   minW: 3,
   minH: 2,
   defaultW: 6,

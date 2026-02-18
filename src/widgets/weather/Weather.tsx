@@ -4,12 +4,25 @@ import { useState, useEffect, useCallback } from 'react';
 import { WidgetComponentProps, registerWidget } from '@/lib/widget-registry';
 import { buildCacheKey, fetchJsonWithCache, fetchTextWithCache } from '@/lib/data-cache';
 import { useFitScale } from '@/hooks/useFitScale';
+import AppIcon from '@/components/AppIcon';
+import type { IconName } from '@/lib/icon-names';
 import WeatherOptions from './WeatherOptions';
+
+type WeatherIconKey =
+  | 'sunny'
+  | 'cloudy'
+  | 'partly-cloudy'
+  | 'rainy'
+  | 'stormy'
+  | 'snowy'
+  | 'foggy'
+  | 'windy'
+  | 'default';
 
 interface WeatherData {
   temp: number;
   condition: string;
-  icon: string;
+  icon: WeatherIconKey;
   humidity: number;
   wind: number;
   location: string;
@@ -30,16 +43,30 @@ interface WeatherConfig {
   corsProxy?: string;
 }
 
-const WEATHER_ICONS: Record<string, string> = {
-  sunny: '☀️',
-  cloudy: '☁️',
-  'partly-cloudy': '⛅',
-  rainy: '🌧️',
-  stormy: '⛈️',
-  snowy: '❄️',
-  foggy: '🌫️',
-  windy: '💨',
-  default: '🌤️',
+interface OpenWeatherResponse {
+  weather?: Array<{
+    main?: string;
+    description?: string;
+  }>;
+  wind?: {
+    speed?: number;
+  };
+  main?: {
+    temp?: number;
+    humidity?: number;
+  };
+}
+
+const WEATHER_ICONS: Record<WeatherIconKey, IconName> = {
+  sunny: 'sun',
+  cloudy: 'cloud',
+  'partly-cloudy': 'cloudSun',
+  rainy: 'cloudRain',
+  stormy: 'cloudLightning',
+  snowy: 'snowflake',
+  foggy: 'cloudFog',
+  windy: 'wind',
+  default: 'weather',
 };
 
 // Mock weather data for demo
@@ -52,7 +79,7 @@ const MOCK_WEATHER: WeatherData = {
   location: 'Campus',
 };
 
-const mapWeatherIcon = (condition: string): string => {
+const mapWeatherIcon = (condition: string): WeatherIconKey => {
   const key = condition.toLowerCase();
   if (key.includes('clear') || key.includes('sunny')) return 'sunny';
   if (key.includes('cloud')) return 'cloudy';
@@ -88,7 +115,7 @@ const deriveConditionFromUNBC = (
   windSpeed: number,
   precip: number,
   kdownTot: number,
-): string => {
+): WeatherIconKey => {
   if (precip > 0 && temp <= 0) return 'snowy';
   if (precip > 0) return 'rainy';
   if (windSpeed > 10) return 'windy';
@@ -217,7 +244,7 @@ export default function Weather({ config, theme }: WidgetComponentProps) {
       const url = `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(
         location
       )}&units=${unitParam}&appid=${apiKey}`;
-      const { data } = await fetchJsonWithCache<any>(url, {
+      const { data } = await fetchJsonWithCache<OpenWeatherResponse>(url, {
         cacheKey: buildCacheKey('weather', `${location}:${unitParam}`),
         ttlMs: refreshMs,
       });
@@ -291,9 +318,7 @@ export default function Weather({ config, theme }: WidgetComponentProps) {
 
         {/* Main weather display */}
         <div className="flex items-center gap-4">
-          <span className="text-7xl leading-none">
-            {WEATHER_ICONS[weather.icon] || WEATHER_ICONS.default}
-          </span>
+          <AppIcon name={WEATHER_ICONS[weather.icon]} className="w-20 h-20 text-white" />
           <div>
             <div className="text-6xl font-bold text-white leading-tight">
               {displayTemp}{tempUnit}
@@ -308,16 +333,16 @@ export default function Weather({ config, theme }: WidgetComponentProps) {
         {showDetails && (
           <div className="mt-4 flex flex-wrap gap-x-5 gap-y-1 text-base text-white/60">
             <div className="flex items-center gap-1.5">
-              <span>💧</span>
+              <AppIcon name="droplets" className="w-4 h-4" />
               <span>{weather.humidity}%</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <span>💨</span>
+              <AppIcon name="wind" className="w-4 h-4" />
               <span>{weather.wind} {windUnit}</span>
             </div>
             {weather.pressure != null && (
               <div className="flex items-center gap-1.5">
-                <span>🔽</span>
+                <AppIcon name="gauge" className="w-4 h-4" />
                 <span>{weather.pressure} hPa</span>
               </div>
             )}
@@ -347,7 +372,7 @@ registerWidget({
   type: 'weather',
   name: 'Weather',
   description: 'Display current weather conditions',
-  icon: '🌤️',
+  icon: 'weather',
   minW: 2,
   minH: 2,
   defaultW: 3,

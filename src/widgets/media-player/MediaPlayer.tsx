@@ -1,6 +1,7 @@
 'use client';
 
 import { WidgetComponentProps, registerWidget } from '@/lib/widget-registry';
+import AppIcon from '@/components/AppIcon';
 import MediaPlayerOptions from './MediaPlayerOptions';
 
 interface MediaPlayerConfig {
@@ -27,7 +28,10 @@ export default function MediaPlayer({ config, theme }: WidgetComponentProps) {
         className="h-full flex flex-col items-center justify-center p-6 text-center"
         style={{ backgroundColor: `${theme.primary}40` }}
       >
-        <span className="text-4xl mb-3">{type === 'audio' ? '🎵' : '🎬'}</span>
+        <AppIcon
+          name={type === 'audio' ? 'music' : 'film'}
+          className="w-9 h-9 mb-3 text-white/70"
+        />
         <span className="text-white/70 text-sm">No media configured</span>
         <span className="text-white/50 text-xs mt-1">Add a media URL in settings</span>
       </div>
@@ -40,7 +44,7 @@ export default function MediaPlayer({ config, theme }: WidgetComponentProps) {
         className="h-full flex flex-col items-center justify-center p-6"
         style={{ backgroundColor: `${theme.primary}40` }}
       >
-        <span className="text-5xl mb-4">🎵</span>
+        <AppIcon name="music" className="w-12 h-12 mb-4 text-white/80" />
         <audio
           src={url}
           autoPlay={autoplay}
@@ -73,7 +77,7 @@ registerWidget({
   type: 'media-player',
   name: 'Media Player',
   description: 'Play video or audio files',
-  icon: '🎬',
+  icon: 'film',
   minW: 3,
   minH: 2,
   defaultW: 6,

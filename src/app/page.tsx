@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { encodeConfig, DEFAULT_CONFIG } from '@/lib/config';
+import AppIcon from '@/components/AppIcon';
 
 export default function Home() {
   const defaultConfigUrl = encodeConfig(DEFAULT_CONFIG);
@@ -106,7 +107,7 @@ export default function Home() {
                 className="w-10 h-10 rounded-lg flex items-center justify-center mb-3"
                 style={{ backgroundColor: 'rgba(183, 149, 39, 0.2)' }}
               >
-                <span className="text-xl">🔗</span>
+                <AppIcon name="link" className="w-5 h-5" />
               </div>
               <h3 className="font-semibold mb-1">URL-Based Config</h3>
               <p className="text-sm text-white/50">
@@ -119,7 +120,7 @@ export default function Home() {
                 className="w-10 h-10 rounded-lg flex items-center justify-center mb-3"
                 style={{ backgroundColor: 'rgba(183, 149, 39, 0.2)' }}
               >
-                <span className="text-xl">🧩</span>
+                <AppIcon name="puzzle" className="w-5 h-5" />
               </div>
               <h3 className="font-semibold mb-1">Modular Widgets</h3>
               <p className="text-sm text-white/50">
@@ -132,7 +133,7 @@ export default function Home() {
                 className="w-10 h-10 rounded-lg flex items-center justify-center mb-3"
                 style={{ backgroundColor: 'rgba(183, 149, 39, 0.2)' }}
               >
-                <span className="text-xl">🎨</span>
+                <AppIcon name="palette" className="w-5 h-5" />
               </div>
               <h3 className="font-semibold mb-1">Drag & Drop</h3>
               <p className="text-sm text-white/50">
