@@ -186,24 +186,19 @@ export default function Weather({ config, theme }: WidgetComponentProps) {
       setError(null);
       const proxy = corsProxy || 'https://corsproxy.io/?';
       const fetchUrl = buildProxiedUNBCUrl(proxy);
-      console.log('[Weather] Fetching UNBC from:', fetchUrl);
       const { text } = await fetchTextWithCache(fetchUrl, {
         cacheKey: buildCacheKey('weather-unbc', UNBC_URL),
         ttlMs: refreshMs,
       });
-      console.log('[Weather] Got response, length:', text.length);
-      console.log('[Weather] Has <table:', text.includes('<table'), 'Has border="1":', text.includes('border="1"'));
       const parsed = parseUNBCWeatherData(text, units);
       if (parsed) {
         setWeather(parsed);
         setLastUpdated(new Date());
       } else {
-        console.error('[Weather] Failed to parse UNBC HTML — no table data found');
         setError('Failed to parse weather data');
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.error('[Weather] Failed to fetch UNBC weather:', msg);
       setError(msg);
     }
   }, [corsProxy, units, refreshMs]);
