@@ -115,11 +115,13 @@ export function useEvents(options: UseEventsOptions): CalendarEvent[] {
         }
 
         // JSON source
-        const { data } = await fetchJsonWithCache<Record<string, unknown>[] | { events: Record<string, unknown>[] }>(fetchUrl, {
+        const { data } = await fetchJsonWithCache<Record<string, unknown>>(fetchUrl, {
           cacheKey: buildCacheKey('events-json', fetchUrl),
           ttlMs: cacheTtlSeconds * 1000,
         });
-        const list = Array.isArray(data) ? data : data.events;
+        const list = Array.isArray(data) ? data : (data.events as Record<string, unknown>[] | undefined);
+        // eventMetadata is keyed by event ID and may contain location, organization, etc.
+        const metadata: Record<string, Record<string, unknown>> = (!Array.isArray(data) && data.eventMetadata ? data.eventMetadata as Record<string, Record<string, unknown>> : {});
         if (Array.isArray(list) && isMounted) {
           const normalized = list.map((item, index) => {
             if (item.date && typeof item.date === 'string' && !/^\d{4}-/.test(item.date)) {
@@ -127,12 +129,14 @@ export function useEvents(options: UseEventsOptions): CalendarEvent[] {
             }
             const rawStart = (item.startDate ?? item.start_date ?? item.start ?? item.date) as string | undefined;
             const startObj = rawStart ? new Date(rawStart) : null;
+            const itemId = (item.id as string | number) ?? `${item.title}-${index}`;
+            const meta = metadata[String(itemId)];
             return {
-              id: (item.id as string | number) ?? `${item.title}-${index}`,
+              id: itemId,
               title: item.title as string,
               date: formatDate(startObj),
               time: startObj && !isNaN(startObj.getTime()) ? formatTime(startObj) : '',
-              location: (item.location ?? '') as string,
+              location: (meta?.location as string) || (item.location as string) || '',
               category: (item.category as string) ?? undefined,
               color: (item.color as string) ?? undefined,
               _sortTs: startObj && !isNaN(startObj.getTime()) ? startObj.getTime() : Infinity,

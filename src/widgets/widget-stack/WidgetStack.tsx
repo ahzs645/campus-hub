@@ -97,6 +97,7 @@ function StackMode({
             style={{
               width: '85%',
               height: '85%',
+              backgroundColor: theme.background,
               rotate: `${rotation}deg`,
               zIndex: z,
               border: `3px solid ${isActive ? theme.accent : 'rgba(255,255,255,0.12)'}`,
@@ -158,6 +159,7 @@ function CarouselMode({
             style={{
               width: '75%',
               height: '88%',
+              backgroundColor: theme.background,
               transform: `
                 translateX(${offset * 60}%)
                 translateZ(${isActive ? '40px' : `-${absOffset * 60}px`})

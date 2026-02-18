@@ -11,6 +11,7 @@ interface ClimbingGymData {
   refreshInterval: number;
   corsProxy: string;
   showCapacityBar: boolean;
+  showHours: boolean;
 }
 
 const DEFAULT_PORTAL_URL =
@@ -23,6 +24,7 @@ export default function ClimbingGymOptions({ data, onChange }: WidgetOptionsProp
     refreshInterval: (data?.refreshInterval as number) ?? 5,
     corsProxy: (data?.corsProxy as string) ?? 'https://corsproxy.io/?',
     showCapacityBar: (data?.showCapacityBar as boolean) ?? true,
+    showHours: (data?.showHours as boolean) ?? true,
   });
 
   useEffect(() => {
@@ -33,6 +35,7 @@ export default function ClimbingGymOptions({ data, onChange }: WidgetOptionsProp
         refreshInterval: (data.refreshInterval as number) ?? 5,
         corsProxy: (data.corsProxy as string) ?? 'https://corsproxy.io/?',
         showCapacityBar: (data.showCapacityBar as boolean) ?? true,
+        showHours: (data.showHours as boolean) ?? true,
       });
     }
   }, [data]);
@@ -80,6 +83,13 @@ export default function ClimbingGymOptions({ data, onChange }: WidgetOptionsProp
           label="Show Capacity Bar"
           name="showCapacityBar"
           checked={state.showCapacityBar}
+          onChange={handleChange}
+        />
+
+        <FormSwitch
+          label="Show Hours & Open/Closed Status"
+          name="showHours"
+          checked={state.showHours}
           onChange={handleChange}
         />
       </div>
@@ -166,6 +176,13 @@ export default function ClimbingGymOptions({ data, onChange }: WidgetOptionsProp
                 <span>40% full</span>
                 <span>Not busy</span>
               </div>
+            </div>
+          )}
+          {state.showHours && (
+            <div className="mt-2 flex items-center gap-1.5 text-[11px]">
+              <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-500" />
+              <span className="font-medium text-green-500">Open</span>
+              <span className="text-white/40">Closes at 10:00 PM</span>
             </div>
           )}
         </div>

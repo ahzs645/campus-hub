@@ -127,16 +127,16 @@ export default function EventsList({ config, theme }: WidgetComponentProps) {
   const renderEventCard = (event: Event, index: number, grow = false) => (
     <div
       key={event.id ?? index}
-      className={`p-5 rounded-xl border-l-4${grow ? ' flex-1 min-h-0 flex flex-col justify-center' : ''}`}
+      className={`p-5 rounded-xl border-l-4 overflow-hidden${grow ? ' flex-1 min-h-0 flex flex-col justify-center' : ''}`}
       style={{
         backgroundColor: `${theme.primary}50`,
         borderColor: event.color ?? theme.accent,
       }}
     >
-      <div className={`font-semibold text-white leading-snug ${grow ? 'text-2xl' : 'text-xl'}`}>
+      <div className={`font-semibold text-white leading-snug line-clamp-2 ${grow ? 'text-2xl' : 'text-xl'}`}>
         {event.title}
       </div>
-      <div className={`opacity-90 flex items-center gap-3 mt-2 flex-wrap ${grow ? 'text-lg' : 'text-base'}`}>
+      <div className={`opacity-90 flex items-center gap-3 mt-2 flex-wrap flex-shrink-0 ${grow ? 'text-lg' : 'text-base'}`}>
         {event.date && (
           <span
             className={`font-bold px-3 py-1 rounded ${grow ? 'text-lg' : 'text-base'}`}
