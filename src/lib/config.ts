@@ -155,9 +155,36 @@ export function decodeConfig(encoded: string): DisplayConfig | null {
   }
 }
 
+/** Check whether a widget fits entirely within the grid bounds. */
+export function isWidgetInBounds(
+  widget: WidgetConfig,
+  cols: number,
+  rows: number,
+): boolean {
+  return (
+    widget.x >= 0 &&
+    widget.y >= 0 &&
+    widget.x + widget.w <= cols &&
+    widget.y + widget.h <= rows
+  );
+}
+
+/** Return a copy of the config with only in-bounds widgets. */
+export function filterInBoundsLayout(config: DisplayConfig): DisplayConfig {
+  const cols = config.gridCols ?? 12;
+  const rows = config.gridRows ?? 8;
+  const layout = config.layout.filter((w) => isWidgetInBounds(w, cols, rows));
+  return {
+    ...config,
+    layout,
+    tickerEnabled: layout.some((w) => w.type === 'news-ticker'),
+  };
+}
+
 // Generate a shareable URL with the config
 export function generateShareUrl(config: DisplayConfig, origin: string): string {
-  const encoded = encodeConfig(config);
+  const exported = filterInBoundsLayout(config);
+  const encoded = encodeConfig(exported);
   const basePath = getBasePath();
   return `${origin}${basePath}/display?config=${encoded}`;
 }

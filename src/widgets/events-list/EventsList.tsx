@@ -19,6 +19,7 @@ interface EventsListConfig {
   title?: string;
   displayMode?: DisplayMode;
   rotationSeconds?: number;
+  selectedCategories?: string[];
 }
 
 const DEFAULT_EVENTS: Event[] = [
@@ -45,6 +46,7 @@ export default function EventsList({ config, theme }: WidgetComponentProps) {
   const title = eventsConfig?.title ?? 'Upcoming Events';
   const displayMode = eventsConfig?.displayMode ?? 'scroll';
   const rotationSeconds = eventsConfig?.rotationSeconds ?? 5;
+  const selectedCategories = eventsConfig?.selectedCategories;
 
   const events = useEvents({
     apiUrl,
@@ -54,6 +56,7 @@ export default function EventsList({ config, theme }: WidgetComponentProps) {
     maxItems,
     pollIntervalMs: 30_000,
     defaultEvents: eventsConfig?.events ?? DEFAULT_EVENTS,
+    selectedCategories,
   });
 
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -127,7 +130,7 @@ export default function EventsList({ config, theme }: WidgetComponentProps) {
       className={`p-5 rounded-xl border-l-4${grow ? ' flex-1 min-h-0 flex flex-col justify-center' : ''}`}
       style={{
         backgroundColor: `${theme.primary}50`,
-        borderColor: theme.accent,
+        borderColor: event.color ?? theme.accent,
       }}
     >
       <div className={`font-semibold text-white leading-snug ${grow ? 'text-2xl' : 'text-xl'}`}>

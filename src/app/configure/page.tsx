@@ -7,6 +7,8 @@ import {
   DEFAULT_CONFIG,
   normalizeConfig,
   generateShareUrl,
+  filterInBoundsLayout,
+  isWidgetInBounds,
   type DisplayConfig,
   type WidgetConfig,
 } from '@/lib/config';
@@ -302,6 +304,12 @@ export default function ConfigurePage() {
     (maxRows, widget) => Math.max(maxRows, widget.y + widget.h),
     1
   );
+  const offGridIds = new Set(
+    config.layout
+      .filter((w) => !isWidgetInBounds(w, gridCols, gridRows))
+      .map((w) => w.id),
+  );
+  const offGridCount = offGridIds.size;
 
   const addWidget = useCallback((type: string) => {
     const widgetDef = availableWidgets.find((w) => w.type === type);
@@ -420,12 +428,13 @@ export default function ConfigurePage() {
 
   const exportJson = useCallback(() => {
     try {
+      const exported = filterInBoundsLayout(config);
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
       const payload = JSON.stringify(
         {
           version: EXPORT_SCHEMA_VERSION,
           exportedAt: new Date().toISOString(),
-          config,
+          config: exported,
         },
         null,
         2,
@@ -573,7 +582,7 @@ export default function ConfigurePage() {
                 Generate URL
               </button>
               <a
-                href={`/display?config=${encodeConfig(config)}`}
+                href={`/display?config=${encodeConfig(filterInBoundsLayout(config))}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="px-4 py-2 rounded-lg font-medium border border-[color:var(--ui-panel-border)] hover:bg-[var(--ui-item-hover)] transition-all"
@@ -659,6 +668,12 @@ export default function ConfigurePage() {
                   </div>
                 )}
 
+                {offGridCount > 0 && (
+                  <div className="text-xs text-amber-300 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
+                    {offGridCount} widget{offGridCount > 1 ? 's' : ''} off grid — will not appear in exports or generated URLs. Scroll the preview to find {offGridCount > 1 ? 'them' : 'it'}.
+                  </div>
+                )}
+
                 {config.layout.length === 0 ? (
                   <div className="text-center py-8 text-white/30">
                     <div className="text-3xl mb-2">+</div>
@@ -670,15 +685,27 @@ export default function ConfigurePage() {
                     {config.layout.map((widget) => {
                       const widgetDef = getWidget(widget.type);
                       if (!widgetDef) return null;
+                      const isOffGrid = offGridIds.has(widget.id);
                       return (
                         <div
                           key={widget.id}
-                          className="bg-[var(--ui-panel-bg)] border border-[color:var(--ui-panel-border)] rounded-lg p-3 space-y-2"
+                          className={`rounded-lg p-3 space-y-2 ${
+                            isOffGrid
+                              ? 'bg-amber-500/10 border border-amber-500/30'
+                              : 'bg-[var(--ui-panel-bg)] border border-[color:var(--ui-panel-border)]'
+                          }`}
                         >
                           <div className="flex items-center gap-3">
                             <AppIcon name={widgetDef.icon} className="w-5 h-5 text-white/90" />
                             <div className="flex-1 min-w-0">
-                              <div className="font-medium text-sm">{widgetDef.name}</div>
+                              <div className="font-medium text-sm flex items-center gap-2">
+                                {widgetDef.name}
+                                {isOffGrid && (
+                                  <span className="text-[10px] font-medium text-amber-400 bg-amber-500/15 px-1.5 py-0.5 rounded">
+                                    OFF GRID
+                                  </span>
+                                )}
+                              </div>
                               <div className="text-xs text-white/40">
                                 {widget.w}×{widget.h} at ({widget.x}, {widget.y})
                               </div>
@@ -1007,15 +1034,26 @@ export default function ConfigurePage() {
             className="flex-1 flex items-center justify-center min-h-0 overflow-hidden"
           >
             <div
-              className="rounded-xl overflow-hidden border border-[color:var(--ui-panel-border)] shadow-2xl transition-all duration-200 flex flex-col"
+              className="rounded-xl overflow-auto border border-[color:var(--ui-panel-border)] shadow-2xl transition-all duration-200 flex flex-col"
               style={{
                 width: previewSize.width || 'auto',
-                height: previewSize.height || 'auto',
+                maxHeight: '100%',
                 backgroundColor: config.theme.background,
               }}
             >
               {/* Main Grid Area */}
-              <div className="flex-1 min-h-0 relative">
+              <div style={{ minHeight: previewSize.height || 'auto' }} className="relative">
+                {/* Grid boundary indicator — visible when widgets overflow */}
+                {offGridCount > 0 && previewSize.height > 0 && (
+                  <div
+                    className="absolute left-0 right-0 border-b-2 border-dashed border-amber-500/50 pointer-events-none z-10"
+                    style={{ top: previewSize.height }}
+                  >
+                    <span className="absolute right-2 -top-5 text-[10px] text-amber-400/70 whitespace-nowrap">
+                      grid boundary
+                    </span>
+                  </div>
+                )}
                 {previewSize.width > 0 && previewSize.height > 0 && (
                   <GridStackWrapper
                     ref={gridRef}

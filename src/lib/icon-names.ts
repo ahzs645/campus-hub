@@ -19,6 +19,7 @@ export type IconName =
   | 'newspaper'
   | 'palette'
   | 'puzzle'
+  | 'qrCode'
   | 'school'
   | 'slideshow'
   | 'snowflake'

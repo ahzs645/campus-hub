@@ -1,10 +1,16 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { FormInput, FormSelect } from '@/components/ui';
+import { useState, useEffect, useRef } from 'react';
+import { FormInput, FormSelect, FormSwitch } from '@/components/ui';
+import { applyCorsProxy } from '@/hooks/useEvents';
 import type { WidgetOptionsProps } from '@/lib/widget-registry';
 
 type DisplayMode = 'scroll' | 'ticker' | 'paginate';
+
+interface CategoryInfo {
+  name: string;
+  color?: string;
+}
 
 interface EventsListData {
   title: string;
@@ -15,6 +21,7 @@ interface EventsListData {
   sourceType: 'json' | 'ical' | 'rss';
   corsProxy: string;
   cacheTtlSeconds: number;
+  selectedCategories: string[];
 }
 
 export default function EventsListOptions({ data, onChange }: WidgetOptionsProps) {
@@ -27,7 +34,13 @@ export default function EventsListOptions({ data, onChange }: WidgetOptionsProps
     sourceType: (data?.sourceType as 'json' | 'ical' | 'rss') ?? 'json',
     corsProxy: (data?.corsProxy as string) ?? '',
     cacheTtlSeconds: (data?.cacheTtlSeconds as number) ?? 300,
+    selectedCategories: (data?.selectedCategories as string[]) ?? [],
   });
+
+  const [availableCategories, setAvailableCategories] = useState<CategoryInfo[]>([]);
+  const [categoryLoading, setCategoryLoading] = useState(false);
+  const [categoryError, setCategoryError] = useState('');
+  const fetchControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     if (data) {
@@ -40,12 +53,92 @@ export default function EventsListOptions({ data, onChange }: WidgetOptionsProps
         sourceType: (data.sourceType as 'json' | 'ical' | 'rss') ?? 'json',
         corsProxy: (data.corsProxy as string) ?? '',
         cacheTtlSeconds: (data.cacheTtlSeconds as number) ?? 300,
+        selectedCategories: (data.selectedCategories as string[]) ?? [],
       });
     }
   }, [data]);
 
+  // Fetch categories when apiUrl or corsProxy changes (JSON only)
+  useEffect(() => {
+    if (!state.apiUrl || state.sourceType !== 'json') {
+      setAvailableCategories([]);
+      setCategoryError('');
+      return;
+    }
+
+    // Debounce to avoid fetching on every keystroke
+    const timeout = setTimeout(() => {
+      fetchControllerRef.current?.abort();
+      const controller = new AbortController();
+      fetchControllerRef.current = controller;
+
+      setCategoryLoading(true);
+      setCategoryError('');
+
+      const fetchUrl = applyCorsProxy(state.apiUrl, state.corsProxy?.trim());
+
+      fetch(fetchUrl, { signal: controller.signal })
+        .then(res => {
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          return res.json();
+        })
+        .then((json: unknown) => {
+          const list = Array.isArray(json) ? json : (json as Record<string, unknown>)?.events;
+          if (!Array.isArray(list)) {
+            setAvailableCategories([]);
+            return;
+          }
+
+          const categoryMap = new Map<string, string | undefined>();
+          for (const item of list) {
+            const cat = (item as Record<string, unknown>).category as string | undefined;
+            const color = (item as Record<string, unknown>).color as string | undefined;
+            if (cat && !categoryMap.has(cat)) {
+              categoryMap.set(cat, color);
+            }
+          }
+
+          const categories: CategoryInfo[] = [];
+          categoryMap.forEach((color, name) => categories.push({ name, color }));
+          categories.sort((a, b) => a.name.localeCompare(b.name));
+          setAvailableCategories(categories);
+
+          // If no categories are selected yet, auto-select all
+          if (state.selectedCategories.length === 0 && categories.length > 0) {
+            const allNames = categories.map(c => c.name);
+            const newState = { ...state, selectedCategories: allNames };
+            setState(newState);
+            onChange(newState);
+          }
+        })
+        .catch(err => {
+          if (err.name === 'AbortError') return;
+          setCategoryError('Could not load categories');
+          setAvailableCategories([]);
+        })
+        .finally(() => {
+          if (!controller.signal.aborted) setCategoryLoading(false);
+        });
+    }, 600);
+
+    return () => {
+      clearTimeout(timeout);
+      fetchControllerRef.current?.abort();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.apiUrl, state.corsProxy, state.sourceType]);
+
   const handleChange = (name: string, value: string | number | boolean) => {
     const newState = { ...state, [name]: value };
+    setState(newState);
+    onChange(newState);
+  };
+
+  const handleCategoryToggle = (categoryName: string, enabled: boolean) => {
+    const updated = enabled
+      ? [...state.selectedCategories, categoryName]
+      : state.selectedCategories.filter(c => c !== categoryName);
+    const newState = { ...state, selectedCategories: updated };
     setState(newState);
     onChange(newState);
   };
@@ -150,6 +243,50 @@ export default function EventsListOptions({ data, onChange }: WidgetOptionsProps
           max={3600}
           onChange={handleChange}
         />
+
+        {/* Dynamic Category Filter */}
+        {state.sourceType === 'json' && state.apiUrl && (
+          <div className="space-y-3 pt-2">
+            <div className="flex items-center gap-2">
+              <label className="block text-sm font-medium text-[var(--ui-text-muted)]">
+                Filter by Category
+              </label>
+              {categoryLoading && (
+                <div className="w-3.5 h-3.5 border-2 border-[var(--ui-text-muted)] border-t-transparent rounded-full animate-spin" />
+              )}
+            </div>
+            {categoryError && (
+              <div className="text-xs text-red-400">{categoryError}</div>
+            )}
+            {availableCategories.length > 0 && (
+              <div className="space-y-2 pl-1">
+                {availableCategories.map(cat => (
+                  <div key={cat.name} className="flex items-center gap-2">
+                    {cat.color && (
+                      <div
+                        className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: cat.color }}
+                      />
+                    )}
+                    <div className="flex-1">
+                      <FormSwitch
+                        label={cat.name.charAt(0).toUpperCase() + cat.name.slice(1)}
+                        name={cat.name}
+                        checked={state.selectedCategories.includes(cat.name)}
+                        onChange={(name, checked) => handleCategoryToggle(name, checked)}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {!categoryLoading && !categoryError && availableCategories.length === 0 && state.apiUrl && (
+              <div className="text-xs text-[var(--ui-text-muted)]">
+                No categories found in the API response.
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="text-sm text-[var(--ui-text-muted)]">
           Leave empty to use default sample events.

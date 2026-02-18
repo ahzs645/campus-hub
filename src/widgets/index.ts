@@ -13,6 +13,7 @@ import './media-player/MediaPlayer';
 import './slideshow/Slideshow';
 import './poster-feed/PosterFeed';
 import './bus-connection/BusConnection';
+import './qrcode/QRCode';
 
 // Re-export registry functions
 export { getWidget, getAllWidgets, getWidgetComponent } from '@/lib/widget-registry';

@@ -10,6 +10,8 @@ export interface CalendarEvent {
   date?: string;
   time?: string;
   location?: string;
+  category?: string;
+  color?: string;
 }
 
 export interface UseEventsOptions {
@@ -20,6 +22,7 @@ export interface UseEventsOptions {
   maxItems?: number;
   pollIntervalMs?: number;
   defaultEvents?: CalendarEvent[];
+  selectedCategories?: string[];
 }
 
 export const applyCorsProxy = (url: string, corsProxy?: string) => {
@@ -46,6 +49,7 @@ export function useEvents(options: UseEventsOptions): CalendarEvent[] {
     maxItems = 10,
     pollIntervalMs = 30_000,
     defaultEvents = [],
+    selectedCategories,
   } = options;
 
   const trimmedProxy = corsProxy?.trim();
@@ -127,9 +131,14 @@ export function useEvents(options: UseEventsOptions): CalendarEvent[] {
               date: formatDate(startObj),
               time: startObj && !isNaN(startObj.getTime()) ? formatTime(startObj) : '',
               location: (item.location ?? '') as string,
+              category: (item.category as string) ?? undefined,
+              color: (item.color as string) ?? undefined,
             } satisfies CalendarEvent;
           });
-          setEvents(normalized.slice(0, maxItems));
+          const filtered = selectedCategories && selectedCategories.length > 0
+            ? normalized.filter(e => !e.category || selectedCategories.includes(e.category))
+            : normalized;
+          setEvents(filtered.slice(0, maxItems));
         }
       } catch (error) {
         console.error('Failed to fetch events:', error);
@@ -142,7 +151,7 @@ export function useEvents(options: UseEventsOptions): CalendarEvent[] {
       isMounted = false;
       clearInterval(interval);
     };
-  }, [apiUrl, sourceType, trimmedProxy, cacheTtlSeconds, maxItems, pollIntervalMs]);
+  }, [apiUrl, sourceType, trimmedProxy, cacheTtlSeconds, maxItems, pollIntervalMs, selectedCategories]);
 
   return events;
 }
