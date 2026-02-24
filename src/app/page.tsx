@@ -145,8 +145,12 @@ export default function Home() {
       </main>
 
       {/* Footer */}
-      <footer className="py-6 text-center text-white/30 text-sm">
-        Built for digital signage displays
+      <footer className="py-6 text-center text-white/30 text-sm flex items-center justify-center gap-4">
+        <span>Built for digital signage displays</span>
+        <span className="text-white/20">·</span>
+        <a href="/docs/" className="text-white/40 hover:text-white/70 transition-colors underline underline-offset-2">
+          Documentation
+        </a>
       </footer>
     </div>
   );
