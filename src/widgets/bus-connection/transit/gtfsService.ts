@@ -5,9 +5,14 @@
  */
 
 import GtfsRealtimeBindings from 'gtfs-realtime-bindings';
+import { buildProxyUrl } from '@/lib/data-cache';
 import { ROUTES, STOP_SCHEDULE, SERVICE_DATES, STOP_INFO } from './gtfsData';
 
 const POLL_INTERVAL = 30000;
+
+/** Default BC Transit GTFS-Realtime trip updates endpoint (Prince George, operator 22). */
+const GTFS_RT_TRIP_UPDATES_URL =
+  'https://bct.tmix.se/gtfs-realtime/tripupdates.pb?operatorIds=22';
 
 export interface Trip {
   tripId: string;
@@ -140,11 +145,18 @@ interface RealtimeUpdate {
   departureTime: number | null;
 }
 
-async function fetchRealtimeUpdates(proxyUrl: string): Promise<Map<string, RealtimeUpdate>> {
+async function fetchRealtimeUpdates(proxyUrl?: string, corsProxy?: string): Promise<Map<string, RealtimeUpdate>> {
   try {
-    const url = proxyUrl.endsWith('/')
-      ? `${proxyUrl}tripupdates.pb?operatorIds=22`
-      : `${proxyUrl}/tripupdates.pb?operatorIds=22`;
+    let url: string;
+    if (proxyUrl) {
+      // Widget-specific proxy: treat as a base URL and append the feed path
+      url = proxyUrl.endsWith('/')
+        ? `${proxyUrl}tripupdates.pb?operatorIds=22`
+        : `${proxyUrl}/tripupdates.pb?operatorIds=22`;
+    } else {
+      // Use the default BC Transit feed URL, wrapped with the global CORS proxy
+      url = buildProxyUrl(corsProxy, GTFS_RT_TRIP_UPDATES_URL);
+    }
 
     const res = await fetch(url);
     if (!res.ok) return new Map();
@@ -210,19 +222,21 @@ function applyRealtimeUpdates(trips: Trip[], rtUpdates: Map<string, RealtimeUpda
 export function createLiveTripProvider(
   onUpdate: (trips: Trip[]) => void,
   proxyUrl?: string,
+  corsProxy?: string,
   getSimulatedNow?: () => Date | null
 ) {
   let intervalId: ReturnType<typeof setInterval> | null = null;
   let rtUpdates = new Map<string, RealtimeUpdate>();
+  const canFetchRealtime = !!(proxyUrl || corsProxy);
 
   async function refresh() {
     const simNow = getSimulatedNow ? getSimulatedNow() : null;
-    // Only fetch realtime if not simulating
-    if (!simNow && proxyUrl) {
-      rtUpdates = await fetchRealtimeUpdates(proxyUrl);
+    // Only fetch realtime if not simulating and a proxy is available
+    if (!simNow && canFetchRealtime) {
+      rtUpdates = await fetchRealtimeUpdates(proxyUrl, corsProxy);
     }
     const scheduled = getScheduledTrips(simNow);
-    const merged = simNow ? scheduled : (proxyUrl ? applyRealtimeUpdates(scheduled, rtUpdates) : scheduled);
+    const merged = simNow ? scheduled : (canFetchRealtime ? applyRealtimeUpdates(scheduled, rtUpdates) : scheduled);
     onUpdate(merged);
   }
 
