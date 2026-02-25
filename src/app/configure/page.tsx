@@ -200,9 +200,20 @@ export default function ConfigurePage() {
   const [gridCols, setGridCols] = useState(DEFAULT_CONFIG.gridCols ?? DEFAULT_GRID_COLS);
   const [sidebarTab, setSidebarTab] = useState<'widgets' | 'settings' | 'presets'>('widgets');
   const [showWidgetLibrary, setShowWidgetLibrary] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<GridStackWrapperRef>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const mq = window.matchMedia('(max-width: 768px)');
+    setIsMobile(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
 
   const availableWidgets = getAllWidgets();
   const hasTicker = config.layout.some((widget) => widget.type === 'news-ticker');
@@ -541,17 +552,32 @@ export default function ConfigurePage() {
       } as React.CSSProperties}
     >
       {/* Header */}
-      <header className="flex-shrink-0 border-b border-[color:var(--ui-panel-border)] px-6 py-4">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-display font-bold flex items-center gap-3">
-            <span
-              className="w-3 h-3 rounded-full"
-              style={{ backgroundColor: config.theme.accent }}
-            />
-            Campus Hub Configurator
-          </h1>
-          <div className="flex flex-col items-end gap-1">
-            <div className="flex items-center justify-end flex-wrap gap-2">
+      <header className="flex-shrink-0 border-b border-[color:var(--ui-panel-border)] px-4 md:px-6 py-3 md:py-4">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            {isMobile && (
+              <button
+                onClick={() => setMobileSidebarOpen((v) => !v)}
+                className="w-9 h-9 flex items-center justify-center rounded-lg border border-[color:var(--ui-panel-border)] hover:bg-[var(--ui-item-hover)] transition-all flex-shrink-0"
+                aria-label="Toggle sidebar"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="3" y1="6" x2="21" y2="6" />
+                  <line x1="3" y1="12" x2="21" y2="12" />
+                  <line x1="3" y1="18" x2="21" y2="18" />
+                </svg>
+              </button>
+            )}
+            <h1 className={`font-display font-bold flex items-center gap-2 ${isMobile ? 'text-base' : 'text-2xl gap-3'}`}>
+              <span
+                className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full flex-shrink-0"
+                style={{ backgroundColor: config.theme.accent }}
+              />
+              <span className="truncate">{isMobile ? 'Campus Hub' : 'Campus Hub Configurator'}</span>
+            </h1>
+          </div>
+          <div className="flex flex-col items-end gap-1 flex-shrink-0">
+            <div className="flex items-center gap-1.5 md:gap-2">
               <input
                 ref={importInputRef}
                 type="file"
@@ -561,31 +587,35 @@ export default function ConfigurePage() {
               />
               <button
                 onClick={openImportDialog}
-                className="px-4 py-2 rounded-lg font-medium border border-[color:var(--ui-panel-border)] hover:bg-[var(--ui-item-hover)] transition-all"
+                className={`rounded-lg font-medium border border-[color:var(--ui-panel-border)] hover:bg-[var(--ui-item-hover)] transition-all ${isMobile ? 'px-2.5 py-1.5 text-xs' : 'px-4 py-2'}`}
               >
-                Import JSON
+                {isMobile ? 'Import' : 'Import JSON'}
               </button>
               <button
                 onClick={exportJson}
-                className="px-4 py-2 rounded-lg font-medium border border-[color:var(--ui-panel-border)] hover:bg-[var(--ui-item-hover)] transition-all"
+                className={`rounded-lg font-medium border border-[color:var(--ui-panel-border)] hover:bg-[var(--ui-item-hover)] transition-all ${isMobile ? 'px-2.5 py-1.5 text-xs' : 'px-4 py-2'}`}
               >
-                Export JSON
+                {isMobile ? 'Export' : 'Export JSON'}
               </button>
-              <button
-                onClick={generateUrl}
-                className="px-4 py-2 rounded-lg font-medium transition-all hover:scale-105"
-                style={{ backgroundColor: config.theme.accent, color: config.theme.primary }}
-              >
-                Generate URL
-              </button>
-              <a
-                href={`/display?config=${encodeConfig(filterInBoundsLayout(config))}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-4 py-2 rounded-lg font-medium border border-[color:var(--ui-panel-border)] hover:bg-[var(--ui-item-hover)] transition-all"
-              >
-                Open Fullscreen
-              </a>
+              {!isMobile && (
+                <>
+                  <button
+                    onClick={generateUrl}
+                    className="px-4 py-2 rounded-lg font-medium transition-all hover:scale-105"
+                    style={{ backgroundColor: config.theme.accent, color: config.theme.primary }}
+                  >
+                    Generate URL
+                  </button>
+                  <a
+                    href={`/display?config=${encodeConfig(filterInBoundsLayout(config))}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-4 py-2 rounded-lg font-medium border border-[color:var(--ui-panel-border)] hover:bg-[var(--ui-item-hover)] transition-all"
+                  >
+                    Open Fullscreen
+                  </a>
+                </>
+              )}
             </div>
             {jsonTransferMessage && (
               <p
@@ -598,12 +628,44 @@ export default function ConfigurePage() {
             )}
           </div>
         </div>
+        {/* Mobile-only secondary actions */}
+        {isMobile && (
+          <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-[color:var(--ui-panel-border)]">
+            <button
+              onClick={generateUrl}
+              className="flex-1 px-2.5 py-1.5 rounded-lg font-medium text-xs transition-all"
+              style={{ backgroundColor: config.theme.accent, color: config.theme.primary }}
+            >
+              Generate URL
+            </button>
+            <a
+              href={`/display?config=${encodeConfig(filterInBoundsLayout(config))}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1 px-2.5 py-1.5 rounded-lg font-medium text-xs border border-[color:var(--ui-panel-border)] hover:bg-[var(--ui-item-hover)] transition-all text-center"
+            >
+              Open Fullscreen
+            </a>
+          </div>
+        )}
       </header>
 
       {/* Main Content */}
-      <div className="flex-1 flex min-h-0 overflow-hidden">
+      <div className="flex-1 flex min-h-0 overflow-hidden relative">
+        {/* Mobile sidebar overlay */}
+        {isMobile && mobileSidebarOpen && (
+          <div
+            className="absolute inset-0 z-30 bg-black/50"
+            onClick={() => setMobileSidebarOpen(false)}
+          />
+        )}
         {/* Sidebar */}
-        <aside className="w-80 flex-shrink-0 border-r border-[color:var(--ui-panel-border)] bg-[var(--ui-panel-soft)] flex flex-col overflow-hidden">
+        <aside className={`${
+          isMobile
+            ? `absolute top-0 left-0 bottom-0 z-40 w-72 transition-transform duration-300 ease-in-out ${mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`
+            : 'w-80'
+        } flex-shrink-0 border-r border-[color:var(--ui-panel-border)] bg-[var(--ui-panel-soft)] flex flex-col overflow-hidden`}
+        style={isMobile ? { backgroundColor: config.theme.background } : undefined}>
           {/* Tab Bar */}
           <div className="flex-shrink-0 p-3 pb-0">
             <div className="flex gap-1 bg-[var(--ui-panel-bg)] rounded-lg p-1 border border-[color:var(--ui-panel-border)]">
@@ -984,67 +1046,74 @@ export default function ConfigurePage() {
           {/* Editor Header */}
           <div className="flex-shrink-0 flex items-center justify-between px-4 py-2 gap-4 border-b border-[color:var(--ui-panel-border)]">
             <h2 className="font-display font-bold text-sm" style={{ color: config.theme.accent }}>
-              Layout Editor
+              {isMobile ? 'Preview' : 'Layout Editor'}
             </h2>
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2 text-xs text-white/60">
-                <span className="text-white/40">Grid</span>
-                <select
-                  id="grid-cols"
-                  value={gridCols}
-                  onChange={(e) => {
-                    const nextCols = Number(e.target.value);
-                    const prevCols = gridCols;
-                    setGridCols(nextCols);
-                    setConfig((prev) => ({
-                      ...prev,
-                      gridCols: nextCols,
-                      layout: remapLayout(prev.layout, 'x', prevCols, nextCols),
-                    }));
-                  }}
-                  className="px-2 py-1 rounded-lg bg-[var(--ui-item-bg)] border border-[color:var(--ui-item-border)] text-white/80 text-xs outline-none focus:border-[var(--ui-item-border-hover)]"
-                  title="Columns"
-                >
-                  {COL_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.value}c
-                    </option>
-                  ))}
-                </select>
-                <span className="text-white/30">x</span>
-                <select
-                  id="grid-rows"
-                  value={gridRows}
-                  onChange={(e) => {
-                    const nextRows = Number(e.target.value);
-                    const prevRows = gridRows;
-                    setGridRows(nextRows);
-                    setConfig((prev) => ({
-                      ...prev,
-                      gridRows: nextRows,
-                      layout: remapLayout(prev.layout, 'y', prevRows, nextRows),
-                    }));
-                  }}
-                  className="px-2 py-1 rounded-lg bg-[var(--ui-item-bg)] border border-[color:var(--ui-item-border)] text-white/80 text-xs outline-none focus:border-[var(--ui-item-border-hover)]"
-                  title="Rows"
-                >
-                  {ROW_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.value}r
-                    </option>
-                  ))}
-                </select>
+            {!isMobile && (
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2 text-xs text-white/60">
+                  <span className="text-white/40">Grid</span>
+                  <select
+                    id="grid-cols"
+                    value={gridCols}
+                    onChange={(e) => {
+                      const nextCols = Number(e.target.value);
+                      const prevCols = gridCols;
+                      setGridCols(nextCols);
+                      setConfig((prev) => ({
+                        ...prev,
+                        gridCols: nextCols,
+                        layout: remapLayout(prev.layout, 'x', prevCols, nextCols),
+                      }));
+                    }}
+                    className="px-2 py-1 rounded-lg bg-[var(--ui-item-bg)] border border-[color:var(--ui-item-border)] text-white/80 text-xs outline-none focus:border-[var(--ui-item-border-hover)]"
+                    title="Columns"
+                  >
+                    {COL_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.value}c
+                      </option>
+                    ))}
+                  </select>
+                  <span className="text-white/30">x</span>
+                  <select
+                    id="grid-rows"
+                    value={gridRows}
+                    onChange={(e) => {
+                      const nextRows = Number(e.target.value);
+                      const prevRows = gridRows;
+                      setGridRows(nextRows);
+                      setConfig((prev) => ({
+                        ...prev,
+                        gridRows: nextRows,
+                        layout: remapLayout(prev.layout, 'y', prevRows, nextRows),
+                      }));
+                    }}
+                    className="px-2 py-1 rounded-lg bg-[var(--ui-item-bg)] border border-[color:var(--ui-item-border)] text-white/80 text-xs outline-none focus:border-[var(--ui-item-border-hover)]"
+                    title="Rows"
+                  >
+                    {ROW_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.value}r
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <span className="text-xs text-white/40">
+                  Drag to reposition. Handles to resize.
+                </span>
               </div>
+            )}
+            {isMobile && (
               <span className="text-xs text-white/40">
-                Drag to reposition. Handles to resize.
+                View only
               </span>
-            </div>
+            )}
           </div>
 
           {/* Full-bleed Grid Area */}
           <div
             ref={containerRef}
-            className="flex-1 min-h-0 overflow-x-hidden overflow-y-auto relative scrollbar-hide"
+            className={`flex-1 min-h-0 overflow-x-hidden overflow-y-auto relative scrollbar-hide ${isMobile ? 'mobile-preview' : ''}`}
             style={{ backgroundColor: config.theme.background }}
           >
             {/* GridStack container — centered horizontally, top-aligned */}
@@ -1067,17 +1136,19 @@ export default function ConfigurePage() {
               )}
 
               {previewSize.width > 0 && previewSize.height > 0 && (
-                <GridStackWrapper
-                  ref={gridRef}
-                  items={gridItems}
-                  columns={gridCols}
-                  rows={gridRows}
-                  cellHeight={cellHeight}
-                  margin={gridMargin}
-                  contentScale={contentScale}
-                  onLayoutChange={handleLayoutChange}
-                  renderItem={renderGridItem}
-                />
+                <div className={isMobile ? 'pointer-events-none' : ''}>
+                  <GridStackWrapper
+                    ref={gridRef}
+                    items={gridItems}
+                    columns={gridCols}
+                    rows={gridRows}
+                    cellHeight={cellHeight}
+                    margin={gridMargin}
+                    contentScale={contentScale}
+                    onLayoutChange={handleLayoutChange}
+                    renderItem={renderGridItem}
+                  />
+                </div>
               )}
 
               {config.layout.length === 0 && previewSize.height > 0 && (
@@ -1086,8 +1157,8 @@ export default function ConfigurePage() {
                   style={{ height: previewSize.height }}
                 >
                   <div className="text-center">
-                    <p className="text-lg mb-2">No widgets added</p>
-                    <p className="text-sm">Click widgets in the sidebar to add them</p>
+                    <p className={`mb-2 ${isMobile ? 'text-sm' : 'text-lg'}`}>No widgets added</p>
+                    <p className="text-xs md:text-sm">{isMobile ? 'Open the sidebar to add widgets' : 'Click widgets in the sidebar to add them'}</p>
                   </div>
                 </div>
               )}
