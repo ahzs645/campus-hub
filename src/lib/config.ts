@@ -15,7 +15,10 @@ export interface WidgetConfig {
     | 'media-player'
     | 'slideshow'
     | 'poster-feed'
-    | 'widget-stack';
+    | 'widget-stack'
+    | 'bus-connection'
+    | 'climbing-gym'
+    | 'qrcode';
   x: number;
   y: number;
   w: number;
