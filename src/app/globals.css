@@ -407,6 +407,23 @@ body {
   z-index: 1;
 }
 
+/* Mobile preview: hide all editing affordances */
+.mobile-preview .ui-resizable-handle {
+  display: none !important;
+}
+
+.mobile-preview .gs-drag-handle {
+  display: none !important;
+}
+
+.mobile-preview .grid-stack-item:hover > .grid-stack-item-content {
+  outline: none;
+}
+
+.mobile-preview .gs-wrapper {
+  background-image: none;
+}
+
 /* Selection styling */
 ::selection {
   background: var(--color-accent);
