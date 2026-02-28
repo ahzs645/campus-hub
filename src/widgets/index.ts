@@ -16,6 +16,8 @@ import './bus-connection/BusConnection';
 import './qrcode/QRCode';
 import './climbing-gym/ClimbingGym';
 import './widget-stack/WidgetStack';
+import './cafeteria-menu/CafeteriaMenu';
+import './air-quality/AirQuality';
 
 // Re-export registry functions
 export { getWidget, getAllWidgets, getWidgetComponent } from '@/lib/widget-registry';

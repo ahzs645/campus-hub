@@ -2,6 +2,7 @@ import type { ComponentProps } from 'react';
 import {
   BusFront,
   CalendarDays,
+  ChefHat,
   Clock3,
   Cloud,
   CloudFog,
@@ -15,6 +16,7 @@ import {
   Globe,
   Image,
   Layers,
+  Leaf,
   Link2,
   Megaphone,
   Mountain,
@@ -27,6 +29,9 @@ import {
   Snowflake,
   Sparkles,
   Sun,
+  Sunrise,
+  Sunset,
+  Thermometer,
   TriangleAlert,
   Tv,
   Wind,
@@ -39,12 +44,14 @@ interface AppIconProps {
   className?: string;
   strokeWidth?: number;
   title?: string;
+  style?: React.CSSProperties;
 }
 
 const ICONS: Record<IconName, LucideIcon> = {
   bus: BusFront,
   calendar: CalendarDays,
   carousel: GalleryHorizontalEnd,
+  chefHat: ChefHat,
   clock: Clock3,
   cloud: Cloud,
   cloudFog: CloudFog,
@@ -57,6 +64,7 @@ const ICONS: Record<IconName, LucideIcon> = {
   globe: Globe,
   image: Image,
   layers: Layers,
+  leaf: Leaf,
   link: Link2,
   megaphone: Megaphone,
   mountain: Mountain,
@@ -70,6 +78,9 @@ const ICONS: Record<IconName, LucideIcon> = {
   snowflake: Snowflake,
   sparkles: Sparkles,
   sun: Sun,
+  sunrise: Sunrise,
+  sunset: Sunset,
+  thermometer: Thermometer,
   tv: Tv,
   warning: TriangleAlert,
   weather: CloudSun,
@@ -81,6 +92,7 @@ export default function AppIcon({
   className,
   strokeWidth = 1.8,
   title,
+  style,
 }: AppIconProps) {
   const IconComponent = ICONS[name];
   const accessibilityProps: Pick<ComponentProps<'svg'>, 'aria-hidden' | 'aria-label'> = title
@@ -91,6 +103,7 @@ export default function AppIcon({
     <IconComponent
       className={className}
       strokeWidth={strokeWidth}
+      style={style}
       {...accessibilityProps}
     />
   );
