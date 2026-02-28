@@ -11,6 +11,7 @@ import {
   isWidgetInBounds,
   type DisplayConfig,
   type WidgetConfig,
+  type VisibilityRule,
 } from '@/lib/config';
 import { DEMO_PRESETS } from '@/lib/presets';
 import { getAllWidgets, getWidget } from '@/widgets';
@@ -404,11 +405,11 @@ export default function ConfigurePage() {
     }
   }, [config.layout]);
 
-  const handleSaveWidgetOptions = useCallback((widgetId: string, data: Record<string, unknown>, comingSoon: boolean) => {
+  const handleSaveWidgetOptions = useCallback((widgetId: string, data: Record<string, unknown>, comingSoon: boolean, visibility?: VisibilityRule) => {
     setConfig((prev) => ({
       ...prev,
       layout: prev.layout.map((widget) =>
-        widget.id === widgetId ? { ...widget, props: data, comingSoon: comingSoon || undefined } : widget
+        widget.id === widgetId ? { ...widget, props: data, comingSoon: comingSoon || undefined, visibility } : widget
       ),
     }));
     setEditingWidget(null);
@@ -1304,6 +1305,7 @@ export default function ConfigurePage() {
           widgetType={editingWidget.type}
           initialData={editingWidget.props || {}}
           comingSoon={editingWidget.comingSoon}
+          visibility={editingWidget.visibility}
           onSave={handleSaveWidgetOptions}
           onClose={() => setEditingWidget(null)}
         />

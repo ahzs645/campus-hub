@@ -1,6 +1,12 @@
 // Configuration encoding/decoding utilities for URL-based config
 import { compressToEncodedURIComponent, decompressFromEncodedURIComponent } from 'lz-string';
 
+export interface VisibilityRule {
+  startTime?: string; // "HH:MM" 24h format
+  endTime?: string;   // "HH:MM" 24h format
+  days?: number[];    // 0=Sunday, 1=Monday, ... 6=Saturday
+}
+
 export interface WidgetConfig {
   id: string;
   type:
@@ -18,13 +24,16 @@ export interface WidgetConfig {
     | 'widget-stack'
     | 'bus-connection'
     | 'climbing-gym'
-    | 'qrcode';
+    | 'qrcode'
+    | 'cafeteria-menu'
+    | 'air-quality';
   x: number;
   y: number;
   w: number;
   h: number;
   props?: Record<string, unknown>;
   comingSoon?: boolean;
+  visibility?: VisibilityRule;
 }
 
 export interface LogoConfig {
@@ -103,6 +112,14 @@ export function normalizeConfig(raw: Partial<DisplayConfig> | null | undefined):
             ? migrateWidgetProps(item.props as Record<string, unknown>)
             : undefined,
         comingSoon: item.comingSoon === true ? true : undefined,
+        visibility:
+          item.visibility && typeof item.visibility === 'object'
+            ? {
+                ...(typeof item.visibility.startTime === 'string' ? { startTime: item.visibility.startTime } : {}),
+                ...(typeof item.visibility.endTime === 'string' ? { endTime: item.visibility.endTime } : {}),
+                ...(Array.isArray(item.visibility.days) ? { days: item.visibility.days.filter((d: unknown) => typeof d === 'number') } : {}),
+              }
+            : undefined,
       }))
     : DEFAULT_CONFIG.layout;
 
@@ -181,6 +198,40 @@ export function decodeConfig(encoded: string): DisplayConfig | null {
   } catch {
     return null;
   }
+}
+
+/** Check whether a widget should be visible at the given time. */
+export function isWidgetVisible(widget: WidgetConfig, now?: Date): boolean {
+  const rule = widget.visibility;
+  if (!rule) return true;
+
+  const d = now ?? new Date();
+
+  // Check day-of-week
+  if (rule.days && rule.days.length > 0) {
+    if (!rule.days.includes(d.getDay())) return false;
+  }
+
+  // Check time range
+  if (rule.startTime || rule.endTime) {
+    const currentMinutes = d.getHours() * 60 + d.getMinutes();
+    const parseTime = (t: string) => {
+      const [h, m] = t.split(':').map(Number);
+      return (h ?? 0) * 60 + (m ?? 0);
+    };
+    const start = rule.startTime ? parseTime(rule.startTime) : 0;
+    const end = rule.endTime ? parseTime(rule.endTime) : 24 * 60;
+
+    if (start <= end) {
+      // Normal range (e.g., 08:00 - 17:00)
+      if (currentMinutes < start || currentMinutes >= end) return false;
+    } else {
+      // Overnight range (e.g., 22:00 - 06:00)
+      if (currentMinutes < start && currentMinutes >= end) return false;
+    }
+  }
+
+  return true;
 }
 
 /** Check whether a widget fits entirely within the grid bounds. */

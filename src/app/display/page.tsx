@@ -6,6 +6,7 @@ import {
   decodeConfig,
   DEFAULT_CONFIG,
   normalizeConfig,
+  isWidgetVisible,
   type DisplayConfig,
   type WidgetConfig,
 } from '@/lib/config';
@@ -189,10 +190,20 @@ function DisplayContent() {
 
   const config: DisplayConfig = activeConfig;
 
+  // Track current time (updates every minute) for conditional visibility
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const interval = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(interval);
+  }, []);
+
   const gridRows = config.gridRows ?? 8;
   const gridCols = config.gridCols ?? 12;
   const layout: WidgetConfig[] = useMemo(() => {
-    if (config.tickerEnabled && !config.layout.some((w) => w.type === 'news-ticker')) {
+    // Filter widgets by visibility rules
+    const visible = config.layout.filter((w) => isWidgetVisible(w, now));
+
+    if (config.tickerEnabled && !visible.some((w) => w.type === 'news-ticker')) {
       const tickerWidget: WidgetConfig = {
         id: 'default-ticker',
         type: 'news-ticker',
@@ -201,10 +212,10 @@ function DisplayContent() {
         w: gridCols,
         h: 1,
       };
-      return [...config.layout, tickerWidget];
+      return [...visible, tickerWidget];
     }
-    return config.layout;
-  }, [config, gridRows, gridCols]);
+    return visible;
+  }, [config, gridRows, gridCols, now]);
 
   // Fixed reference resolution — the layout is rendered at this size and then
   // uniformly scaled (via CSS transform) to fill the actual viewport.

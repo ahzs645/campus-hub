@@ -2,7 +2,10 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { getWidget } from '@/lib/widget-registry';
+import type { VisibilityRule } from '@/lib/config';
 import AppIcon from '@/components/AppIcon';
+
+const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 interface WidgetEditDialogProps {
   isOpen: boolean;
@@ -10,7 +13,8 @@ interface WidgetEditDialogProps {
   widgetType: string;
   initialData: Record<string, unknown>;
   comingSoon?: boolean;
-  onSave: (widgetId: string, data: Record<string, unknown>, comingSoon: boolean) => void;
+  visibility?: VisibilityRule;
+  onSave: (widgetId: string, data: Record<string, unknown>, comingSoon: boolean, visibility?: VisibilityRule) => void;
   onClose: () => void;
 }
 
@@ -20,11 +24,16 @@ export default function WidgetEditDialog({
   widgetType,
   initialData,
   comingSoon: initialComingSoon = false,
+  visibility: initialVisibility,
   onSave,
   onClose,
 }: WidgetEditDialogProps) {
   const [data, setData] = useState<Record<string, unknown>>(initialData);
   const [comingSoon, setComingSoon] = useState(initialComingSoon);
+  const [visibilityEnabled, setVisibilityEnabled] = useState(!!initialVisibility);
+  const [startTime, setStartTime] = useState(initialVisibility?.startTime ?? '');
+  const [endTime, setEndTime] = useState(initialVisibility?.endTime ?? '');
+  const [days, setDays] = useState<number[]>(initialVisibility?.days ?? []);
   const dialogRef = useRef<HTMLDialogElement>(null);
 
   const widgetDef = getWidget(widgetType);
@@ -35,8 +44,12 @@ export default function WidgetEditDialog({
     if (isOpen) {
       setData(initialData);
       setComingSoon(initialComingSoon);
+      setVisibilityEnabled(!!initialVisibility);
+      setStartTime(initialVisibility?.startTime ?? '');
+      setEndTime(initialVisibility?.endTime ?? '');
+      setDays(initialVisibility?.days ?? []);
     }
-  }, [isOpen, initialData, initialComingSoon]);
+  }, [isOpen, initialData, initialComingSoon, initialVisibility]);
 
   // Control dialog open/close
   useEffect(() => {
@@ -55,9 +68,23 @@ export default function WidgetEditDialog({
   }, []);
 
   const handleSave = useCallback(() => {
-    onSave(widgetId, data, comingSoon);
+    let visibility: VisibilityRule | undefined;
+    if (visibilityEnabled) {
+      const rule: VisibilityRule = {};
+      if (startTime) rule.startTime = startTime;
+      if (endTime) rule.endTime = endTime;
+      if (days.length > 0) rule.days = days;
+      if (rule.startTime || rule.endTime || rule.days) {
+        visibility = rule;
+      }
+    }
+    onSave(widgetId, data, comingSoon, visibility);
     onClose();
-  }, [widgetId, data, comingSoon, onSave, onClose]);
+  }, [widgetId, data, comingSoon, visibilityEnabled, startTime, endTime, days, onSave, onClose]);
+
+  const toggleDay = useCallback((day: number) => {
+    setDays((prev) => prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]);
+  }, []);
 
   const handleBackdropClick = useCallback(
     (e: React.MouseEvent<HTMLDialogElement>) => {
@@ -122,6 +149,82 @@ export default function WidgetEditDialog({
                 }`}
               />
             </button>
+          </div>
+
+          {/* Conditional Visibility */}
+          <div className="p-3 rounded-lg bg-[var(--ui-panel-soft)] border border-[color:var(--ui-panel-border)] space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm font-medium text-[var(--ui-text)]">Conditional Visibility</div>
+                <div className="text-xs text-[var(--ui-text-muted)]">Show this widget only during specific times or days</div>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={visibilityEnabled}
+                onClick={() => setVisibilityEnabled(!visibilityEnabled)}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors flex-shrink-0 ${
+                  visibilityEnabled ? 'bg-[var(--ui-switch-on)]' : 'bg-[var(--ui-switch-off)]'
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    visibilityEnabled ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
+
+            {visibilityEnabled && (
+              <div className="space-y-3 pt-2 border-t border-[color:var(--ui-panel-border)]">
+                {/* Time Range */}
+                <div className="flex items-center gap-3">
+                  <div className="space-y-1 flex-1">
+                    <label className="block text-xs text-[var(--ui-text-muted)]">Start Time</label>
+                    <input
+                      type="time"
+                      value={startTime}
+                      onChange={(e) => setStartTime(e.target.value)}
+                      className="w-full px-3 py-1.5 rounded-lg bg-[var(--ui-input-bg)] text-[var(--ui-text)] text-sm"
+                      style={{ border: '1px solid var(--ui-input-border)' }}
+                    />
+                  </div>
+                  <span className="text-[var(--ui-text-muted)] pt-5">to</span>
+                  <div className="space-y-1 flex-1">
+                    <label className="block text-xs text-[var(--ui-text-muted)]">End Time</label>
+                    <input
+                      type="time"
+                      value={endTime}
+                      onChange={(e) => setEndTime(e.target.value)}
+                      className="w-full px-3 py-1.5 rounded-lg bg-[var(--ui-input-bg)] text-[var(--ui-text)] text-sm"
+                      style={{ border: '1px solid var(--ui-input-border)' }}
+                    />
+                  </div>
+                </div>
+
+                {/* Days of Week */}
+                <div className="space-y-1">
+                  <label className="block text-xs text-[var(--ui-text-muted)]">Days (leave empty for all days)</label>
+                  <div className="flex gap-1">
+                    {DAY_LABELS.map((label, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => toggleDay(i)}
+                        className={`flex-1 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                          days.includes(i)
+                            ? 'bg-[var(--ui-switch-on)] text-white'
+                            : 'bg-[var(--ui-input-bg)] text-[var(--ui-text-muted)] hover:text-[var(--ui-text)]'
+                        }`}
+                        style={!days.includes(i) ? { border: '1px solid var(--ui-input-border)' } : undefined}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {OptionsComponent ? (
