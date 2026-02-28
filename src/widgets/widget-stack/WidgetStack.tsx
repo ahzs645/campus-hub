@@ -12,7 +12,7 @@ export interface ChildWidgetDef {
 
 interface WidgetStackConfig {
   rotationSeconds?: number;
-  animationMode?: 'stack' | 'carousel' | 'fade';
+  animationMode?: 'stack' | 'carousel' | 'fade' | 'slide' | 'flip';
   children?: ChildWidgetDef[];
 }
 
@@ -258,6 +258,159 @@ function FadeMode({
   );
 }
 
+// ─── Slide Mode ─────────────────────────────────────────────────────────────
+// Horizontal slide transition between widgets
+
+function SlideMode({
+  items,
+  activeIndex,
+  theme,
+  progress,
+}: {
+  items: ChildWidgetDef[];
+  activeIndex: number;
+  theme: WidgetComponentProps['theme'];
+  progress: number;
+}) {
+  const prevIndexRef = useRef(activeIndex);
+  const [direction, setDirection] = useState(1); // 1 = forward, -1 = backward
+
+  useEffect(() => {
+    if (activeIndex !== prevIndexRef.current) {
+      setDirection(activeIndex > prevIndexRef.current || (prevIndexRef.current === items.length - 1 && activeIndex === 0) ? 1 : -1);
+      prevIndexRef.current = activeIndex;
+    }
+  }, [activeIndex, items.length]);
+
+  return (
+    <div className="relative w-full h-full overflow-hidden rounded-2xl">
+      {items.map((child, i) => {
+        const isActive = i === activeIndex;
+        let translateX = 0;
+        if (!isActive) {
+          const diff = i - activeIndex;
+          translateX = diff !== 0 ? (diff > 0 || (activeIndex === items.length - 1 && i === 0) ? 100 : -100) * direction : 100 * direction;
+        }
+
+        return (
+          <div
+            key={child.id}
+            className="absolute inset-0 transition-all duration-700 ease-in-out"
+            style={{
+              transform: `translateX(${isActive ? 0 : translateX}%)`,
+              opacity: isActive ? 1 : 0,
+            }}
+          >
+            <RenderedChild child={child} theme={theme} isActive={isActive} />
+          </div>
+        );
+      })}
+
+      {/* Progress bar */}
+      {items.length > 1 && (
+        <div className="absolute top-0 left-0 right-0 h-1 bg-black/30 z-10">
+          <div
+            className="h-full transition-all duration-100 ease-linear"
+            style={{
+              width: `${progress}%`,
+              backgroundColor: theme.accent,
+              boxShadow: `0 0 10px ${theme.accent}`,
+            }}
+          />
+        </div>
+      )}
+
+      {/* Progress dots */}
+      {items.length > 1 && (
+        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-2 z-10">
+          {items.map((_, idx) => (
+            <div
+              key={idx}
+              className="w-2 h-2 rounded-full transition-all duration-300"
+              style={{
+                backgroundColor: idx === activeIndex ? theme.accent : 'rgba(255,255,255,0.3)',
+                transform: idx === activeIndex ? 'scale(1.3)' : 'scale(1)',
+              }}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Flip Mode ──────────────────────────────────────────────────────────────
+// 3D card flip transition between widgets
+
+function FlipMode({
+  items,
+  activeIndex,
+  theme,
+  progress,
+}: {
+  items: ChildWidgetDef[];
+  activeIndex: number;
+  theme: WidgetComponentProps['theme'];
+  progress: number;
+}) {
+  return (
+    <div
+      className="relative w-full h-full overflow-hidden rounded-2xl"
+      style={{ perspective: '1200px' }}
+    >
+      {items.map((child, i) => {
+        const isActive = i === activeIndex;
+        const rotateY = isActive ? 0 : 90;
+
+        return (
+          <div
+            key={child.id}
+            className="absolute inset-0 transition-all duration-700 ease-in-out"
+            style={{
+              transform: `rotateY(${rotateY}deg)`,
+              opacity: isActive ? 1 : 0,
+              backfaceVisibility: 'hidden',
+              transformStyle: 'preserve-3d',
+            }}
+          >
+            <RenderedChild child={child} theme={theme} isActive={isActive} />
+          </div>
+        );
+      })}
+
+      {/* Progress bar */}
+      {items.length > 1 && (
+        <div className="absolute top-0 left-0 right-0 h-1 bg-black/30 z-10">
+          <div
+            className="h-full transition-all duration-100 ease-linear"
+            style={{
+              width: `${progress}%`,
+              backgroundColor: theme.accent,
+              boxShadow: `0 0 10px ${theme.accent}`,
+            }}
+          />
+        </div>
+      )}
+
+      {/* Progress dots */}
+      {items.length > 1 && (
+        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-2 z-10">
+          {items.map((_, idx) => (
+            <div
+              key={idx}
+              className="w-2 h-2 rounded-full transition-all duration-300"
+              style={{
+                backgroundColor: idx === activeIndex ? theme.accent : 'rgba(255,255,255,0.3)',
+                transform: idx === activeIndex ? 'scale(1.3)' : 'scale(1)',
+              }}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main Component ──────────────────────────────────────────────────────────
 
 export default function WidgetStack({ config, theme }: WidgetComponentProps) {
@@ -320,6 +473,12 @@ export default function WidgetStack({ config, theme }: WidgetComponentProps) {
       {animationMode === 'fade' && (
         <FadeMode items={items} activeIndex={activeIndex} theme={theme} progress={progress} />
       )}
+      {animationMode === 'slide' && (
+        <SlideMode items={items} activeIndex={activeIndex} theme={theme} progress={progress} />
+      )}
+      {animationMode === 'flip' && (
+        <FlipMode items={items} activeIndex={activeIndex} theme={theme} progress={progress} />
+      )}
     </div>
   );
 }
@@ -327,7 +486,7 @@ export default function WidgetStack({ config, theme }: WidgetComponentProps) {
 registerWidget({
   type: 'widget-stack',
   name: 'Widget Stack',
-  description: 'Cycle through multiple widgets with stack, carousel, or fade animations',
+  description: 'Cycle through multiple widgets with fade, stack, carousel, slide, or flip animations',
   icon: 'layers',
   minW: 2,
   minH: 2,

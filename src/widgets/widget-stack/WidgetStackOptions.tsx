@@ -17,6 +17,8 @@ const ANIMATION_MODES = [
   { value: 'fade', label: 'Fade' },
   { value: 'stack', label: 'Stack' },
   { value: 'carousel', label: 'Carousel' },
+  { value: 'slide', label: 'Slide' },
+  { value: 'flip', label: 'Flip' },
 ];
 
 // Prevent recursion and exclude widgets that need full width
@@ -105,6 +107,8 @@ export default function WidgetStackOptions({ data, onChange }: WidgetOptionsProp
           {state.animationMode === 'fade' && 'Crossfade between widgets with a progress bar.'}
           {state.animationMode === 'stack' && 'Stacked cards with rotation. Active widget shuffles to the top.'}
           {state.animationMode === 'carousel' && '3D perspective carousel. Widgets fan out with depth.'}
+          {state.animationMode === 'slide' && 'Horizontal slide transition between widgets.'}
+          {state.animationMode === 'flip' && '3D card flip transition between widgets.'}
         </div>
 
         <FormInput
