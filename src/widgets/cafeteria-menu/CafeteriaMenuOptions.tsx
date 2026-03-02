@@ -1,6 +1,5 @@
 'use client';
 
-import { useState, useMemo } from 'react';
 import { FormInput, FormSelect } from '@/components/ui';
 import type { WidgetOptionsProps } from '@/lib/widget-registry';
 
@@ -9,36 +8,46 @@ interface CafeteriaData {
   danaLocations: string;
   refreshInterval: number;
   corsProxy: string;
-  breakfastEnd: string;
-  lunchEnd: string;
-  dinnerEnd: string;
+  weekdayBreakfastStart: string;
+  weekdayBreakfastEnd: string;
+  weekdayLunchStart: string;
+  weekdayLunchEnd: string;
+  weekdayDinnerStart: string;
+  weekdayDinnerEnd: string;
+  weekendBreakfastStart: string;
+  weekendBreakfastEnd: string;
+  weekendLunchStart: string;
+  weekendLunchEnd: string;
+  weekendDinnerStart: string;
+  weekendDinnerEnd: string;
 }
 
-const deriveState = (data: Record<string, unknown> | undefined): CafeteriaData => ({
-  menuUrl: (data?.menuUrl as string) ?? 'https://unbc.icaneat.ca/menu/',
-  danaLocations: (data?.danaLocations as string) ?? '48784,48786',
-  refreshInterval: (data?.refreshInterval as number) ?? 30,
-  corsProxy: (data?.corsProxy as string) ?? '',
-  breakfastEnd: (data?.breakfastEnd as string) ?? '10:30',
-  lunchEnd: (data?.lunchEnd as string) ?? '14:00',
-  dinnerEnd: (data?.dinnerEnd as string) ?? '19:00',
-});
-
 export default function CafeteriaMenuOptions({ data, onChange }: WidgetOptionsProps) {
-  const initial = useMemo(() => deriveState(data), [data]);
-  const [state, setState] = useState<CafeteriaData>(initial);
+  const legacyBreakfastEnd = (data?.breakfastEnd as string) ?? '10:45';
+  const legacyLunchEnd = (data?.lunchEnd as string) ?? '15:45';
+  const legacyDinnerEnd = (data?.dinnerEnd as string) ?? '23:00';
 
-  // Re-sync when parent data changes (e.g. preset applied)
-  const dataKey = JSON.stringify(data);
-  useMemo(() => {
-    setState(deriveState(data));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dataKey]);
+  const state: CafeteriaData = {
+    menuUrl: (data?.menuUrl as string) ?? 'https://unbc.icaneat.ca/menu/',
+    danaLocations: (data?.danaLocations as string) ?? '48784',
+    refreshInterval: (data?.refreshInterval as number) ?? 30,
+    corsProxy: (data?.corsProxy as string) ?? '',
+    weekdayBreakfastStart: (data?.weekdayBreakfastStart as string) ?? '07:00',
+    weekdayBreakfastEnd: (data?.weekdayBreakfastEnd as string) ?? legacyBreakfastEnd,
+    weekdayLunchStart: (data?.weekdayLunchStart as string) ?? '11:00',
+    weekdayLunchEnd: (data?.weekdayLunchEnd as string) ?? legacyLunchEnd,
+    weekdayDinnerStart: (data?.weekdayDinnerStart as string) ?? '16:00',
+    weekdayDinnerEnd: (data?.weekdayDinnerEnd as string) ?? legacyDinnerEnd,
+    weekendBreakfastStart: (data?.weekendBreakfastStart as string) ?? '08:00',
+    weekendBreakfastEnd: (data?.weekendBreakfastEnd as string) ?? legacyBreakfastEnd,
+    weekendLunchStart: (data?.weekendLunchStart as string) ?? '11:00',
+    weekendLunchEnd: (data?.weekendLunchEnd as string) ?? legacyLunchEnd,
+    weekendDinnerStart: (data?.weekendDinnerStart as string) ?? '16:00',
+    weekendDinnerEnd: (data?.weekendDinnerEnd as string) ?? '22:00',
+  };
 
   const handleChange = (name: string, value: string | number | boolean) => {
-    const newState = { ...state, [name]: value };
-    setState(newState);
-    onChange(newState);
+    onChange({ ...state, [name]: value });
   };
 
   return (
@@ -61,53 +70,45 @@ export default function CafeteriaMenuOptions({ data, onChange }: WidgetOptionsPr
           name="danaLocations"
           type="text"
           value={state.danaLocations}
-          placeholder="48784,48786"
+          placeholder="48784"
           onChange={handleChange}
         />
 
         <div className="text-sm text-[var(--ui-text-muted)]">
-          The widget tries three data sources in order: (1) Dana Hospitality
-          direct endpoints using the location IDs above, (2) WordPress REST API
-          auto-discovery from the menu page URL, (3) generic HTML parsing of the
-          menu page. Leave location IDs blank to skip the direct approach.
+          The widget tries three sources in order: (1) Dana Hospitality weekly
+          grid using location IDs above, (2) WordPress API discovery from the
+          menu URL, (3) generic HTML parsing. Leave location IDs blank to skip
+          direct Dana endpoints.
         </div>
       </div>
 
       {/* Meal Time Windows */}
       <div className="space-y-4 border-t border-[color:var(--ui-item-border)] pt-6">
-        <h3 className="font-semibold text-[var(--ui-text)]">Meal Schedule</h3>
+        <h3 className="font-semibold text-[var(--ui-text)]">Service Hours</h3>
 
         <div className="text-sm text-[var(--ui-text-muted)] mb-2">
-          The widget shows the current meal based on time of day. Configure when
-          each meal period ends.
+          These default to UNBC drop-in meal service windows and can be edited.
         </div>
 
-        <FormInput
-          label="Breakfast ends at"
-          name="breakfastEnd"
-          type="text"
-          value={state.breakfastEnd}
-          placeholder="10:30"
-          onChange={handleChange}
-        />
+        <div className="space-y-3 rounded-lg border border-[color:var(--ui-item-border)] p-3">
+          <h4 className="text-sm font-medium text-[var(--ui-text)]">Monday to Friday</h4>
+          <FormInput label="Breakfast start" name="weekdayBreakfastStart" type="time" value={state.weekdayBreakfastStart} onChange={handleChange} />
+          <FormInput label="Breakfast end" name="weekdayBreakfastEnd" type="time" value={state.weekdayBreakfastEnd} onChange={handleChange} />
+          <FormInput label="Lunch start" name="weekdayLunchStart" type="time" value={state.weekdayLunchStart} onChange={handleChange} />
+          <FormInput label="Lunch end" name="weekdayLunchEnd" type="time" value={state.weekdayLunchEnd} onChange={handleChange} />
+          <FormInput label="Dinner start" name="weekdayDinnerStart" type="time" value={state.weekdayDinnerStart} onChange={handleChange} />
+          <FormInput label="Dinner end" name="weekdayDinnerEnd" type="time" value={state.weekdayDinnerEnd} onChange={handleChange} />
+        </div>
 
-        <FormInput
-          label="Lunch ends at"
-          name="lunchEnd"
-          type="text"
-          value={state.lunchEnd}
-          placeholder="14:00"
-          onChange={handleChange}
-        />
-
-        <FormInput
-          label="Dinner ends at"
-          name="dinnerEnd"
-          type="text"
-          value={state.dinnerEnd}
-          placeholder="19:00"
-          onChange={handleChange}
-        />
+        <div className="space-y-3 rounded-lg border border-[color:var(--ui-item-border)] p-3">
+          <h4 className="text-sm font-medium text-[var(--ui-text)]">Weekends and Holidays</h4>
+          <FormInput label="Breakfast start" name="weekendBreakfastStart" type="time" value={state.weekendBreakfastStart} onChange={handleChange} />
+          <FormInput label="Breakfast end" name="weekendBreakfastEnd" type="time" value={state.weekendBreakfastEnd} onChange={handleChange} />
+          <FormInput label="Lunch start" name="weekendLunchStart" type="time" value={state.weekendLunchStart} onChange={handleChange} />
+          <FormInput label="Lunch end" name="weekendLunchEnd" type="time" value={state.weekendLunchEnd} onChange={handleChange} />
+          <FormInput label="Dinner start" name="weekendDinnerStart" type="time" value={state.weekendDinnerStart} onChange={handleChange} />
+          <FormInput label="Dinner end" name="weekendDinnerEnd" type="time" value={state.weekendDinnerEnd} onChange={handleChange} />
+        </div>
       </div>
 
       {/* Refresh Interval */}
@@ -133,27 +134,14 @@ export default function CafeteriaMenuOptions({ data, onChange }: WidgetOptionsPr
       <div className="space-y-4 border-t border-[color:var(--ui-item-border)] pt-6">
         <h3 className="font-semibold text-[var(--ui-text)]">CORS Proxy</h3>
 
-        <FormSelect
-          label="CORS Proxy"
+        <FormInput
+          label="CORS Proxy URL (optional)"
           name="corsProxy"
-          value={state.corsProxy || ''}
-          options={[
-            { value: '', label: 'Use global setting' },
-            { value: 'custom', label: 'Custom URL...' },
-          ]}
+          type="text"
+          value={state.corsProxy}
+          placeholder="Leave blank to use global setting"
           onChange={handleChange}
         />
-
-        {state.corsProxy === 'custom' && (
-          <FormInput
-            label="Custom Proxy URL"
-            name="corsProxy"
-            type="text"
-            value=""
-            placeholder="https://your-proxy.example.com/?url="
-            onChange={handleChange}
-          />
-        )}
 
         <div className="text-sm text-[var(--ui-text-muted)]">
           A CORS proxy is required to fetch menu data from the browser. Without
