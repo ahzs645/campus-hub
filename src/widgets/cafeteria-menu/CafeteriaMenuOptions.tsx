@@ -23,25 +23,21 @@ interface CafeteriaData {
 }
 
 export default function CafeteriaMenuOptions({ data, onChange }: WidgetOptionsProps) {
-  const legacyBreakfastEnd = (data?.breakfastEnd as string) ?? '10:45';
-  const legacyLunchEnd = (data?.lunchEnd as string) ?? '15:45';
-  const legacyDinnerEnd = (data?.dinnerEnd as string) ?? '23:00';
-
   const state: CafeteriaData = {
     menuUrl: (data?.menuUrl as string) ?? 'https://unbc.icaneat.ca/menu/',
     danaLocations: (data?.danaLocations as string) ?? '48784',
     refreshInterval: (data?.refreshInterval as number) ?? 30,
     corsProxy: (data?.corsProxy as string) ?? '',
     weekdayBreakfastStart: (data?.weekdayBreakfastStart as string) ?? '07:00',
-    weekdayBreakfastEnd: (data?.weekdayBreakfastEnd as string) ?? legacyBreakfastEnd,
+    weekdayBreakfastEnd: (data?.weekdayBreakfastEnd as string) ?? '10:45',
     weekdayLunchStart: (data?.weekdayLunchStart as string) ?? '11:00',
-    weekdayLunchEnd: (data?.weekdayLunchEnd as string) ?? legacyLunchEnd,
+    weekdayLunchEnd: (data?.weekdayLunchEnd as string) ?? '15:45',
     weekdayDinnerStart: (data?.weekdayDinnerStart as string) ?? '16:00',
-    weekdayDinnerEnd: (data?.weekdayDinnerEnd as string) ?? legacyDinnerEnd,
+    weekdayDinnerEnd: (data?.weekdayDinnerEnd as string) ?? '23:00',
     weekendBreakfastStart: (data?.weekendBreakfastStart as string) ?? '08:00',
-    weekendBreakfastEnd: (data?.weekendBreakfastEnd as string) ?? legacyBreakfastEnd,
+    weekendBreakfastEnd: (data?.weekendBreakfastEnd as string) ?? '10:45',
     weekendLunchStart: (data?.weekendLunchStart as string) ?? '11:00',
-    weekendLunchEnd: (data?.weekendLunchEnd as string) ?? legacyLunchEnd,
+    weekendLunchEnd: (data?.weekendLunchEnd as string) ?? '15:45',
     weekendDinnerStart: (data?.weekendDinnerStart as string) ?? '16:00',
     weekendDinnerEnd: (data?.weekendDinnerEnd as string) ?? '22:00',
   };

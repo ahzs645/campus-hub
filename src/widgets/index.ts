@@ -18,6 +18,7 @@ import './climbing-gym/ClimbingGym';
 import './cafeteria-menu/CafeteriaMenu';
 import './widget-stack/WidgetStack';
 import './library-availability/LibraryAvailability';
+import './confessions/Confessions';
 
 // Re-export registry functions
 export { getWidget, getAllWidgets, getWidgetComponent } from '@/lib/widget-registry';

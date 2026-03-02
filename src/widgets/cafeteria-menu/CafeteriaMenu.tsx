@@ -35,6 +35,7 @@ interface ParsedMenu {
 }
 
 type MealPeriod = 'breakfast' | 'lunch' | 'dinner';
+type ServicePeriod = MealPeriod | 'closed';
 
 interface ServiceWindows {
   breakfastStart: string;
@@ -118,25 +119,25 @@ const getServiceWindows = (config: CafeteriaConfig, date = new Date()): ServiceW
   if (isWeekend) {
     return {
       breakfastStart: readTimeValue(config.weekendBreakfastStart, defaults.breakfastStart),
-      breakfastEnd: readTimeValue(config.weekendBreakfastEnd ?? config.breakfastEnd, defaults.breakfastEnd),
+      breakfastEnd: readTimeValue(config.weekendBreakfastEnd, defaults.breakfastEnd),
       lunchStart: readTimeValue(config.weekendLunchStart, defaults.lunchStart),
-      lunchEnd: readTimeValue(config.weekendLunchEnd ?? config.lunchEnd, defaults.lunchEnd),
+      lunchEnd: readTimeValue(config.weekendLunchEnd, defaults.lunchEnd),
       dinnerStart: readTimeValue(config.weekendDinnerStart, defaults.dinnerStart),
-      dinnerEnd: readTimeValue(config.weekendDinnerEnd ?? config.dinnerEnd, defaults.dinnerEnd),
+      dinnerEnd: readTimeValue(config.weekendDinnerEnd, defaults.dinnerEnd),
     };
   }
 
   return {
     breakfastStart: readTimeValue(config.weekdayBreakfastStart, defaults.breakfastStart),
-    breakfastEnd: readTimeValue(config.weekdayBreakfastEnd ?? config.breakfastEnd, defaults.breakfastEnd),
+    breakfastEnd: readTimeValue(config.weekdayBreakfastEnd, defaults.breakfastEnd),
     lunchStart: readTimeValue(config.weekdayLunchStart, defaults.lunchStart),
-    lunchEnd: readTimeValue(config.weekdayLunchEnd ?? config.lunchEnd, defaults.lunchEnd),
+    lunchEnd: readTimeValue(config.weekdayLunchEnd, defaults.lunchEnd),
     dinnerStart: readTimeValue(config.weekdayDinnerStart, defaults.dinnerStart),
-    dinnerEnd: readTimeValue(config.weekdayDinnerEnd ?? config.dinnerEnd, defaults.dinnerEnd),
+    dinnerEnd: readTimeValue(config.weekdayDinnerEnd, defaults.dinnerEnd),
   };
 };
 
-const getCurrentMealPeriod = (config: CafeteriaConfig): MealPeriod => {
+const getCurrentServicePeriod = (config: CafeteriaConfig): ServicePeriod => {
   const now = new Date();
   const mins = now.getHours() * 60 + now.getMinutes();
   const windows = getServiceWindows(config, now);
@@ -151,18 +152,14 @@ const getCurrentMealPeriod = (config: CafeteriaConfig): MealPeriod => {
   if (mins >= breakfastStart && mins < breakfastEnd) return 'breakfast';
   if (mins >= lunchStart && mins < lunchEnd) return 'lunch';
   if (mins >= dinnerStart && mins < dinnerEnd) return 'dinner';
-
-  // Outside a service window, show the next upcoming service.
-  if (mins < breakfastStart) return 'breakfast';
-  if (mins < lunchStart) return 'lunch';
-  if (mins < dinnerStart) return 'dinner';
-  return 'breakfast';
+  return 'closed';
 };
 
-const MEAL_LABELS: Record<MealPeriod, string> = {
+const MEAL_LABELS: Record<ServicePeriod, string> = {
   breakfast: 'Breakfast',
   lunch: 'Lunch',
   dinner: 'Dinner',
+  closed: 'Closed',
 };
 
 /* ------------------------------------------------------------------ */
@@ -488,6 +485,28 @@ const hasAnyMenuContent = (parsed: ParsedMenu): boolean =>
   parsed.weekly.length + parsed.breakfast.length + parsed.lunch.length +
   parsed.dinner.length + parsed.showtime.length > 0;
 
+const WEEKDAY_PREFIX_PATTERN = /^(Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday):\s*/i;
+
+const filterSectionsToToday = (sections: MealSection[], date = new Date()): MealSection[] => {
+  const todayLabel = DAY_NAMES[date.getDay()];
+
+  return sections
+    .map((section) => {
+      const hasDayPrefixedItems = section.items.some((item) => WEEKDAY_PREFIX_PATTERN.test(item.name));
+      if (!hasDayPrefixedItems) return section;
+
+      const todayItems = section.items
+        .filter((item) => item.name.toLowerCase().startsWith(`${todayLabel.toLowerCase()}:`))
+        .map((item) => ({
+          ...item,
+          name: item.name.replace(WEEKDAY_PREFIX_PATTERN, '').trim(),
+        }));
+
+      return { ...section, items: todayItems };
+    })
+    .filter((section) => section.items.length > 0);
+};
+
 /* ------------------------------------------------------------------ */
 /*  Demo data                                                          */
 /* ------------------------------------------------------------------ */
@@ -573,15 +592,15 @@ export default function CafeteriaMenu({
   const [isDemo, setIsDemo] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const [mealPeriod, setMealPeriod] = useState<MealPeriod>(() =>
-    getCurrentMealPeriod(cfg ?? {}),
+  const [servicePeriod, setServicePeriod] = useState<ServicePeriod>(() =>
+    getCurrentServicePeriod(cfg ?? {}),
   );
 
   const refreshMs = refreshInterval * 60 * 1000;
 
   // Update meal period every minute
   useEffect(() => {
-    const tick = () => setMealPeriod(getCurrentMealPeriod(cfg ?? {}));
+    const tick = () => setServicePeriod(getCurrentServicePeriod(cfg ?? {}));
     tick();
     const id = setInterval(tick, 60_000);
     return () => clearInterval(id);
@@ -721,37 +740,35 @@ export default function CafeteriaMenu({
   }, [fetchMenu, refreshMs]);
 
   // ---- Display logic ----
-  const currentMealSections = menu[mealPeriod];
+  const currentMealSections = useMemo<MealSection[]>(
+    () => (servicePeriod === 'closed' ? [] : menu[servicePeriod]),
+    [menu, servicePeriod],
+  );
   const weeklySections = menu.weekly;
+  const isOpen = servicePeriod !== 'closed';
 
   const displaySections = useMemo(() => {
-    const showtimeSections = mealPeriod === 'lunch' || mealPeriod === 'dinner'
+    const showtimeSections = servicePeriod === 'lunch' || servicePeriod === 'dinner'
       ? menu.showtime
       : [];
     const sections: { title: string; items: MenuItem[]; isSpecial: boolean }[] = [];
 
-    for (const s of weeklySections) {
+    const todaysWeekly = filterSectionsToToday(weeklySections);
+    const todaysShowtime = filterSectionsToToday(showtimeSections);
+    const todaysCurrentMeal = filterSectionsToToday(currentMealSections);
+
+    for (const s of todaysWeekly) {
       sections.push({ title: s.title, items: s.items, isSpecial: true });
     }
-    for (const s of showtimeSections) {
+    for (const s of todaysShowtime) {
       sections.push({ title: s.title, items: s.items, isSpecial: true });
     }
-    for (const s of currentMealSections) {
+    for (const s of todaysCurrentMeal) {
       sections.push({ title: s.title, items: s.items, isSpecial: false });
     }
 
-    // If no meal-specific items, show everything available
-    if (currentMealSections.length === 0) {
-      const allMeals = [...menu.breakfast, ...menu.lunch, ...menu.dinner, ...menu.showtime];
-      for (const s of allMeals) {
-        if (!sections.some(existing => existing.title === s.title)) {
-          sections.push({ title: s.title, items: s.items, isSpecial: false });
-        }
-      }
-    }
-
     return sections;
-  }, [weeklySections, currentMealSections, menu, mealPeriod]);
+  }, [weeklySections, currentMealSections, menu, servicePeriod]);
 
   return (
     <div
@@ -767,14 +784,23 @@ export default function CafeteriaMenu({
         <span className="text-base font-semibold text-white">Cafeteria</span>
         <span
           className="ml-auto text-sm font-medium px-2 py-0.5 rounded-full"
-          style={{ backgroundColor: `${theme.accent}30`, color: theme.accent }}
+          style={{
+            backgroundColor: isOpen ? `${theme.accent}30` : 'rgba(239,68,68,0.2)',
+            color: isOpen ? theme.accent : 'rgb(248,113,113)',
+          }}
         >
-          {MEAL_LABELS[mealPeriod]}
+          {MEAL_LABELS[servicePeriod]}
         </span>
       </div>
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4 min-h-0">
+        {!isOpen && (
+          <div className="rounded-md border border-red-400/30 bg-red-500/10 px-3 py-2 text-sm text-red-200">
+            Cafeteria is currently closed.
+          </div>
+        )}
+
         {displaySections.length === 0 && !error && (
           <div className="text-white/50 text-sm text-center mt-4">
             No menu available
