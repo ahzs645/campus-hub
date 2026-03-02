@@ -13,15 +13,25 @@ interface TickerItem {
   text: string;
 }
 
+type AnnouncementSourceType = 'json' | 'rss' | 'simcity-template';
+
 interface NewsTickerConfig {
   apiUrl?: string;
-  sourceType?: 'json' | 'rss';
+  sourceType?: AnnouncementSourceType;
   corsProxy?: string;
   cacheTtlSeconds?: number;
   items?: TickerItem[];
   speed?: number;
   scale?: number;
   label?: string;
+  templateCityName?: string;
+  templateMayorName?: string;
+  templateRandomSimName?: string;
+  templateRandomWorkplaceName?: string;
+  templateSim?: string;
+  templateSims?: string;
+  simcityCategories?: string;
+  simcityMaxItems?: number;
   dataSource?: 'announcements' | 'events';
   eventApiUrl?: string;
   eventSourceType?: 'json' | 'ical' | 'rss';
@@ -54,12 +64,226 @@ const EVENT_DOT_COLORS = [
   '#06b6d4', // cyan
 ];
 
+const DEFAULT_SIMCITY_API_URL = '/data/simcity_news_tickers.json';
+const DEFAULT_SIMCITY_MAX_ITEMS = 40;
+const HANDLEBARS_TOKEN = /\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g;
+const LEGACY_TOKEN = /~([A-Za-z0-9_]+)~/g;
+const TEMPLATE_TOKEN_ALIASES: Record<string, keyof TemplateValues> = {
+  sim: 'sim',
+  sims: 'sims',
+  cityname: 'cityName',
+  mayorname: 'mayorName',
+  randomsimname: 'randomSimName',
+  randomworkplacename: 'randomWorkplaceName',
+};
+const SIM_FIRST_NAMES = [
+  'Alex',
+  'Riley',
+  'Jordan',
+  'Morgan',
+  'Taylor',
+  'Casey',
+  'Skyler',
+  'Avery',
+];
+const SIM_LAST_NAMES = [
+  'Mercer',
+  'Stone',
+  'Park',
+  'Santos',
+  'Nguyen',
+  'Bennett',
+  'Holloway',
+  'Rivera',
+];
+const SIM_WORKPLACES = [
+  'SimTech Labs',
+  'Sunrise Diner',
+  'Metro Transit Hub',
+  'Riverfront Power Plant',
+  'Northside Police Precinct',
+  'Harbor Logistics Yard',
+  'City Hall Annex',
+  'Midtown Clinic',
+];
+
+interface TemplateValues {
+  cityName: string;
+  mayorName: string;
+  randomSimName: string;
+  randomWorkplaceName: string;
+  sim: string;
+  sims: string;
+}
+
+interface SimCityLine {
+  category: string;
+  text: string;
+  id: string;
+}
+
+const pickRandom = (pool: string[]): string => pool[Math.floor(Math.random() * pool.length)] ?? '';
+
+const randomSimName = () => `${pickRandom(SIM_FIRST_NAMES)} ${pickRandom(SIM_LAST_NAMES)}`;
+const randomWorkplaceName = () => pickRandom(SIM_WORKPLACES);
+
+const normalizeTokenKey = (token: string): string => token.replace(/\s+/g, '').toLowerCase();
+const normalizeCategoryKey = (category: string): string =>
+  category.trim().toLowerCase().replace(/[\s-]+/g, '_');
+
+const formatCategoryLabel = (category: string, fallback: string): string => {
+  const cleaned = category.trim().replace(/[_-]+/g, ' ');
+  return (cleaned || fallback).toUpperCase();
+};
+
+const parseCategoryFilter = (raw: string | undefined): Set<string> =>
+  new Set(
+    (raw ?? '')
+      .split(',')
+      .map((part) => normalizeCategoryKey(part))
+      .filter(Boolean),
+  );
+
+const clampSimCityMaxItems = (value: unknown): number => {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return DEFAULT_SIMCITY_MAX_ITEMS;
+  return Math.min(200, Math.max(1, Math.round(value)));
+};
+
+const shuffle = <T,>(items: T[]): T[] => {
+  const copy = [...items];
+  for (let i = copy.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+};
+
+const buildTemplateValues = (config: NewsTickerConfig | undefined): TemplateValues => ({
+  cityName: config?.templateCityName?.trim() || 'SimCity',
+  mayorName: config?.templateMayorName?.trim() || 'Mayor Sim',
+  randomSimName: config?.templateRandomSimName?.trim() || '',
+  randomWorkplaceName: config?.templateRandomWorkplaceName?.trim() || '',
+  sim: config?.templateSim?.trim() || 'Sim',
+  sims: config?.templateSims?.trim() || 'Sims',
+});
+
+const resolveTemplateToken = (token: string, values: TemplateValues): string | undefined => {
+  const alias = TEMPLATE_TOKEN_ALIASES[normalizeTokenKey(token)];
+  return alias ? values[alias] : undefined;
+};
+
+const applyTemplate = (template: string, values: TemplateValues): string => {
+  const lineValues: TemplateValues = {
+    ...values,
+    randomSimName: values.randomSimName || randomSimName(),
+    randomWorkplaceName: values.randomWorkplaceName || randomWorkplaceName(),
+  };
+
+  return template
+    .replace(HANDLEBARS_TOKEN, (match, token) => resolveTemplateToken(token, lineValues) ?? match)
+    .replace(LEGACY_TOKEN, (match, token) => resolveTemplateToken(token, lineValues) ?? match);
+};
+
+const toSimCityLines = (data: unknown): SimCityLine[] => {
+  const lines: SimCityLine[] = [];
+
+  if (Array.isArray(data)) {
+    data.forEach((item, idx) => {
+      if (typeof item === 'string' && item.trim()) {
+        lines.push({ category: 'news', text: item, id: `root-${idx}` });
+      }
+    });
+    return lines;
+  }
+
+  if (!data || typeof data !== 'object') return lines;
+  const payload = data as Record<string, unknown>;
+
+  if (Array.isArray(payload.items)) {
+    payload.items.forEach((item, idx) => {
+      if (typeof item === 'string' && item.trim()) {
+        lines.push({ category: 'news', text: item, id: `items-${idx}` });
+        return;
+      }
+      if (!item || typeof item !== 'object') return;
+      const record = item as Record<string, unknown>;
+      const text = typeof record.text === 'string' ? record.text : '';
+      if (!text.trim()) return;
+      const category = typeof record.label === 'string' ? record.label : 'news';
+      const id = typeof record.id === 'string' || typeof record.id === 'number' ? String(record.id) : `items-${idx}`;
+      lines.push({ category, text, id });
+    });
+  }
+
+  if (!payload.categories || typeof payload.categories !== 'object' || Array.isArray(payload.categories)) {
+    return lines;
+  }
+
+  Object.entries(payload.categories as Record<string, unknown>).forEach(([category, value]) => {
+    if (!Array.isArray(value)) return;
+    value.forEach((line, idx) => {
+      if (typeof line !== 'string' || !line.trim()) return;
+      lines.push({
+        category,
+        text: line,
+        id: `${category}-${idx}`,
+      });
+    });
+  });
+
+  return lines;
+};
+
+const mapSimCityTickerItems = (
+  data: unknown,
+  {
+    fallbackLabel,
+    templateValues,
+    categoryFilter,
+    maxItems,
+  }: {
+    fallbackLabel: string;
+    templateValues: TemplateValues;
+    categoryFilter: Set<string>;
+    maxItems: number;
+  },
+): TickerItem[] => {
+  const parsed = toSimCityLines(data);
+  if (parsed.length === 0) return [];
+
+  const filtered =
+    categoryFilter.size > 0
+      ? parsed.filter((line) => categoryFilter.has(normalizeCategoryKey(line.category)))
+      : parsed;
+
+  const source = filtered.length > 0 ? filtered : parsed;
+  return shuffle(source)
+    .slice(0, maxItems)
+    .map((line, idx) => ({
+      id: `${line.id}-${idx}`,
+      label: formatCategoryLabel(line.category, fallbackLabel || 'NEWS'),
+      text: applyTemplate(line.text, templateValues),
+    }));
+};
+
 export default function NewsTicker({ config, theme, corsProxy: globalCorsProxy }: WidgetComponentProps) {
   const tickerConfig = config as NewsTickerConfig | undefined;
-  const apiUrl = tickerConfig?.apiUrl;
+  const rawApiUrl = tickerConfig?.apiUrl?.trim();
+  const apiUrl = rawApiUrl && rawApiUrl.length > 0 ? rawApiUrl : undefined;
   const sourceType = tickerConfig?.sourceType ?? 'json';
+  const announcementsApiUrl =
+    sourceType === 'simcity-template' ? apiUrl || DEFAULT_SIMCITY_API_URL : apiUrl;
+  const configuredItems = tickerConfig?.items;
+  const simcityCategories = tickerConfig?.simcityCategories;
+  const templateCityName = tickerConfig?.templateCityName;
+  const templateMayorName = tickerConfig?.templateMayorName;
+  const templateRandomSimName = tickerConfig?.templateRandomSimName;
+  const templateRandomWorkplaceName = tickerConfig?.templateRandomWorkplaceName;
+  const templateSim = tickerConfig?.templateSim;
+  const templateSims = tickerConfig?.templateSims;
   const corsProxy = tickerConfig?.corsProxy?.trim();
   const cacheTtlSeconds = tickerConfig?.cacheTtlSeconds ?? 120;
+  const simcityMaxItems = clampSimCityMaxItems(tickerConfig?.simcityMaxItems);
   const speed = tickerConfig?.speed ?? 30;
   const configuredScale = tickerConfig?.scale;
   const userScale =
@@ -70,20 +294,20 @@ export default function NewsTicker({ config, theme, corsProxy: globalCorsProxy }
   const dataSource = tickerConfig?.dataSource ?? 'announcements';
 
   // Announcement items state
-  const [items, setItems] = useState<TickerItem[]>(tickerConfig?.items ?? DEFAULT_TICKER_ITEMS);
+  const [items, setItems] = useState<TickerItem[]>(configuredItems ?? DEFAULT_TICKER_ITEMS);
 
   useEffect(() => {
-    if (dataSource !== 'announcements' || apiUrl) return;
-    setItems(tickerConfig?.items ?? DEFAULT_TICKER_ITEMS);
-  }, [dataSource, apiUrl, tickerConfig?.items]);
+    if (dataSource !== 'announcements' || announcementsApiUrl) return;
+    setItems(configuredItems ?? DEFAULT_TICKER_ITEMS);
+  }, [dataSource, announcementsApiUrl, configuredItems]);
 
   useEffect(() => {
-    if (dataSource !== 'announcements' || !apiUrl) return;
+    if (dataSource !== 'announcements' || !announcementsApiUrl) return;
     let isMounted = true;
 
     const fetchTicker = async () => {
       try {
-        const fetchUrl = applyCorsProxy(apiUrl, corsProxy);
+        const fetchUrl = applyCorsProxy(announcementsApiUrl, corsProxy);
         if (sourceType === 'rss') {
           const { text } = await fetchTextWithCache(fetchUrl, {
             cacheKey: buildCacheKey('ticker-rss', fetchUrl),
@@ -96,6 +320,30 @@ export default function NewsTicker({ config, theme, corsProxy: globalCorsProxy }
             text: item.title,
           }));
           if (isMounted) setItems(mapped);
+          return;
+        }
+
+        if (sourceType === 'simcity-template') {
+          const { data } = await fetchJsonWithCache<unknown>(fetchUrl, {
+            cacheKey: buildCacheKey('ticker-simcity-json', fetchUrl),
+            ttlMs: cacheTtlSeconds * 1000,
+          });
+          const mapped = mapSimCityTickerItems(data, {
+            fallbackLabel: label,
+            templateValues: buildTemplateValues({
+              templateCityName,
+              templateMayorName,
+              templateRandomSimName,
+              templateRandomWorkplaceName,
+              templateSim,
+              templateSims,
+            }),
+            categoryFilter: parseCategoryFilter(simcityCategories),
+            maxItems: simcityMaxItems,
+          });
+          if (isMounted && mapped.length > 0) {
+            setItems(mapped);
+          }
           return;
         }
 
@@ -117,7 +365,22 @@ export default function NewsTicker({ config, theme, corsProxy: globalCorsProxy }
       isMounted = false;
       clearInterval(interval);
     };
-  }, [dataSource, apiUrl, sourceType, corsProxy, cacheTtlSeconds, label]);
+  }, [
+    dataSource,
+    announcementsApiUrl,
+    sourceType,
+    corsProxy,
+    cacheTtlSeconds,
+    label,
+    simcityMaxItems,
+    simcityCategories,
+    templateCityName,
+    templateMayorName,
+    templateRandomSimName,
+    templateRandomWorkplaceName,
+    templateSim,
+    templateSims,
+  ]);
 
   // Events data via shared hook
   const events = useEvents({
@@ -280,6 +543,14 @@ registerWidget({
     sourceType: 'json',
     cacheTtlSeconds: 120,
     corsProxy: '',
+    templateCityName: 'SimCity',
+    templateMayorName: 'Mayor Sim',
+    templateRandomSimName: '',
+    templateRandomWorkplaceName: '',
+    templateSim: 'Sim',
+    templateSims: 'Sims',
+    simcityCategories: '',
+    simcityMaxItems: 40,
     eventSourceType: 'json',
     eventCacheTtlSeconds: 300,
     eventCorsProxy: '',

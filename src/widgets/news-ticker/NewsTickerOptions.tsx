@@ -10,9 +10,17 @@ interface NewsTickerData {
   scale: number;
   dataSource: 'announcements' | 'events';
   apiUrl: string;
-  sourceType: 'json' | 'rss';
+  sourceType: 'json' | 'rss' | 'simcity-template';
   corsProxy: string;
   cacheTtlSeconds: number;
+  templateCityName: string;
+  templateMayorName: string;
+  templateRandomSimName: string;
+  templateRandomWorkplaceName: string;
+  templateSim: string;
+  templateSims: string;
+  simcityCategories: string;
+  simcityMaxItems: number;
   eventApiUrl: string;
   eventSourceType: 'json' | 'ical' | 'rss';
   eventCorsProxy: string;
@@ -21,9 +29,14 @@ interface NewsTickerData {
 }
 
 const EVENT_DOT_COLORS = ['#6366f1', '#f43f5e', '#f59e0b', '#10b981', '#06b6d4'];
+const DEFAULT_SIMCITY_API_URL = '/data/simcity_news_tickers.json';
 const clampScale = (value: unknown) => {
   if (typeof value !== 'number' || !Number.isFinite(value)) return 1;
   return Math.min(2, Math.max(0.5, value));
+};
+const clampSimCityMaxItems = (value: unknown) => {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return 40;
+  return Math.min(200, Math.max(1, Math.round(value)));
 };
 
 export default function NewsTickerOptions({ data, onChange }: WidgetOptionsProps) {
@@ -33,9 +46,17 @@ export default function NewsTickerOptions({ data, onChange }: WidgetOptionsProps
     scale: clampScale(data?.scale),
     dataSource: (data?.dataSource as 'announcements' | 'events') ?? 'announcements',
     apiUrl: (data?.apiUrl as string) ?? '',
-    sourceType: (data?.sourceType as 'json' | 'rss') ?? 'json',
+    sourceType: (data?.sourceType as 'json' | 'rss' | 'simcity-template') ?? 'json',
     corsProxy: (data?.corsProxy as string) ?? '',
     cacheTtlSeconds: (data?.cacheTtlSeconds as number) ?? 120,
+    templateCityName: (data?.templateCityName as string) ?? 'SimCity',
+    templateMayorName: (data?.templateMayorName as string) ?? 'Mayor Sim',
+    templateRandomSimName: (data?.templateRandomSimName as string) ?? '',
+    templateRandomWorkplaceName: (data?.templateRandomWorkplaceName as string) ?? '',
+    templateSim: (data?.templateSim as string) ?? 'Sim',
+    templateSims: (data?.templateSims as string) ?? 'Sims',
+    simcityCategories: (data?.simcityCategories as string) ?? '',
+    simcityMaxItems: clampSimCityMaxItems(data?.simcityMaxItems),
     eventApiUrl: (data?.eventApiUrl as string) ?? '',
     eventSourceType: (data?.eventSourceType as 'json' | 'ical' | 'rss') ?? 'json',
     eventCorsProxy: (data?.eventCorsProxy as string) ?? '',
@@ -51,9 +72,17 @@ export default function NewsTickerOptions({ data, onChange }: WidgetOptionsProps
         scale: clampScale(data.scale),
         dataSource: (data.dataSource as 'announcements' | 'events') ?? 'announcements',
         apiUrl: (data.apiUrl as string) ?? '',
-        sourceType: (data.sourceType as 'json' | 'rss') ?? 'json',
+        sourceType: (data.sourceType as 'json' | 'rss' | 'simcity-template') ?? 'json',
         corsProxy: (data.corsProxy as string) ?? '',
         cacheTtlSeconds: (data.cacheTtlSeconds as number) ?? 120,
+        templateCityName: (data.templateCityName as string) ?? 'SimCity',
+        templateMayorName: (data.templateMayorName as string) ?? 'Mayor Sim',
+        templateRandomSimName: (data.templateRandomSimName as string) ?? '',
+        templateRandomWorkplaceName: (data.templateRandomWorkplaceName as string) ?? '',
+        templateSim: (data.templateSim as string) ?? 'Sim',
+        templateSims: (data.templateSims as string) ?? 'Sims',
+        simcityCategories: (data.simcityCategories as string) ?? '',
+        simcityMaxItems: clampSimCityMaxItems(data.simcityMaxItems),
         eventApiUrl: (data.eventApiUrl as string) ?? '',
         eventSourceType: (data.eventSourceType as 'json' | 'ical' | 'rss') ?? 'json',
         eventCorsProxy: (data.eventCorsProxy as string) ?? '',
@@ -64,13 +93,19 @@ export default function NewsTickerOptions({ data, onChange }: WidgetOptionsProps
   }, [data]);
 
   const handleChange = (name: string, value: string | number | boolean) => {
-    const nextValue = name === 'scale' ? clampScale(value) : value;
+    let nextValue: string | number | boolean = value;
+    if (name === 'scale') nextValue = clampScale(value);
+    if (name === 'simcityMaxItems') nextValue = clampSimCityMaxItems(value);
     const newState = { ...state, [name]: nextValue };
+    if (name === 'sourceType' && nextValue === 'simcity-template' && !newState.apiUrl.trim()) {
+      newState.apiUrl = DEFAULT_SIMCITY_API_URL;
+    }
     setState(newState);
     onChange(newState);
   };
 
   const isEvents = state.dataSource === 'events';
+  const isSimCityTemplate = state.sourceType === 'simcity-template';
 
   return (
     <div className="space-y-6 w-full max-w-xl mx-auto">
@@ -215,16 +250,19 @@ export default function NewsTickerOptions({ data, onChange }: WidgetOptionsProps
               options={[
                 { value: 'json', label: 'JSON API' },
                 { value: 'rss', label: 'RSS Feed' },
+                { value: 'simcity-template', label: 'SimCity Template JSON' },
               ]}
               onChange={handleChange}
             />
 
             <FormInput
-              label="API URL (optional)"
+              label={isSimCityTemplate ? 'Template JSON URL' : 'API URL (optional)'}
               name="apiUrl"
-              type="url"
+              type="text"
               value={state.apiUrl}
-              placeholder="https://api.example.com/announcements"
+              placeholder={
+                isSimCityTemplate ? DEFAULT_SIMCITY_API_URL : 'https://api.example.com/announcements'
+              }
               onChange={handleChange}
             />
 
@@ -247,6 +285,80 @@ export default function NewsTickerOptions({ data, onChange }: WidgetOptionsProps
               onChange={handleChange}
             />
 
+            {isSimCityTemplate && (
+              <>
+                <FormInput
+                  label="Category Filter (optional)"
+                  name="simcityCategories"
+                  type="text"
+                  value={state.simcityCategories}
+                  placeholder="general_news, sim_surveys, weather"
+                  onChange={handleChange}
+                />
+
+                <FormInput
+                  label="Maximum Ticker Items"
+                  name="simcityMaxItems"
+                  type="number"
+                  value={state.simcityMaxItems}
+                  min={1}
+                  max={200}
+                  onChange={handleChange}
+                />
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <FormInput
+                    label="{{sim}}"
+                    name="templateSim"
+                    type="text"
+                    value={state.templateSim}
+                    placeholder="Sim"
+                    onChange={handleChange}
+                  />
+                  <FormInput
+                    label="{{sims}}"
+                    name="templateSims"
+                    type="text"
+                    value={state.templateSims}
+                    placeholder="Sims"
+                    onChange={handleChange}
+                  />
+                  <FormInput
+                    label="{{cityName}}"
+                    name="templateCityName"
+                    type="text"
+                    value={state.templateCityName}
+                    placeholder="SimCity"
+                    onChange={handleChange}
+                  />
+                  <FormInput
+                    label="{{mayorName}}"
+                    name="templateMayorName"
+                    type="text"
+                    value={state.templateMayorName}
+                    placeholder="Mayor Sim"
+                    onChange={handleChange}
+                  />
+                  <FormInput
+                    label="{{randomSimName}} (optional)"
+                    name="templateRandomSimName"
+                    type="text"
+                    value={state.templateRandomSimName}
+                    placeholder="Leave empty for random names"
+                    onChange={handleChange}
+                  />
+                  <FormInput
+                    label="{{randomWorkplaceName}} (optional)"
+                    name="templateRandomWorkplaceName"
+                    type="text"
+                    value={state.templateRandomWorkplaceName}
+                    placeholder="Leave empty for random workplaces"
+                    onChange={handleChange}
+                  />
+                </div>
+              </>
+            )}
+
             <div className="text-sm text-[var(--ui-text-muted)] text-center">
               Leave empty to use default sample announcements.
               {state.sourceType === 'json' && (
@@ -257,6 +369,21 @@ export default function NewsTickerOptions({ data, onChange }: WidgetOptionsProps
               {state.sourceType === 'rss' && (
                 <div className="mt-2 text-xs">
                   RSS items are mapped into ticker items using the item title.
+                </div>
+              )}
+              {state.sourceType === 'simcity-template' && (
+                <div className="mt-2 text-xs max-w-md mx-auto text-left">
+                  <div>
+                    Uses <code>categories</code> from SimCity template JSON and replaces handlebars
+                    variables: <code>{'{{sim}}'}</code>, <code>{'{{sims}}'}</code>,{' '}
+                    <code>{'{{cityName}}'}</code>, <code>{'{{mayorName}}'}</code>,{' '}
+                    <code>{'{{randomSimName}}'}</code>, <code>{'{{randomWorkplaceName}}'}</code>.
+                  </div>
+                  <div className="mt-1">
+                    Legacy tokens are also supported: <code>~CityName~</code>,{' '}
+                    <code>~MayorName~</code>, <code>~RandomSimName~</code>,{' '}
+                    <code>~RandomWorkplaceName~</code>.
+                  </div>
                 </div>
               )}
             </div>

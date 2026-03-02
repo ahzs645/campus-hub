@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { WidgetComponentProps, registerWidget } from '@/lib/widget-registry';
 import { buildCacheKey, buildProxyUrl, fetchJsonWithCache, fetchTextWithCache } from '@/lib/data-cache';
 import ConfessionsOptions from './ConfessionsOptions';
@@ -24,6 +24,7 @@ interface ConfessionsConfig {
   maxItems?: number;
   rotationSeconds?: number;
   cacheTtlSeconds?: number;
+  batchRefreshMinutes?: number;
   corsProxy?: string;
   showByline?: boolean;
 }
@@ -39,6 +40,8 @@ interface WordPressPageResponse {
 const DEFAULT_API_URL =
   'https://overtheedge.unbc.ca/wp-json/wp/v2/pages?slug=confession&_fields=id,slug,content.rendered';
 const DEFAULT_PAGE_URL = 'https://overtheedge.unbc.ca/confession/';
+const MIN_TEXT_SIZE = 14;
+const MAX_TEXT_SIZE = 38;
 
 const decodeHtmlEntities = (value: string): string => {
   if (typeof window === 'undefined') return value;
@@ -90,6 +93,11 @@ const pickPage = (payload: WordPressPageResponse[] | WordPressPageResponse): Wor
   return null;
 };
 
+const appendCacheBust = (url: string, token: number): string => {
+  const separator = url.includes('?') ? '&' : '?';
+  return `${url}${separator}_batch=${token}`;
+};
+
 export default function Confessions({ config, theme, corsProxy: globalCorsProxy }: WidgetComponentProps) {
   const confConfig = config as ConfessionsConfig | undefined;
   const apiUrl = confConfig?.apiUrl?.trim() || DEFAULT_API_URL;
@@ -97,6 +105,7 @@ export default function Confessions({ config, theme, corsProxy: globalCorsProxy 
   const maxItems = Math.min(50, Math.max(1, Math.round(confConfig?.maxItems ?? 10)));
   const rotationSeconds = Math.min(120, Math.max(4, Math.round(confConfig?.rotationSeconds ?? 12)));
   const cacheTtlSeconds = Math.min(3600, Math.max(30, Math.round(confConfig?.cacheTtlSeconds ?? 300)));
+  const batchRefreshMinutes = Math.min(24 * 60, Math.max(0, Number(confConfig?.batchRefreshMinutes ?? 15)));
   const corsProxy = confConfig?.corsProxy?.trim() || globalCorsProxy;
   const showByline = confConfig?.showByline ?? true;
 
@@ -104,19 +113,27 @@ export default function Confessions({ config, theme, corsProxy: globalCorsProxy 
   const [activeIndex, setActiveIndex] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [textSizePx, setTextSizePx] = useState<number>(28);
+  const textViewportRef = useRef<HTMLDivElement>(null);
+  const textRef = useRef<HTMLParagraphElement>(null);
 
-  const fetchConfessions = useCallback(async () => {
+  const fetchConfessions = useCallback(async (forceFresh = false) => {
     setError(null);
     setLoading(true);
 
     const ttlMs = cacheTtlSeconds * 1000;
+    const cacheBustToken = forceFresh ? Date.now() : null;
 
     try {
-      const pageApiUrl = buildProxyUrl(corsProxy, apiUrl);
+      const pageApiUrlBase = buildProxyUrl(corsProxy, apiUrl);
+      const pageApiUrl = cacheBustToken ? appendCacheBust(pageApiUrlBase, cacheBustToken) : pageApiUrlBase;
       const { data } = await fetchJsonWithCache<WordPressPageResponse[] | WordPressPageResponse>(
         pageApiUrl,
         {
-          cacheKey: buildCacheKey('confessions-api', apiUrl),
+          cacheKey: buildCacheKey(
+            cacheBustToken ? 'confessions-api-fresh' : 'confessions-api',
+            cacheBustToken ? `${apiUrl}:${cacheBustToken}` : apiUrl,
+          ),
           ttlMs,
         },
       );
@@ -127,6 +144,7 @@ export default function Confessions({ config, theme, corsProxy: globalCorsProxy 
 
       if (parsed.length > 0) {
         setItems(parsed);
+        setActiveIndex(0);
         setLoading(false);
         return;
       }
@@ -135,14 +153,19 @@ export default function Confessions({ config, theme, corsProxy: globalCorsProxy 
     }
 
     try {
-      const pageHtmlUrl = buildProxyUrl(corsProxy, pageUrl);
+      const pageHtmlUrlBase = buildProxyUrl(corsProxy, pageUrl);
+      const pageHtmlUrl = cacheBustToken ? appendCacheBust(pageHtmlUrlBase, cacheBustToken) : pageHtmlUrlBase;
       const { text } = await fetchTextWithCache(pageHtmlUrl, {
-        cacheKey: buildCacheKey('confessions-page', pageUrl),
+        cacheKey: buildCacheKey(
+          cacheBustToken ? 'confessions-page-fresh' : 'confessions-page',
+          cacheBustToken ? `${pageUrl}:${cacheBustToken}` : pageUrl,
+        ),
         ttlMs,
       });
       const parsed = parseConfessionsFromMarkup(text, maxItems);
       if (parsed.length > 0) {
         setItems(parsed);
+        setActiveIndex(0);
       } else {
         setError('No confessions found in source content.');
       }
@@ -154,10 +177,13 @@ export default function Confessions({ config, theme, corsProxy: globalCorsProxy 
   }, [apiUrl, pageUrl, maxItems, cacheTtlSeconds, corsProxy]);
 
   useEffect(() => {
-    fetchConfessions();
-    const interval = setInterval(fetchConfessions, cacheTtlSeconds * 1000);
+    fetchConfessions(false);
+    if (batchRefreshMinutes <= 0) return;
+    const interval = setInterval(() => {
+      fetchConfessions(true);
+    }, batchRefreshMinutes * 60 * 1000);
     return () => clearInterval(interval);
-  }, [fetchConfessions, cacheTtlSeconds]);
+  }, [fetchConfessions, batchRefreshMinutes]);
 
   useEffect(() => {
     setActiveIndex(0);
@@ -176,6 +202,50 @@ export default function Confessions({ config, theme, corsProxy: globalCorsProxy 
     () => (items.length > 0 ? items[activeIndex % items.length] : null),
     [items, activeIndex],
   );
+
+  useLayoutEffect(() => {
+    const viewport = textViewportRef.current;
+    const paragraph = textRef.current;
+    if (!viewport || !paragraph || !current?.text) return;
+
+    const fitText = () => {
+      if (!viewport || !paragraph) return;
+
+      const fits = (sizePx: number): boolean => {
+        paragraph.style.fontSize = `${sizePx}px`;
+        paragraph.style.lineHeight = '1.35';
+        return (
+          paragraph.scrollHeight <= viewport.clientHeight + 1 &&
+          paragraph.scrollWidth <= viewport.clientWidth + 1
+        );
+      };
+
+      let low = MIN_TEXT_SIZE;
+      let high = MAX_TEXT_SIZE;
+
+      if (!fits(low)) {
+        setTextSizePx(MIN_TEXT_SIZE);
+        return;
+      }
+
+      while (high - low > 0.5) {
+        const mid = (low + high) / 2;
+        if (fits(mid)) {
+          low = mid;
+        } else {
+          high = mid;
+        }
+      }
+
+      const next = Number(low.toFixed(1));
+      setTextSizePx((prev) => (Math.abs(prev - next) > 0.1 ? next : prev));
+    };
+
+    fitText();
+    const observer = new ResizeObserver(fitText);
+    observer.observe(viewport);
+    return () => observer.disconnect();
+  }, [current?.id, current?.text, showByline]);
 
   if (loading && items.length === 0) {
     return (
@@ -223,9 +293,15 @@ export default function Confessions({ config, theme, corsProxy: globalCorsProxy 
         <div className="flex-1 p-5 md:p-6 overflow-hidden flex flex-col">
           {current ? (
             <>
-              <p className="text-white leading-relaxed text-lg md:text-xl font-medium line-clamp-[10]">
-                {current.text}
-              </p>
+              <div ref={textViewportRef} className="flex-1 min-h-0 overflow-hidden">
+                <p
+                  ref={textRef}
+                  className="text-white font-medium break-words whitespace-pre-wrap"
+                  style={{ fontSize: `${textSizePx}px`, lineHeight: 1.35 }}
+                >
+                  {current.text}
+                </p>
+              </div>
               {showByline && current.by && (
                 <div className="mt-auto pt-5 text-sm md:text-base font-semibold" style={{ color: theme.accent }}>
                   {current.by}
@@ -278,6 +354,7 @@ registerWidget({
     maxItems: 10,
     rotationSeconds: 12,
     cacheTtlSeconds: 300,
+    batchRefreshMinutes: 15,
     corsProxy: '',
     showByline: true,
   },

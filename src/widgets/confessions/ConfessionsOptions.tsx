@@ -9,6 +9,7 @@ interface ConfessionsOptionsState {
   maxItems: number;
   rotationSeconds: number;
   cacheTtlSeconds: number;
+  batchRefreshMinutes: number;
   corsProxy: string;
   showByline: boolean;
 }
@@ -20,6 +21,7 @@ const DEFAULTS: ConfessionsOptionsState = {
   maxItems: 10,
   rotationSeconds: 12,
   cacheTtlSeconds: 300,
+  batchRefreshMinutes: 15,
   corsProxy: '',
   showByline: true,
 };
@@ -37,6 +39,7 @@ export default function ConfessionsOptions({ data, onChange }: WidgetOptionsProp
     maxItems: clamp(toNumber(data?.maxItems, DEFAULTS.maxItems), 1, 50),
     rotationSeconds: clamp(toNumber(data?.rotationSeconds, DEFAULTS.rotationSeconds), 4, 120),
     cacheTtlSeconds: clamp(toNumber(data?.cacheTtlSeconds, DEFAULTS.cacheTtlSeconds), 30, 3600),
+    batchRefreshMinutes: clamp(toNumber(data?.batchRefreshMinutes, DEFAULTS.batchRefreshMinutes), 0, 1440),
     corsProxy: (data?.corsProxy as string) ?? DEFAULTS.corsProxy,
     showByline: (data?.showByline as boolean) ?? DEFAULTS.showByline,
   };
@@ -55,6 +58,9 @@ export default function ConfessionsOptions({ data, onChange }: WidgetOptionsProp
     }
     if (name === 'cacheTtlSeconds') {
       next.cacheTtlSeconds = clamp(toNumber(value, DEFAULTS.cacheTtlSeconds), 30, 3600);
+    }
+    if (name === 'batchRefreshMinutes') {
+      next.batchRefreshMinutes = clamp(toNumber(value, DEFAULTS.batchRefreshMinutes), 0, 1440);
     }
 
     onChange(next);
@@ -118,6 +124,15 @@ export default function ConfessionsOptions({ data, onChange }: WidgetOptionsProp
       <div className="space-y-4 border-t border-[color:var(--ui-item-border)] pt-6">
         <h3 className="font-semibold text-[var(--ui-text)]">Caching and CORS</h3>
         <FormInput
+          label="Batch Refresh (minutes)"
+          name="batchRefreshMinutes"
+          type="number"
+          value={state.batchRefreshMinutes}
+          min={0}
+          max={1440}
+          onChange={handleChange}
+        />
+        <FormInput
           label="Cache TTL (seconds)"
           name="cacheTtlSeconds"
           type="number"
@@ -126,6 +141,9 @@ export default function ConfessionsOptions({ data, onChange }: WidgetOptionsProp
           max={3600}
           onChange={handleChange}
         />
+        <div className="text-sm text-[var(--ui-text-muted)]">
+          Batch refresh forces a new request and resets to the first confession. Use 0 to disable automatic batch refresh.
+        </div>
         <FormInput
           label="CORS Proxy (optional)"
           name="corsProxy"
