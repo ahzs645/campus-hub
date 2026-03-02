@@ -70,6 +70,9 @@ type JsonTransferMessage = { tone: 'success' | 'error'; text: string };
 
 const EXPORT_FILE_PREFIX = 'campus-hub-config';
 const EXPORT_SCHEMA_VERSION = 1;
+const MOBILE_ZOOM_MIN = 1;
+const MOBILE_ZOOM_MAX = 3;
+const MOBILE_ZOOM_STEP = 0.25;
 
 const copyText = async (value: string): Promise<boolean> => {
   if (typeof navigator !== 'undefined' && typeof navigator.clipboard?.writeText === 'function') {
@@ -201,6 +204,7 @@ export default function ConfigurePage() {
   const [sidebarTab, setSidebarTab] = useState<'widgets' | 'settings' | 'presets'>('widgets');
   const [showWidgetLibrary, setShowWidgetLibrary] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [mobileZoom, setMobileZoom] = useState(MOBILE_ZOOM_MIN);
   const containerRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<GridStackWrapperRef>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
@@ -273,11 +277,16 @@ export default function ConfigurePage() {
 
   // Calculate preview size to fit container while maintaining aspect ratio
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+    let rafId = 0;
+    let resizeObserver: ResizeObserver | null = null;
+
     const updateSize = () => {
       if (!containerRef.current) return;
       const container = containerRef.current;
       const containerWidth = container.clientWidth;
       const containerHeight = container.clientHeight;
+      if (containerWidth <= 0 || containerHeight <= 0) return;
 
       let width, height;
       if (containerWidth / containerHeight > aspectRatio) {
@@ -288,12 +297,40 @@ export default function ConfigurePage() {
         height = width / aspectRatio;
       }
 
-      setPreviewSize({ width, height });
+      setPreviewSize((prev) => {
+        const nextWidth = Math.round(width * 100) / 100;
+        const nextHeight = Math.round(height * 100) / 100;
+        if (
+          Math.abs(prev.width - nextWidth) < 0.5 &&
+          Math.abs(prev.height - nextHeight) < 0.5
+        ) {
+          return prev;
+        }
+        return { width: nextWidth, height: nextHeight };
+      });
     };
 
-    updateSize();
-    window.addEventListener('resize', updateSize);
-    return () => window.removeEventListener('resize', updateSize);
+    const queueUpdate = () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = window.requestAnimationFrame(() => {
+        rafId = 0;
+        updateSize();
+      });
+    };
+
+    queueUpdate();
+    window.addEventListener('resize', queueUpdate);
+
+    if (containerRef.current && typeof ResizeObserver !== 'undefined') {
+      resizeObserver = new ResizeObserver(() => queueUpdate());
+      resizeObserver.observe(containerRef.current);
+    }
+
+    return () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      window.removeEventListener('resize', queueUpdate);
+      resizeObserver?.disconnect();
+    };
   }, [aspectRatio]);
 
   // Convert config.layout to GridStack items
@@ -508,18 +545,25 @@ export default function ConfigurePage() {
     [config.layout, config.theme, handleEditWidget, removeWidget]
   );
 
+  const clampedMobileZoom = Math.min(
+    MOBILE_ZOOM_MAX,
+    Math.max(MOBILE_ZOOM_MIN, Math.round(mobileZoom * 100) / 100),
+  );
+  const effectivePreviewWidth = isMobile ? previewSize.width * clampedMobileZoom : previewSize.width;
+  const effectivePreviewHeight = isMobile ? previewSize.height * clampedMobileZoom : previewSize.height;
+
   // Calculate proportional margin so preview spacing matches the display at any size
   // At 1080p reference: margin=8px → 16px inter-widget gap, 8px edge spacing
-  const gridMargin = previewSize.height > 0
-    ? Math.max(2, Math.round(previewSize.height * 0.0075))
+  const gridMargin = effectivePreviewHeight > 0
+    ? Math.max(2, Math.round(effectivePreviewHeight * 0.0075))
     : 8;
 
   // Calculate cell height based on preview dimensions
-  const cellHeight = previewSize.height > 0 ? previewSize.height / gridRows : 80;
+  const cellHeight = effectivePreviewHeight > 0 ? effectivePreviewHeight / gridRows : 80;
 
   // Scale widget content so it looks the same as the 1080p display reference
   const REF_HEIGHT = 1080;
-  const contentScale = previewSize.height > 0 ? previewSize.height / REF_HEIGHT : 1;
+  const contentScale = effectivePreviewHeight > 0 ? effectivePreviewHeight / REF_HEIGHT : 1;
 
   return (
     <div
@@ -1104,26 +1148,65 @@ export default function ConfigurePage() {
               </div>
             )}
             {isMobile && (
-              <span className="text-xs text-white/40">
-                View only
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] uppercase tracking-wide text-white/40">
+                  Zoom
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setMobileZoom((prev) => Math.max(MOBILE_ZOOM_MIN, prev - MOBILE_ZOOM_STEP))}
+                  disabled={clampedMobileZoom <= MOBILE_ZOOM_MIN}
+                  className={`w-7 h-7 rounded-md border border-[color:var(--ui-panel-border)] text-sm transition-colors ${
+                    clampedMobileZoom <= MOBILE_ZOOM_MIN
+                      ? 'opacity-40 cursor-not-allowed'
+                      : 'hover:bg-[var(--ui-item-hover)]'
+                  }`}
+                  aria-label="Zoom out preview"
+                  title="Zoom out"
+                >
+                  -
+                </button>
+                <span className="text-xs text-white/60 tabular-nums min-w-[42px] text-center">
+                  {Math.round(clampedMobileZoom * 100)}%
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setMobileZoom((prev) => Math.min(MOBILE_ZOOM_MAX, prev + MOBILE_ZOOM_STEP))}
+                  disabled={clampedMobileZoom >= MOBILE_ZOOM_MAX}
+                  className={`w-7 h-7 rounded-md border border-[color:var(--ui-panel-border)] text-sm transition-colors ${
+                    clampedMobileZoom >= MOBILE_ZOOM_MAX
+                      ? 'opacity-40 cursor-not-allowed'
+                      : 'hover:bg-[var(--ui-item-hover)]'
+                  }`}
+                  aria-label="Zoom in preview"
+                  title="Zoom in"
+                >
+                  +
+                </button>
+              </div>
             )}
           </div>
 
           {/* Full-bleed Grid Area */}
           <div
             ref={containerRef}
-            className={`flex-1 min-h-0 overflow-x-hidden overflow-y-auto relative scrollbar-hide ${isMobile ? 'mobile-preview' : ''}`}
-            style={{ backgroundColor: config.theme.background }}
+            className={`flex-1 min-h-0 relative scrollbar-hide ${
+              isMobile ? 'overflow-auto mobile-preview' : 'overflow-x-hidden overflow-y-auto'
+            }`}
+            style={{
+              backgroundColor: config.theme.background,
+              touchAction: isMobile ? 'pan-x pan-y' : 'auto',
+              WebkitOverflowScrolling: 'touch',
+            }}
           >
             {/* GridStack container — centered horizontally, top-aligned */}
-            <div className="mx-auto relative" style={{ width: previewSize.width || '100%' }}>
+            <div className="mx-auto relative" style={{ width: effectivePreviewWidth || '100%' }}>
               {/* Export boundary indicator */}
-              {previewSize.width > 0 && previewSize.height > 0 && (
+              {effectivePreviewWidth > 0 && effectivePreviewHeight > 0 && (
                 <div
                   className="absolute inset-x-0 top-0 border-2 border-dashed pointer-events-none z-10 rounded-sm"
                   style={{
-                    height: previewSize.height,
+                    height: effectivePreviewHeight,
                     borderColor: offGridCount > 0 ? 'rgba(245, 158, 11, 0.4)' : 'rgba(255, 255, 255, 0.08)',
                   }}
                 >
@@ -1135,7 +1218,7 @@ export default function ConfigurePage() {
                 </div>
               )}
 
-              {previewSize.width > 0 && previewSize.height > 0 && (
+              {effectivePreviewWidth > 0 && effectivePreviewHeight > 0 && (
                 <div className={isMobile ? 'pointer-events-none' : ''}>
                   <GridStackWrapper
                     ref={gridRef}
@@ -1151,10 +1234,10 @@ export default function ConfigurePage() {
                 </div>
               )}
 
-              {config.layout.length === 0 && previewSize.height > 0 && (
+              {config.layout.length === 0 && effectivePreviewHeight > 0 && (
                 <div
                   className="absolute inset-x-0 top-0 flex items-center justify-center text-white/30 pointer-events-none"
-                  style={{ height: previewSize.height }}
+                  style={{ height: effectivePreviewHeight }}
                 >
                   <div className="text-center">
                     <p className={`mb-2 ${isMobile ? 'text-sm' : 'text-lg'}`}>No widgets added</p>
