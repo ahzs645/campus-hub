@@ -68,6 +68,7 @@ const DEFAULT_SIMCITY_API_URL = '/data/simcity_news_tickers.json';
 const DEFAULT_SIMCITY_MAX_ITEMS = 40;
 const HANDLEBARS_TOKEN = /\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g;
 const LEGACY_TOKEN = /~([A-Za-z0-9_]+)~/g;
+const SIM_CATEGORY_TOKEN = /(^|_)sims?(_|$)/i;
 const TEMPLATE_TOKEN_ALIASES: Record<string, keyof TemplateValues> = {
   sim: 'sim',
   sims: 'sims',
@@ -132,6 +133,11 @@ const normalizeCategoryKey = (category: string): string =>
   category.trim().toLowerCase().replace(/[\s-]+/g, '_');
 
 const formatCategoryLabel = (category: string, fallback: string): string => {
+  const normalized = normalizeCategoryKey(category);
+  if (SIM_CATEGORY_TOKEN.test(normalized)) {
+    const fallbackLabel = fallback.trim() || 'NEWS';
+    return fallbackLabel.toUpperCase();
+  }
   const cleaned = category.trim().replace(/[_-]+/g, ' ');
   return (cleaned || fallback).toUpperCase();
 };
@@ -266,6 +272,14 @@ const mapSimCityTickerItems = (
     }));
 };
 
+const areTickerItemsEqual = (a: TickerItem[], b: TickerItem[]): boolean => {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i += 1) {
+    if (a[i]?.label !== b[i]?.label || a[i]?.text !== b[i]?.text) return false;
+  }
+  return true;
+};
+
 export default function NewsTicker({ config, theme, corsProxy: globalCorsProxy }: WidgetComponentProps) {
   const tickerConfig = config as NewsTickerConfig | undefined;
   const rawApiUrl = tickerConfig?.apiUrl?.trim();
@@ -295,9 +309,42 @@ export default function NewsTicker({ config, theme, corsProxy: globalCorsProxy }
 
   // Announcement items state
   const [items, setItems] = useState<TickerItem[]>(configuredItems ?? DEFAULT_TICKER_ITEMS);
+  const itemsRef = useRef(items);
+  const pendingItemsRef = useRef<TickerItem[] | null>(null);
+  const hasAppliedRemoteItemsRef = useRef(false);
+
+  useEffect(() => {
+    itemsRef.current = items;
+  }, [items]);
+
+  const queueFetchedItems = useCallback((nextItems: TickerItem[]) => {
+    if (!Array.isArray(nextItems) || nextItems.length === 0) return;
+    if (areTickerItemsEqual(itemsRef.current, nextItems)) return;
+    if (!hasAppliedRemoteItemsRef.current) {
+      hasAppliedRemoteItemsRef.current = true;
+      pendingItemsRef.current = null;
+      setItems(nextItems);
+      return;
+    }
+    pendingItemsRef.current = nextItems;
+  }, []);
+
+  const applyPendingItemsAtLoop = useCallback(() => {
+    const pending = pendingItemsRef.current;
+    if (!pending) return;
+    pendingItemsRef.current = null;
+    setItems((current) => (areTickerItemsEqual(current, pending) ? current : pending));
+  }, []);
+
+  useEffect(() => {
+    pendingItemsRef.current = null;
+    hasAppliedRemoteItemsRef.current = false;
+  }, [dataSource, announcementsApiUrl, sourceType]);
 
   useEffect(() => {
     if (dataSource !== 'announcements' || announcementsApiUrl) return;
+    pendingItemsRef.current = null;
+    hasAppliedRemoteItemsRef.current = false;
     setItems(configuredItems ?? DEFAULT_TICKER_ITEMS);
   }, [dataSource, announcementsApiUrl, configuredItems]);
 
@@ -319,7 +366,7 @@ export default function NewsTicker({ config, theme, corsProxy: globalCorsProxy }
             label: item.categories?.[0] ?? label ?? 'NEWS',
             text: item.title,
           }));
-          if (isMounted) setItems(mapped);
+          if (isMounted) queueFetchedItems(mapped);
           return;
         }
 
@@ -342,7 +389,7 @@ export default function NewsTicker({ config, theme, corsProxy: globalCorsProxy }
             maxItems: simcityMaxItems,
           });
           if (isMounted && mapped.length > 0) {
-            setItems(mapped);
+            queueFetchedItems(mapped);
           }
           return;
         }
@@ -352,7 +399,7 @@ export default function NewsTicker({ config, theme, corsProxy: globalCorsProxy }
           ttlMs: cacheTtlSeconds * 1000,
         });
         if (Array.isArray(data) && isMounted) {
-          setItems(data);
+          queueFetchedItems(data);
         }
       } catch (error) {
         console.error('Failed to fetch ticker items:', error);
@@ -380,6 +427,7 @@ export default function NewsTicker({ config, theme, corsProxy: globalCorsProxy }
     templateRandomWorkplaceName,
     templateSim,
     templateSims,
+    queueFetchedItems,
   ]);
 
   // Events data via shared hook
@@ -459,6 +507,7 @@ export default function NewsTicker({ config, theme, corsProxy: globalCorsProxy }
           style={{
             animationDuration: `${speed}s`,
           }}
+          onAnimationIteration={applyPendingItemsAtLoop}
         >
           {isEventsMode
             ? tickerEvents.map((event, idx) => (
