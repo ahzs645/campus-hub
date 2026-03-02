@@ -18,7 +18,8 @@ export interface WidgetConfig {
     | 'widget-stack'
     | 'bus-connection'
     | 'climbing-gym'
-    | 'qrcode';
+    | 'qrcode'
+    | 'library-availability';
   x: number;
   y: number;
   w: number;

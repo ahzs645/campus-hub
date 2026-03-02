@@ -17,6 +17,7 @@ import './qrcode/QRCode';
 import './climbing-gym/ClimbingGym';
 import './cafeteria-menu/CafeteriaMenu';
 import './widget-stack/WidgetStack';
+import './library-availability/LibraryAvailability';
 
 // Re-export registry functions
 export { getWidget, getAllWidgets, getWidgetComponent } from '@/lib/widget-registry';
