@@ -216,16 +216,36 @@ function DisplayContent() {
   const [scale, setScale] = useState(1);
 
   const updateScale = useCallback(() => {
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
+    // Use the layout viewport (documentElement.clientWidth/Height) instead of
+    // window.innerWidth/Height.  The latter reflects the *visual* viewport on
+    // mobile and changes during pinch-to-zoom, which triggered a cascade of
+    // re-renders (scale change → widget ResizeObservers → more state updates)
+    // that overwhelmed the browser and crashed the page.
+    const vw = document.documentElement.clientWidth;
+    const vh = document.documentElement.clientHeight;
     // Scale to fit: pick the smaller ratio so nothing overflows
     setScale(Math.min(vw / REF_WIDTH, vh / REF_HEIGHT));
   }, [REF_WIDTH]);
 
   useEffect(() => {
     updateScale();
-    window.addEventListener('resize', updateScale);
-    return () => window.removeEventListener('resize', updateScale);
+
+    // Debounce resize events to avoid rapid recalculations during window
+    // resizing or orientation changes.
+    let rafId: number | null = null;
+    const onResize = () => {
+      if (rafId !== null) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        updateScale();
+      });
+    };
+
+    window.addEventListener('resize', onResize);
+    return () => {
+      window.removeEventListener('resize', onResize);
+      if (rafId !== null) cancelAnimationFrame(rafId);
+    };
   }, [updateScale]);
 
   // Grid margin matches the editor formula: height * 0.0075
