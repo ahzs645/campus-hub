@@ -216,16 +216,27 @@ function DisplayContent() {
   const [scale, setScale] = useState(1);
 
   const updateScale = useCallback(() => {
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
+    // Use visualViewport.scale to compensate for pinch-zoom so the layout
+    // stays based on the *layout* viewport, not the zoomed visual viewport.
+    // window.innerWidth/innerHeight shrink when the user pinch-zooms, which
+    // would otherwise cause a feedback loop (scale recalc → layout shift →
+    // another resize event → crash).
+    const vv = window.visualViewport;
+    const vw = vv ? vv.width * vv.scale : window.innerWidth;
+    const vh = vv ? vv.height * vv.scale : window.innerHeight;
     // Scale to fit: pick the smaller ratio so nothing overflows
     setScale(Math.min(vw / REF_WIDTH, vh / REF_HEIGHT));
   }, [REF_WIDTH]);
 
   useEffect(() => {
     updateScale();
-    window.addEventListener('resize', updateScale);
-    return () => window.removeEventListener('resize', updateScale);
+
+    // Listen on visualViewport when available — it fires for zoom changes
+    // and provides accurate dimensions. Fall back to window resize.
+    const vv = window.visualViewport;
+    const target = vv ?? window;
+    target.addEventListener('resize', updateScale);
+    return () => target.removeEventListener('resize', updateScale);
   }, [updateScale]);
 
   // Grid margin matches the editor formula: height * 0.0075
@@ -234,7 +245,7 @@ function DisplayContent() {
   return (
     <div
       className="w-full h-screen overflow-hidden relative"
-      style={{ backgroundColor: config.theme.background }}
+      style={{ backgroundColor: config.theme.background, touchAction: 'none' }}
     >
       {/* Scaled container — rendered at fixed reference resolution, then scaled to fit viewport */}
       <div
