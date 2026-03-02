@@ -43,6 +43,8 @@ const DEFAULT_API_URL =
 const DEFAULT_PAGE_URL = 'https://overtheedge.unbc.ca/confession/';
 const MIN_TEXT_SIZE = 14;
 const MAX_TEXT_SIZE = 38;
+const COMPACT_MIN_TEXT_SIZE = 11;
+const COMPACT_MAX_TEXT_SIZE = 30;
 
 const decodeHtmlEntities = (value: string): string => {
   if (typeof window === 'undefined') return value;
@@ -116,6 +118,8 @@ export default function Confessions({ config, theme, corsProxy: globalCorsProxy 
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [textSizePx, setTextSizePx] = useState<number>(28);
+  const [isCompact, setIsCompact] = useState(false);
+  const frameRef = useRef<HTMLDivElement>(null);
   const textViewportRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLParagraphElement>(null);
 
@@ -206,6 +210,23 @@ export default function Confessions({ config, theme, corsProxy: globalCorsProxy 
   );
 
   useLayoutEffect(() => {
+    const frame = frameRef.current;
+    if (!frame) return;
+
+    const updateCompact = () => {
+      const width = frame.clientWidth;
+      const height = frame.clientHeight;
+      const ratio = height > 0 ? width / height : 1;
+      setIsCompact(ratio >= 1.35 && height <= 290);
+    };
+
+    updateCompact();
+    const observer = new ResizeObserver(updateCompact);
+    observer.observe(frame);
+    return () => observer.disconnect();
+  }, []);
+
+  useLayoutEffect(() => {
     const viewport = textViewportRef.current;
     const paragraph = textRef.current;
     if (!viewport || !paragraph || !current?.text) return;
@@ -215,18 +236,18 @@ export default function Confessions({ config, theme, corsProxy: globalCorsProxy 
 
       const fits = (sizePx: number): boolean => {
         paragraph.style.fontSize = `${sizePx}px`;
-        paragraph.style.lineHeight = '1.35';
+        paragraph.style.lineHeight = isCompact ? '1.3' : '1.35';
         return (
           paragraph.scrollHeight <= viewport.clientHeight + 1 &&
           paragraph.scrollWidth <= viewport.clientWidth + 1
         );
       };
 
-      let low = MIN_TEXT_SIZE;
-      let high = MAX_TEXT_SIZE;
+      let low = isCompact ? COMPACT_MIN_TEXT_SIZE : MIN_TEXT_SIZE;
+      let high = isCompact ? COMPACT_MAX_TEXT_SIZE : MAX_TEXT_SIZE;
 
       if (!fits(low)) {
-        setTextSizePx(MIN_TEXT_SIZE);
+        setTextSizePx(low);
         return;
       }
 
@@ -247,7 +268,7 @@ export default function Confessions({ config, theme, corsProxy: globalCorsProxy 
     const observer = new ResizeObserver(fitText);
     observer.observe(viewport);
     return () => observer.disconnect();
-  }, [current?.id, current?.text, showByline]);
+  }, [current?.id, current?.text, isCompact]);
 
   if (loading && items.length === 0) {
     return (
@@ -272,8 +293,9 @@ export default function Confessions({ config, theme, corsProxy: globalCorsProxy 
   }
 
   return (
-    <div className="relative h-full w-full p-6 overflow-hidden">
+    <div className={`relative h-full w-full overflow-hidden ${isCompact ? 'p-3' : 'p-6'}`}>
       <div
+        ref={frameRef}
         className="h-full w-full rounded-2xl border flex flex-col"
         style={{
           borderColor: `${theme.accent}66`,
@@ -281,35 +303,28 @@ export default function Confessions({ config, theme, corsProxy: globalCorsProxy 
         }}
       >
         <div
-          className="px-5 py-3 border-b flex items-center justify-between"
+          className={`${isCompact ? 'px-4 py-2' : 'px-5 py-3'} border-b`}
           style={{ borderColor: `${theme.accent}33` }}
         >
-          <div className="text-sm font-semibold tracking-wide uppercase" style={{ color: theme.accent }}>
+          <div
+            className={`${isCompact ? 'text-xs' : 'text-sm'} font-semibold tracking-wide uppercase`}
+            style={{ color: theme.accent }}
+          >
             UNBC Confessions
-          </div>
-          <div className="text-xs text-white/60">
-            {items.length > 0 ? `${activeIndex + 1} / ${items.length}` : '0 / 0'}
           </div>
         </div>
 
-        <div className="flex-1 p-5 md:p-6 overflow-hidden flex flex-col">
+        <div className={`flex-1 overflow-hidden flex flex-col ${isCompact ? 'p-4' : 'p-5 md:p-6'}`}>
           {current ? (
-            <>
-              <div ref={textViewportRef} className="flex-1 min-h-0 overflow-hidden">
-                <p
-                  ref={textRef}
-                  className="text-white font-medium break-words whitespace-pre-wrap"
-                  style={{ fontSize: `${textSizePx}px`, lineHeight: 1.35 }}
-                >
-                  {current.text}
-                </p>
-              </div>
-              {showByline && current.by && (
-                <div className="mt-auto pt-5 text-sm md:text-base font-semibold" style={{ color: theme.accent }}>
-                  {current.by}
-                </div>
-              )}
-            </>
+            <div ref={textViewportRef} className="flex-1 min-h-0 overflow-hidden">
+              <p
+                ref={textRef}
+                className="text-white font-medium break-words whitespace-pre-wrap"
+                style={{ fontSize: `${textSizePx}px`, lineHeight: isCompact ? 1.3 : 1.35 }}
+              >
+                {current.text}
+              </p>
+            </div>
           ) : (
             <div className="h-full w-full flex items-center justify-center text-white/60">
               No confessions available
@@ -317,15 +332,15 @@ export default function Confessions({ config, theme, corsProxy: globalCorsProxy 
           )}
         </div>
 
-        {items.length > 1 && (
-          <div className="px-5 pb-4 flex gap-1.5">
-            {items.map((item, index) => (
+        <div className={`${isCompact ? 'px-4 pb-3' : 'px-5 pb-4'} flex items-end justify-between gap-3`}>
+          <div className="flex gap-1.5 min-w-0">
+            {items.length > 1 && items.map((item, index) => (
               <button
                 key={item.id}
                 type="button"
                 onClick={() => setActiveIndex(index)}
                 aria-label={`Show confession ${index + 1}`}
-                className="h-1.5 rounded-full transition-all"
+                className="h-1.5 rounded-full transition-all shrink-0"
                 style={{
                   width: index === activeIndex ? '26px' : '10px',
                   backgroundColor: index === activeIndex ? theme.accent : `${theme.accent}55`,
@@ -333,7 +348,21 @@ export default function Confessions({ config, theme, corsProxy: globalCorsProxy 
               />
             ))}
           </div>
-        )}
+
+          <div className="flex items-end gap-3 shrink-0">
+            {showByline && current?.by && (
+              <div
+                className={`${isCompact ? 'text-xl' : 'text-sm md:text-base'} font-semibold leading-none`}
+                style={{ color: theme.accent }}
+              >
+                {current.by}
+              </div>
+            )}
+            <div className="text-xs text-white/60 leading-none">
+              {items.length > 0 ? `${activeIndex + 1} / ${items.length}` : '0 / 0'}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
