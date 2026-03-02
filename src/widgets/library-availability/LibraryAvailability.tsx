@@ -172,6 +172,15 @@ const formatRange = (window: TimeWindow, openHour: number): string => {
   return `${formatClock(start)} - ${formatClock(end)}`;
 };
 
+const formatSlotHeader = (totalMinutes: number, compact: boolean): string => {
+  if (!compact) return formatClock(totalMinutes).replace(':00', '');
+
+  const hours24 = Math.floor(totalMinutes / 60) % 24;
+  const hours12 = hours24 % 12 || 12;
+  const suffix = hours24 >= 12 ? 'P' : 'A';
+  return `${hours12}${suffix}`;
+};
+
 const metricKey = (roomId: number, dayKey: string): string => `${roomId}|${dayKey}`;
 
 const buildMetrics = (slots: boolean[]): RoomDayMetrics => {
@@ -482,19 +491,23 @@ export default function LibraryAvailability({
     if (mode === 'grid') {
       const roomLabelWidth = 160;
       const slotCellWidth = 28;
+      const columnGap = 2;
       const rowHeight = 30;
+      const rowGap = 2;
+      const legendHeight = 24;
+      const headerRowHeight = 30;
       const chromeHeight = 144;
 
       const slotsPerPage = clamp(
-        Math.floor((width - roomLabelWidth - 24) / slotCellWidth),
+        Math.floor((width - roomLabelWidth - 24 + columnGap) / (slotCellWidth + columnGap)),
         4,
         slotCount,
       );
 
       const rowsPerPage = clamp(
-        Math.floor((height - chromeHeight) / rowHeight),
-        2,
-        Math.max(2, roomCount),
+        Math.floor((height - chromeHeight - legendHeight - headerRowHeight + rowGap) / (rowHeight + rowGap)),
+        1,
+        Math.max(1, roomCount),
       );
 
       const out: WidgetPage[] = [];
@@ -691,15 +704,17 @@ export default function LibraryAvailability({
                 </div>
 
                 {Array.from({ length: activePage.slotEnd - activePage.slotStart }, (_, idx) => {
+                  const visibleSlots = activePage.slotEnd - activePage.slotStart;
                   const slotIndex = activePage.slotStart + idx;
                   const minute = openHour * 60 + slotIndex * SLOT_MINUTES;
                   const showLabel = idx % 2 === 0 || activePage.slotEnd - activePage.slotStart <= 10;
+                  const useCompactLabels = visibleSlots > 12;
                   return (
                     <div
                       key={`head-${slotIndex}`}
-                      className="text-[10px] md:text-[11px] text-center text-white/70 px-0.5 truncate"
+                      className={`text-center text-white/70 px-0.5 whitespace-nowrap ${useCompactLabels ? 'text-[9px] md:text-[10px]' : 'text-[10px] md:text-[11px]'}`}
                     >
-                      {showLabel ? formatClock(minute).replace(':00', '') : ''}
+                      {showLabel ? formatSlotHeader(minute, useCompactLabels) : ''}
                     </div>
                   );
                 })}
