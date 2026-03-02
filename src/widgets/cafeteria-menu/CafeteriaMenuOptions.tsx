@@ -6,6 +6,7 @@ import type { WidgetOptionsProps } from '@/lib/widget-registry';
 
 interface CafeteriaData {
   menuUrl: string;
+  danaLocations: string;
   refreshInterval: number;
   corsProxy: string;
   breakfastEnd: string;
@@ -15,6 +16,7 @@ interface CafeteriaData {
 
 const deriveState = (data: Record<string, unknown> | undefined): CafeteriaData => ({
   menuUrl: (data?.menuUrl as string) ?? 'https://unbc.icaneat.ca/menu/',
+  danaLocations: (data?.danaLocations as string) ?? '48784,48786',
   refreshInterval: (data?.refreshInterval as number) ?? 30,
   corsProxy: (data?.corsProxy as string) ?? '',
   breakfastEnd: (data?.breakfastEnd as string) ?? '10:30',
@@ -54,9 +56,20 @@ export default function CafeteriaMenuOptions({ data, onChange }: WidgetOptionsPr
           onChange={handleChange}
         />
 
+        <FormInput
+          label="Dana Hospitality Location IDs"
+          name="danaLocations"
+          type="text"
+          value={state.danaLocations}
+          placeholder="48784,48786"
+          onChange={handleChange}
+        />
+
         <div className="text-sm text-[var(--ui-text-muted)]">
-          URL of the cafeteria menu page (icaneat.ca or similar). The widget fetches this page
-          via the CORS proxy and parses the menu content.
+          The widget tries three data sources in order: (1) Dana Hospitality
+          direct endpoints using the location IDs above, (2) WordPress REST API
+          auto-discovery from the menu page URL, (3) generic HTML parsing of the
+          menu page. Leave location IDs blank to skip the direct approach.
         </div>
       </div>
 
@@ -65,8 +78,8 @@ export default function CafeteriaMenuOptions({ data, onChange }: WidgetOptionsPr
         <h3 className="font-semibold text-[var(--ui-text)]">Meal Schedule</h3>
 
         <div className="text-sm text-[var(--ui-text-muted)] mb-2">
-          The widget shows the current meal based on time of day. Configure when each
-          meal period ends.
+          The widget shows the current meal based on time of day. Configure when
+          each meal period ends.
         </div>
 
         <FormInput
@@ -143,8 +156,8 @@ export default function CafeteriaMenuOptions({ data, onChange }: WidgetOptionsPr
         )}
 
         <div className="text-sm text-[var(--ui-text-muted)]">
-          A CORS proxy is required to fetch the menu page from the browser.
-          Without it, demo data is shown.
+          A CORS proxy is required to fetch menu data from the browser. Without
+          it, demo data is shown.
         </div>
       </div>
     </div>
