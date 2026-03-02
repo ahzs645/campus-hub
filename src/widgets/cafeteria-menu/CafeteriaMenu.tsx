@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { WidgetComponentProps, registerWidget } from '@/lib/widget-registry';
 import {
   buildCacheKey,
@@ -606,6 +606,7 @@ export default function CafeteriaMenu({
   const [isDemo, setIsDemo] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   const [servicePeriod, setServicePeriod] = useState<ServicePeriod>(() =>
     getCurrentServicePeriod(cfg ?? {}),
   );
@@ -784,6 +785,67 @@ export default function CafeteriaMenu({
     return sections;
   }, [weeklySections, currentMealSections, menu, servicePeriod]);
 
+  useEffect(() => {
+    const container = contentRef.current;
+    if (!container) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+    const START_DELAY_MS = 1500;
+    const LOOP_PAUSE_MS = 2200;
+    const TICK_MS = 32;
+    const STEP_PX = 0.7;
+
+    let tickInterval: number | null = null;
+    let startTimeout: number | null = null;
+    let loopTimeout: number | null = null;
+    let waitingForReset = false;
+    let stopped = false;
+
+    const clearTimers = () => {
+      if (tickInterval !== null) window.clearInterval(tickInterval);
+      if (startTimeout !== null) window.clearTimeout(startTimeout);
+      if (loopTimeout !== null) window.clearTimeout(loopTimeout);
+      tickInterval = null;
+      startTimeout = null;
+      loopTimeout = null;
+    };
+
+    const tick = () => {
+      if (stopped || waitingForReset) return;
+
+      const maxScrollTop = container.scrollHeight - container.clientHeight;
+      if (maxScrollTop <= 1) {
+        container.scrollTop = 0;
+        return;
+      }
+
+      if (container.scrollTop + STEP_PX >= maxScrollTop) {
+        container.scrollTop = maxScrollTop;
+        waitingForReset = true;
+        loopTimeout = window.setTimeout(() => {
+          if (stopped) return;
+          container.scrollTop = 0;
+          loopTimeout = window.setTimeout(() => {
+            waitingForReset = false;
+          }, START_DELAY_MS);
+        }, LOOP_PAUSE_MS);
+        return;
+      }
+
+      container.scrollTop += STEP_PX;
+    };
+
+    container.scrollTop = 0;
+    startTimeout = window.setTimeout(() => {
+      tickInterval = window.setInterval(tick, TICK_MS);
+    }, START_DELAY_MS);
+
+    return () => {
+      stopped = true;
+      clearTimers();
+    };
+  }, [displaySections, servicePeriod]);
+
   return (
     <div
       className="w-full h-full overflow-hidden flex flex-col"
@@ -808,7 +870,7 @@ export default function CafeteriaMenu({
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4 min-h-0">
+      <div ref={contentRef} className="flex-1 overflow-y-auto scrollbar-hide px-4 py-3 space-y-4 min-h-0">
         {!isOpen && (
           <div className="rounded-md border border-red-400/30 bg-red-500/10 px-3 py-2 text-sm text-red-200">
             Cafeteria is currently closed.
