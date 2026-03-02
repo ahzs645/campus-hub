@@ -29,6 +29,7 @@ import {
   Sun,
   TriangleAlert,
   Tv,
+  UtensilsCrossed,
   Wind,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
@@ -71,6 +72,7 @@ const ICONS: Record<IconName, LucideIcon> = {
   sparkles: Sparkles,
   sun: Sun,
   tv: Tv,
+  utensils: UtensilsCrossed,
   warning: TriangleAlert,
   weather: CloudSun,
   wind: Wind,
