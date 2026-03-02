@@ -200,6 +200,17 @@ const parseDanaGridCellItems = (cellHtml: string): string[] => {
   return items;
 };
 
+const parseDanaDayHeaders = (headerRowHtml: string): string[] => {
+  const headers = [...headerRowHtml.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/gi)]
+    .map((match) => stripHtml(match[1] ?? '').replace(/\s+/g, ' ').trim())
+    .filter(Boolean);
+
+  return headers.map((header) => {
+    const matchedDay = DAY_NAMES.find((day) => day.toLowerCase() === header.toLowerCase());
+    return matchedDay ?? header;
+  });
+};
+
 const parseDanaWeeklyGridSections = (html: string): MealSection[] => {
   const tableMatch = html.match(
     /<table[^>]*id=["']WeeklyMenuAtAGlance["'][^>]*>([\s\S]*?)<\/table>/i,
@@ -208,26 +219,29 @@ const parseDanaWeeklyGridSections = (html: string): MealSection[] => {
 
   const tableHtml = tableMatch[1] ?? '';
   const parsedSections: MealSection[] = [];
-  const sectionPattern = /<tr[^>]*class=["']section["'][^>]*>[\s\S]*?<span[^>]*class=["'][^"']*MenuSection[^"']*["'][^>]*>([\s\S]*?)<\/span>[\s\S]*?<\/tr>\s*<tr[^>]*>[\s\S]*?<\/tr>\s*<tr[^>]*>([\s\S]*?)<\/tr>/gi;
+  const sectionPattern = /<tr[^>]*class=["']section["'][^>]*>[\s\S]*?<span[^>]*class=["'][^"']*MenuSection[^"']*["'][^>]*>([\s\S]*?)<\/span>[\s\S]*?<\/tr>\s*<tr[^>]*>([\s\S]*?)<\/tr>\s*<tr[^>]*>([\s\S]*?)<\/tr>/gi;
 
   let match;
   while ((match = sectionPattern.exec(tableHtml)) !== null) {
     const title = stripHtml(match[1] ?? '').replace(/\s+/g, ' ').trim();
     if (!title) continue;
 
-    const rowHtml = match[2] ?? '';
+    const headerRowHtml = match[2] ?? '';
+    const rowHtml = match[3] ?? '';
     const cells = [
       ...rowHtml.matchAll(
         /<td[^>]*class=["'][^"']*sectioncontent[^"']*["'][^>]*>([\s\S]*?)<\/td>/gi,
       ),
     ].map(m => m[1] ?? '');
     if (cells.length === 0) continue;
+    const dayHeaders = parseDanaDayHeaders(headerRowHtml);
 
     const items: MenuItem[] = [];
     for (let i = 0; i < Math.min(cells.length, DAY_NAMES.length); i += 1) {
       const dayItems = parseDanaGridCellItems(cells[i] ?? '');
       if (dayItems.length === 0) continue;
-      items.push({ name: `${DAY_NAMES[i]}: ${dayItems.join(' • ')}` });
+      const dayLabel = dayHeaders[i] ?? DAY_NAMES[i];
+      items.push({ name: `${dayLabel}: ${dayItems.join(' • ')}` });
     }
 
     if (items.length > 0) parsedSections.push({ title, items });
