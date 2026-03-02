@@ -28,6 +28,7 @@ export type IconName =
   | 'sparkles'
   | 'sun'
   | 'tv'
+  | 'utensils'
   | 'warning'
   | 'weather'
   | 'wind';

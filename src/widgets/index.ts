@@ -15,6 +15,7 @@ import './poster-feed/PosterFeed';
 import './bus-connection/BusConnection';
 import './qrcode/QRCode';
 import './climbing-gym/ClimbingGym';
+import './cafeteria-menu/CafeteriaMenu';
 import './widget-stack/WidgetStack';
 
 // Re-export registry functions
