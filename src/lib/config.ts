@@ -51,6 +51,8 @@ export interface DisplayConfig {
   corsProxy?: string;
 }
 
+export type ShareUrlMode = 'fullscreen' | 'edit';
+
 export const DEFAULT_CONFIG: DisplayConfig = {
   layout: [
     { id: 'clock-1', type: 'clock', x: 10, y: 0, w: 2, h: 1 },
@@ -212,9 +214,14 @@ export function filterInBoundsLayout(config: DisplayConfig): DisplayConfig {
 }
 
 // Generate a shareable URL with the config
-export function generateShareUrl(config: DisplayConfig, origin: string): string {
+export function generateShareUrl(
+  config: DisplayConfig,
+  origin: string,
+  mode: ShareUrlMode = 'fullscreen',
+): string {
   const exported = filterInBoundsLayout(config);
   const encoded = encodeConfig(exported);
   const basePath = getBasePath();
-  return `${origin}${basePath}/display?config=${encoded}`;
+  const path = mode === 'edit' ? '/configure' : '/display';
+  return `${origin}${basePath}${path}?config=${encoded}`;
 }

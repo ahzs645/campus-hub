@@ -6,10 +6,12 @@ import {
   encodeConfig,
   DEFAULT_CONFIG,
   normalizeConfig,
+  decodeConfig,
   generateShareUrl,
   filterInBoundsLayout,
   isWidgetInBounds,
   type DisplayConfig,
+  type ShareUrlMode,
   type WidgetConfig,
 } from '@/lib/config';
 import { DEMO_PRESETS } from '@/lib/presets';
@@ -73,6 +75,18 @@ const EXPORT_SCHEMA_VERSION = 1;
 const MOBILE_ZOOM_MIN = 1;
 const MOBILE_ZOOM_MAX = 3;
 const MOBILE_ZOOM_STEP = 0.25;
+const URL_SHARE_OPTIONS: Array<{ value: ShareUrlMode; label: string; description: string }> = [
+  {
+    value: 'fullscreen',
+    label: 'Fullscreen URL',
+    description: 'Opens /display for playback mode.',
+  },
+  {
+    value: 'edit',
+    label: 'Edit URL',
+    description: 'Opens /configure with this config loaded.',
+  },
+];
 
 const copyText = async (value: string): Promise<boolean> => {
   if (typeof navigator !== 'undefined' && typeof navigator.clipboard?.writeText === 'function') {
@@ -188,6 +202,7 @@ const findPlacement = (
 export default function ConfigurePage() {
   const [config, setConfig] = useState<DisplayConfig>(DEFAULT_CONFIG);
   const [shareUrl, setShareUrl] = useState<string>('');
+  const [shareUrlMode, setShareUrlMode] = useState<ShareUrlMode>('fullscreen');
   const [showShareModal, setShowShareModal] = useState(false);
   const [copied, setCopied] = useState(false);
   const [jsonTransferMessage, setJsonTransferMessage] = useState<JsonTransferMessage | null>(null);
@@ -225,6 +240,15 @@ export default function ConfigurePage() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     try {
+      const configParam = new URLSearchParams(window.location.search).get('config');
+      if (configParam) {
+        const decoded = decodeConfig(configParam);
+        if (decoded) {
+          setConfig(decoded);
+          if (decoded.aspectRatio) setAspectRatioRaw(decoded.aspectRatio);
+          return;
+        }
+      }
       const saved = localStorage.getItem(CONFIG_STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved) as DisplayConfig;
@@ -451,12 +475,22 @@ export default function ConfigurePage() {
     setEditingWidget(null);
   }, []);
 
+  const buildShareUrl = useCallback((mode: ShareUrlMode) => {
+    return generateShareUrl(config, window.location.origin, mode);
+  }, [config]);
+
   const generateUrl = useCallback(() => {
-    const url = generateShareUrl(config, window.location.origin);
+    const url = buildShareUrl(shareUrlMode);
     setShareUrl(url);
     setShowShareModal(true);
     setCopied(false);
-  }, [config]);
+  }, [buildShareUrl, shareUrlMode]);
+
+  const handleShareUrlModeChange = useCallback((mode: ShareUrlMode) => {
+    setShareUrlMode(mode);
+    setShareUrl(buildShareUrl(mode));
+    setCopied(false);
+  }, [buildShareUrl]);
 
   const copyUrl = useCallback(async () => {
     if (!shareUrl) return;
@@ -1360,7 +1394,23 @@ export default function ConfigurePage() {
                 ✕
               </button>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {URL_SHARE_OPTIONS.map((option) => (
+                  <button
+                    key={option.value}
+                    onClick={() => handleShareUrlModeChange(option.value)}
+                    className={`text-left rounded-lg px-3 py-2 border transition-colors ${
+                      shareUrlMode === option.value
+                        ? 'border-[var(--color-accent)] bg-[var(--ui-item-hover)]'
+                        : 'border-[color:var(--ui-item-border)] bg-[var(--ui-item-bg)] hover:bg-[var(--ui-item-hover)]'
+                    }`}
+                  >
+                    <p className="text-sm font-semibold">{option.label}</p>
+                    <p className="text-[11px] text-white/55">{option.description}</p>
+                  </button>
+                ))}
+              </div>
               <input
                 type="text"
                 value={shareUrl}
@@ -1372,7 +1422,7 @@ export default function ConfigurePage() {
                 onClick={copyUrl}
                 className="w-full py-2 rounded-lg bg-[var(--ui-item-bg)] hover:bg-[var(--ui-item-hover)] text-sm font-medium"
               >
-                {copied ? 'Copied!' : 'Copy URL'}
+                {copied ? 'Copied!' : `Copy ${shareUrlMode === 'edit' ? 'Edit' : 'Fullscreen'} URL`}
               </button>
             </div>
           </div>
