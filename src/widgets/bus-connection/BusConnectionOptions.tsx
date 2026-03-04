@@ -1,13 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { FormSwitch, FormSelect, FormInput } from '@/components/ui';
+import { FormSwitch, FormSelect, FormStepper, FormInput } from '@/components/ui';
 import type { WidgetOptionsProps } from '@/lib/widget-registry';
 
 interface BusConnectionData {
   glow: boolean;
   scrollHeadsigns: boolean;
   departureTimeOnly: boolean;
+  hideStationPrefix: boolean;
   pixelPitch: number;
   padding: number;
   entrySpacing: number;
@@ -22,6 +23,7 @@ export default function BusConnectionOptions({ data, onChange }: WidgetOptionsPr
     glow: (data?.glow as boolean) ?? true,
     scrollHeadsigns: (data?.scrollHeadsigns as boolean) ?? true,
     departureTimeOnly: (data?.departureTimeOnly as boolean) ?? false,
+    hideStationPrefix: (data?.hideStationPrefix as boolean) ?? false,
     pixelPitch: (data?.pixelPitch as number) ?? 6,
     padding: (data?.padding as number) ?? 8,
     entrySpacing: (data?.entrySpacing as number) ?? 2,
@@ -37,6 +39,7 @@ export default function BusConnectionOptions({ data, onChange }: WidgetOptionsPr
         glow: (data.glow as boolean) ?? true,
         scrollHeadsigns: (data.scrollHeadsigns as boolean) ?? true,
         departureTimeOnly: (data.departureTimeOnly as boolean) ?? false,
+        hideStationPrefix: (data.hideStationPrefix as boolean) ?? false,
         pixelPitch: (data.pixelPitch as number) ?? 6,
         padding: (data.padding as number) ?? 8,
         entrySpacing: (data.entrySpacing as number) ?? 2,
@@ -106,6 +109,13 @@ export default function BusConnectionOptions({ data, onChange }: WidgetOptionsPr
           onChange={handleSwitchChange}
         />
 
+        <FormSwitch
+          label="Hide Station Prefix"
+          name="hideStationPrefix"
+          checked={state.hideStationPrefix}
+          onChange={handleSwitchChange}
+        />
+
         <FormSelect
           label="Pixel Pitch"
           name="pixelPitch"
@@ -132,18 +142,15 @@ export default function BusConnectionOptions({ data, onChange }: WidgetOptionsPr
           ]}
         />
 
-        <FormSelect
+        <FormStepper
           label="Entry Spacing"
           name="entrySpacing"
-          value={String(state.entrySpacing)}
+          value={state.entrySpacing}
+          min={0}
+          max={12}
+          step={1}
+          unit="px"
           onChange={handleSelectChange}
-          options={[
-            { label: 'None (0px)', value: '0' },
-            { label: 'Tight (1px)', value: '1' },
-            { label: 'Default (2px)', value: '2' },
-            { label: 'Comfortable (4px)', value: '4' },
-            { label: 'Spacious (6px)', value: '6' },
-          ]}
         />
       </div>
 

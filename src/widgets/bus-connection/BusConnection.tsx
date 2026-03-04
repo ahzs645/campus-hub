@@ -12,6 +12,7 @@ interface BusConnectionConfig {
   glow?: boolean;
   scrollHeadsigns?: boolean;
   departureTimeOnly?: boolean;
+  hideStationPrefix?: boolean;
   pixelPitch?: number;
   padding?: number;
   entrySpacing?: number;
@@ -43,6 +44,7 @@ export default function BusConnection({ config, theme, corsProxy: globalCorsProx
   const glow = busConfig?.glow ?? true;
   const scrollHeadsigns = busConfig?.scrollHeadsigns ?? true;
   const departureTimeOnly = busConfig?.departureTimeOnly ?? false;
+  const hideStationPrefix = busConfig?.hideStationPrefix ?? false;
   const pixelPitch = busConfig?.pixelPitch ?? 6;
   const padding = busConfig?.padding ?? 8;
   const proxyUrl = busConfig?.proxyUrl?.trim() || undefined;
@@ -141,7 +143,14 @@ export default function BusConnection({ config, theme, corsProxy: globalCorsProx
       const simNow = simTimeRef.current;
       const now = simNow ? simNow.getTime() : Date.now();
       const uptimeMs = Date.now() - startTimeRef.current;
-      const currentTrips = tripsRef.current.filter(t => t.arrivalTime > now - 30000);
+      let currentTrips = tripsRef.current.filter(t => t.arrivalTime > now - 30000);
+
+      if (hideStationPrefix) {
+        currentTrips = currentTrips.map(t => ({
+          ...t,
+          headsign: t.headsign.replace(/^[^/]*\//, ''),
+        }));
+      }
 
       const pixels = renderTransitDisplay(
         currentTrips, displayW, displayH, now, uptimeMs, null, scrollHeadsigns, departureTimeOnly, entrySpacing
@@ -158,7 +167,7 @@ export default function BusConnection({ config, theme, corsProxy: globalCorsProx
       running = false;
       cancelAnimationFrame(animId);
     };
-  }, [fontReady, displaySize, displayW, displayH, glow, scrollHeadsigns, departureTimeOnly, entrySpacing, rendererRef]);
+  }, [fontReady, displaySize, displayW, displayH, glow, scrollHeadsigns, departureTimeOnly, hideStationPrefix, entrySpacing, rendererRef]);
 
   return (
     <div
@@ -203,6 +212,7 @@ registerWidget({
     glow: true,
     scrollHeadsigns: true,
     departureTimeOnly: false,
+    hideStationPrefix: false,
     pixelPitch: 6,
     padding: 8,
     entrySpacing: 2,
