@@ -225,14 +225,17 @@ export function renderTransitDisplay(
   uptimeMs: number = 0,
   limit: number | null = null,
   scrollHeadsigns: boolean = true,
-  departureTimeOnly: boolean = false
+  departureTimeOnly: boolean = false,
+  entrySpacing: number = FONT_DESCENDER
 ): string[] {
   const pixels = new Array(width * height).fill(COLOR_BG);
 
   if (!_fontLoaded) return pixels;
 
+  const rowHeight = FONT_ASCENDER + entrySpacing;
+
   if (limit === null) {
-    limit = Math.floor(height / NOMINAL_HEIGHT);
+    limit = Math.floor(height / rowHeight);
   }
   const displayTrips = trips.slice(0, limit);
 
@@ -245,7 +248,7 @@ export function renderTransitDisplay(
     return pixels;
   }
 
-  const maxTripsHeight = (limit * FONT_ASCENDER) + ((limit - 1) * FONT_DESCENDER);
+  const maxTripsHeight = (limit * FONT_ASCENDER) + ((limit - 1) * entrySpacing);
   const yOffset0 = Math.floor((height % maxTripsHeight) / 2);
 
   let longestOverflow = 0;
@@ -259,7 +262,7 @@ export function renderTransitDisplay(
   }
 
   const tripLayouts = displayTrips.map((trip, i) => {
-    const yOff = yOffset0 + i * NOMINAL_HEIGHT;
+    const yOff = yOffset0 + i * rowHeight;
 
     const routeName = trip.routeName || '';
     const routeColor = trip.routeColor
