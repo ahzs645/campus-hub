@@ -77,13 +77,17 @@ const DEFAULT_PORTAL_URL =
 
 /** Parse the Rock Gym Pro occupancy HTML page to extract the data object */
 const parseOccupancyData = (html: string): OccupancyData | null => {
-  // The page embeds a JS object like: var defined_data = { "OEC": { capacity: 30, count: 0, ... } }
-  // Try to find JSON-like data in the response
-  const dataMatch = html.match(/var\s+defined_data\s*=\s*(\{[\s\S]*?\});/);
+  // The page embeds a JS object like: var data = { 'OEC' : { 'capacity' : 30, 'count' : 27, ... } }
+  // Match both "var data" and "var defined_data" for compatibility
+  const dataMatch = html.match(/var\s+(?:defined_)?data\s*=\s*(\{[\s\S]*?\});/);
   if (!dataMatch?.[1]) return null;
 
   try {
-    const parsed = JSON.parse(dataMatch[1]);
+    // The object uses single-quoted keys/values, so convert to valid JSON
+    const jsonStr = dataMatch[1]
+      .replace(/'/g, '"')         // single quotes → double quotes
+      .replace(/(\w+)\s*:/g, '"$1":'); // unquoted keys → quoted keys (fallback)
+    const parsed = JSON.parse(jsonStr);
     // Get the first facility key (e.g. "OEC")
     const facilityKey = Object.keys(parsed)[0];
     if (!facilityKey) return null;
