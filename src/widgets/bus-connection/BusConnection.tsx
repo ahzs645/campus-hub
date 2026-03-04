@@ -14,6 +14,7 @@ interface BusConnectionConfig {
   departureTimeOnly?: boolean;
   pixelPitch?: number;
   padding?: number;
+  entrySpacing?: number;
   proxyUrl?: string;
   simulate?: boolean;
   simMode?: 'weekday' | 'saturday';
@@ -46,6 +47,7 @@ export default function BusConnection({ config, theme, corsProxy: globalCorsProx
   const padding = busConfig?.padding ?? 8;
   const proxyUrl = busConfig?.proxyUrl?.trim() || undefined;
   const corsProxy = proxyUrl ? undefined : (globalCorsProxy?.trim() || undefined);
+  const entrySpacing = busConfig?.entrySpacing ?? 2;
   const simulate = busConfig?.simulate ?? false;
   const simMode = busConfig?.simMode ?? 'weekday';
   const simTime = busConfig?.simTime ?? 540;
@@ -142,7 +144,7 @@ export default function BusConnection({ config, theme, corsProxy: globalCorsProx
       const currentTrips = tripsRef.current.filter(t => t.arrivalTime > now - 30000);
 
       const pixels = renderTransitDisplay(
-        currentTrips, displayW, displayH, now, uptimeMs, null, scrollHeadsigns, departureTimeOnly
+        currentTrips, displayW, displayH, now, uptimeMs, null, scrollHeadsigns, departureTimeOnly, entrySpacing
       );
 
       rendererRef.current.setData(pixels);
@@ -156,7 +158,7 @@ export default function BusConnection({ config, theme, corsProxy: globalCorsProx
       running = false;
       cancelAnimationFrame(animId);
     };
-  }, [fontReady, displaySize, displayW, displayH, glow, scrollHeadsigns, departureTimeOnly, rendererRef]);
+  }, [fontReady, displaySize, displayW, displayH, glow, scrollHeadsigns, departureTimeOnly, entrySpacing, rendererRef]);
 
   return (
     <div
@@ -203,6 +205,7 @@ registerWidget({
     departureTimeOnly: false,
     pixelPitch: 6,
     padding: 8,
+    entrySpacing: 2,
     proxyUrl: '',
     simulate: false,
     simMode: 'weekday',

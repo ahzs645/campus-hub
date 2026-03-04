@@ -10,6 +10,7 @@ interface BusConnectionData {
   departureTimeOnly: boolean;
   pixelPitch: number;
   padding: number;
+  entrySpacing: number;
   proxyUrl: string;
   simulate: boolean;
   simMode: 'weekday' | 'saturday';
@@ -23,6 +24,7 @@ export default function BusConnectionOptions({ data, onChange }: WidgetOptionsPr
     departureTimeOnly: (data?.departureTimeOnly as boolean) ?? false,
     pixelPitch: (data?.pixelPitch as number) ?? 6,
     padding: (data?.padding as number) ?? 8,
+    entrySpacing: (data?.entrySpacing as number) ?? 2,
     proxyUrl: (data?.proxyUrl as string) ?? '',
     simulate: (data?.simulate as boolean) ?? false,
     simMode: (data?.simMode as 'weekday' | 'saturday') ?? 'weekday',
@@ -37,6 +39,7 @@ export default function BusConnectionOptions({ data, onChange }: WidgetOptionsPr
         departureTimeOnly: (data.departureTimeOnly as boolean) ?? false,
         pixelPitch: (data.pixelPitch as number) ?? 6,
         padding: (data.padding as number) ?? 8,
+        entrySpacing: (data.entrySpacing as number) ?? 2,
         proxyUrl: (data.proxyUrl as string) ?? '',
         simulate: (data.simulate as boolean) ?? false,
         simMode: (data.simMode as 'weekday' | 'saturday') ?? 'weekday',
@@ -126,6 +129,20 @@ export default function BusConnectionOptions({ data, onChange }: WidgetOptionsPr
             { label: 'Small (8px)', value: '8' },
             { label: 'Medium (16px)', value: '16' },
             { label: 'Large (24px)', value: '24' },
+          ]}
+        />
+
+        <FormSelect
+          label="Entry Spacing"
+          name="entrySpacing"
+          value={String(state.entrySpacing)}
+          onChange={handleSelectChange}
+          options={[
+            { label: 'None (0px)', value: '0' },
+            { label: 'Tight (1px)', value: '1' },
+            { label: 'Default (2px)', value: '2' },
+            { label: 'Comfortable (4px)', value: '4' },
+            { label: 'Spacious (6px)', value: '6' },
           ]}
         />
       </div>
