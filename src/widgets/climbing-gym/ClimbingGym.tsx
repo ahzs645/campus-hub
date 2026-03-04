@@ -77,31 +77,23 @@ const DEFAULT_PORTAL_URL =
 
 /** Parse the Rock Gym Pro occupancy HTML page to extract the data object */
 const parseOccupancyData = (html: string): OccupancyData | null => {
-  // The page embeds a JS object like: var data = { 'OEC' : { 'capacity' : 30, 'count' : 27, ... } }
-  // Match both "var data" and "var defined_data" for compatibility
-  const dataMatch = html.match(/var\s+(?:defined_)?data\s*=\s*(\{[\s\S]*?\});/);
-  if (!dataMatch?.[1]) return null;
+  // The page embeds a JS object like:
+  //   var data = { 'OEC' : { 'capacity' : 30, 'count' : 19, 'subLabel' : '...', 'lastUpdate' : '...' }, };
+  // Extract individual values with targeted regexes to avoid JSON.parse issues
+  // (trailing commas, single quotes, colons inside string values).
+  const countMatch = html.match(/['"]count['"]\s*:\s*(\d+)/);
+  const capacityMatch = html.match(/['"]capacity['"]\s*:\s*(\d+)/);
+  const subLabelMatch = html.match(/['"]subLabel['"]\s*:\s*['"]([^'"]*)['"]/);
+  const lastUpdateMatch = html.match(/['"]lastUpdate['"]\s*:\s*['"]([^'"]*)['"]/);
 
-  try {
-    // The object uses single-quoted keys/values, so convert to valid JSON
-    const jsonStr = dataMatch[1]
-      .replace(/'/g, '"')         // single quotes → double quotes
-      .replace(/(\w+)\s*:/g, '"$1":'); // unquoted keys → quoted keys (fallback)
-    const parsed = JSON.parse(jsonStr);
-    // Get the first facility key (e.g. "OEC")
-    const facilityKey = Object.keys(parsed)[0];
-    if (!facilityKey) return null;
+  if (!countMatch && !capacityMatch) return null;
 
-    const facility = parsed[facilityKey];
-    return {
-      count: typeof facility.count === 'number' ? facility.count : parseInt(facility.count, 10) || 0,
-      capacity: typeof facility.capacity === 'number' ? facility.capacity : parseInt(facility.capacity, 10) || 0,
-      subLabel: facility.subLabel ?? 'Current Climber Count',
-      lastUpdate: facility.lastUpdate ?? '',
-    };
-  } catch {
-    return null;
-  }
+  return {
+    count: countMatch ? parseInt(countMatch[1], 10) : 0,
+    capacity: capacityMatch ? parseInt(capacityMatch[1], 10) : 0,
+    subLabel: subLabelMatch?.[1] ?? 'Current Climber Count',
+    lastUpdate: lastUpdateMatch?.[1]?.replace(/&nbsp;?/g, ' ') ?? '',
+  };
 };
 
 
