@@ -19,6 +19,8 @@ import './cafeteria-menu/CafeteriaMenu';
 import './widget-stack/WidgetStack';
 import './library-availability/LibraryAvailability';
 import './confessions/Confessions';
+import './rich-text/RichText';
+import './air-quality/AirQuality';
 
 // Re-export registry functions
 export { getWidget, getAllWidgets, getWidgetComponent } from '@/lib/widget-registry';

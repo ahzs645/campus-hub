@@ -86,6 +86,28 @@ body {
   animation: ticker linear infinite;
 }
 
+/* Vertical scroll animation for Rich Text widget */
+@keyframes rich-text-scroll-up {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(-100%);
+  }
+}
+
+.rich-text-scroll {
+  animation: rich-text-scroll-up linear infinite;
+}
+
+.rich-text-content strong {
+  font-weight: 700;
+}
+
+.rich-text-content em {
+  font-style: italic;
+}
+
 /* Poster stack – active card shuffles out left, scales up, comes back on top */
 @keyframes poster-move-out-in {
   0% {
