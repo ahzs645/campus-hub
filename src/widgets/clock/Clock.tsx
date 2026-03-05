@@ -11,6 +11,103 @@ interface ClockConfig {
   format24h?: boolean;
   alignment?: 'left' | 'center' | 'right';
   verticalAlignment?: 'top' | 'center' | 'bottom';
+  style?: 'digital' | 'analog';
+}
+
+function AnalogClock({ time, theme, showSeconds }: { time: Date; theme: { primary: string; accent: string }; showSeconds: boolean }) {
+  const hours = time.getHours() % 12;
+  const minutes = time.getMinutes();
+  const seconds = time.getSeconds();
+
+  const hourAngle = (hours + minutes / 60) * 30;
+  const minuteAngle = (minutes + seconds / 60) * 6;
+  const secondAngle = seconds * 6;
+
+  return (
+    <svg viewBox="0 0 200 200" className="w-full h-full">
+      {/* Outer ring */}
+      <circle cx="100" cy="100" r="95" fill="none" stroke={`${theme.accent}30`} strokeWidth="2" />
+      <circle cx="100" cy="100" r="90" fill="none" stroke={`${theme.accent}15`} strokeWidth="1" />
+
+      {/* Hour markers */}
+      {Array.from({ length: 12 }).map((_, i) => {
+        const angle = (i * 30 - 90) * (Math.PI / 180);
+        const isQuarter = i % 3 === 0;
+        const outerR = 88;
+        const innerR = isQuarter ? 75 : 80;
+        return (
+          <line
+            key={i}
+            x1={100 + Math.cos(angle) * innerR}
+            y1={100 + Math.sin(angle) * innerR}
+            x2={100 + Math.cos(angle) * outerR}
+            y2={100 + Math.sin(angle) * outerR}
+            stroke={theme.accent}
+            strokeWidth={isQuarter ? 3 : 1.5}
+            strokeLinecap="round"
+            opacity={isQuarter ? 1 : 0.6}
+          />
+        );
+      })}
+
+      {/* Minute tick marks */}
+      {Array.from({ length: 60 }).map((_, i) => {
+        if (i % 5 === 0) return null;
+        const angle = (i * 6 - 90) * (Math.PI / 180);
+        return (
+          <circle
+            key={`m-${i}`}
+            cx={100 + Math.cos(angle) * 85}
+            cy={100 + Math.sin(angle) * 85}
+            r="0.8"
+            fill={theme.accent}
+            opacity="0.3"
+          />
+        );
+      })}
+
+      {/* Hour hand */}
+      <line
+        x1="100"
+        y1="100"
+        x2={100 + Math.cos((hourAngle - 90) * (Math.PI / 180)) * 50}
+        y2={100 + Math.sin((hourAngle - 90) * (Math.PI / 180)) * 50}
+        stroke={theme.accent}
+        strokeWidth="4"
+        strokeLinecap="round"
+      />
+
+      {/* Minute hand */}
+      <line
+        x1="100"
+        y1="100"
+        x2={100 + Math.cos((minuteAngle - 90) * (Math.PI / 180)) * 70}
+        y2={100 + Math.sin((minuteAngle - 90) * (Math.PI / 180)) * 70}
+        stroke={theme.accent}
+        strokeWidth="2.5"
+        strokeLinecap="round"
+      />
+
+      {/* Second hand */}
+      {showSeconds && (
+        <>
+          <line
+            x1={100 - Math.cos((secondAngle - 90) * (Math.PI / 180)) * 15}
+            y1={100 - Math.sin((secondAngle - 90) * (Math.PI / 180)) * 15}
+            x2={100 + Math.cos((secondAngle - 90) * (Math.PI / 180)) * 78}
+            y2={100 + Math.sin((secondAngle - 90) * (Math.PI / 180)) * 78}
+            stroke={theme.primary}
+            strokeWidth="1.2"
+            strokeLinecap="round"
+          />
+          <circle cx="100" cy="100" r="3" fill={theme.primary} />
+        </>
+      )}
+
+      {/* Center dot */}
+      <circle cx="100" cy="100" r={showSeconds ? 2 : 4} fill={theme.accent} />
+    </svg>
+  );
 }
 
 export default function Clock({ config, theme }: WidgetComponentProps) {
@@ -19,6 +116,7 @@ export default function Clock({ config, theme }: WidgetComponentProps) {
   const showSeconds = clockConfig?.showSeconds ?? false;
   const showDate = clockConfig?.showDate ?? true;
   const format24h = clockConfig?.format24h ?? false;
+  const clockStyle = clockConfig?.style ?? 'digital';
   const rawAlignment = clockConfig?.alignment;
   const alignment =
     rawAlignment === 'left' || rawAlignment === 'center' || rawAlignment === 'right'
@@ -32,8 +130,10 @@ export default function Clock({ config, theme }: WidgetComponentProps) {
       ? rawVerticalAlignment
       : 'top';
 
-  const DESIGN_W = 320;
-  const DESIGN_H = 100;
+  const isAnalog = clockStyle === 'analog';
+
+  const DESIGN_W = isAnalog ? 240 : 320;
+  const DESIGN_H = isAnalog ? 260 : 100;
   const { containerRef, scale } = useFitScale(DESIGN_W, DESIGN_H);
 
   const alignmentStyles = {
@@ -96,6 +196,38 @@ export default function Clock({ config, theme }: WidgetComponentProps) {
     hour12: !format24h,
   };
 
+  if (isAnalog) {
+    return (
+      <div
+        ref={containerRef}
+        className={`w-full h-full overflow-hidden flex flex-col ${verticalLayout.containerClass}`}
+      >
+        <div
+          style={{
+            width: DESIGN_W,
+            height: DESIGN_H,
+            transform: `scale(${scale})`,
+            transformOrigin: `${horizontalLayout.transformOriginX} ${verticalLayout.transformOriginY}`,
+          }}
+          className={`flex flex-col items-center justify-center ${horizontalLayout.containerClass}`}
+        >
+          <div className="w-[200px] h-[200px]">
+            <AnalogClock time={time} theme={theme} showSeconds={showSeconds} />
+          </div>
+          {showDate && (
+            <div className="text-sm opacity-80 mt-1 font-medium tracking-wide text-white/80 text-center">
+              {time.toLocaleDateString([], {
+                weekday: 'long',
+                month: 'long',
+                day: 'numeric',
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       ref={containerRef}
@@ -148,5 +280,6 @@ registerWidget({
     format24h: false,
     alignment: 'right',
     verticalAlignment: 'top',
+    style: 'digital',
   },
 });
