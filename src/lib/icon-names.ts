@@ -27,6 +27,7 @@ export type IconName =
   | 'snowflake'
   | 'sparkles'
   | 'sun'
+  | 'timer'
   | 'tv'
   | 'utensils'
   | 'warning'

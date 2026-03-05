@@ -21,6 +21,7 @@ import './library-availability/LibraryAvailability';
 import './confessions/Confessions';
 import './rich-text/RichText';
 import './air-quality/AirQuality';
+import './countdown-timer/CountdownTimer';
 
 // Re-export registry functions
 export { getWidget, getAllWidgets, getWidgetComponent } from '@/lib/widget-registry';
