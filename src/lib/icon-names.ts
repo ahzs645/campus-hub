@@ -31,4 +31,6 @@ export type IconName =
   | 'utensils'
   | 'warning'
   | 'weather'
-  | 'wind';
+  | 'wind'
+  | 'users'
+  | 'hourglass';
