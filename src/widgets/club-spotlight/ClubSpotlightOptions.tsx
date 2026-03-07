@@ -4,7 +4,10 @@ import { useState, useEffect } from 'react';
 import { FormInput, FormSwitch } from '@/components/ui';
 import type { WidgetOptionsProps } from '@/lib/widget-registry';
 
+const DEFAULT_API_URL = 'https://overtheedge.unbc.ca/wp-json/wp/v2/clubs?per_page=100&_embed=wp:featuredmedia';
+
 interface ClubSpotlightData {
+  apiUrl: string;
   pageUrl: string;
   rotationSeconds: number;
   corsProxy: string;
@@ -14,6 +17,7 @@ interface ClubSpotlightData {
 
 export default function ClubSpotlightOptions({ data, onChange }: WidgetOptionsProps) {
   const [state, setState] = useState<ClubSpotlightData>({
+    apiUrl: (data?.apiUrl as string) ?? DEFAULT_API_URL,
     pageUrl: (data?.pageUrl as string) ?? 'https://overtheedge.unbc.ca/clubs/',
     rotationSeconds: (data?.rotationSeconds as number) ?? 10,
     corsProxy: (data?.corsProxy as string) ?? '',
@@ -24,6 +28,7 @@ export default function ClubSpotlightOptions({ data, onChange }: WidgetOptionsPr
   useEffect(() => {
     if (data) {
       setState({
+        apiUrl: (data.apiUrl as string) ?? DEFAULT_API_URL,
         pageUrl: (data.pageUrl as string) ?? 'https://overtheedge.unbc.ca/clubs/',
         rotationSeconds: (data.rotationSeconds as number) ?? 10,
         corsProxy: (data.corsProxy as string) ?? '',
@@ -45,7 +50,20 @@ export default function ClubSpotlightOptions({ data, onChange }: WidgetOptionsPr
         <h3 className="font-semibold text-[var(--ui-text)] text-center">Data Source</h3>
 
         <FormInput
-          label="Clubs Page URL"
+          label="WP REST API URL"
+          name="apiUrl"
+          type="url"
+          value={state.apiUrl}
+          placeholder={DEFAULT_API_URL}
+          onChange={handleChange}
+        />
+        <div className="text-xs text-[var(--ui-text-muted)] text-center">
+          WordPress REST API endpoint for clubs. Fetches club names and featured images as structured JSON.
+          Tried first before falling back to HTML scraping.
+        </div>
+
+        <FormInput
+          label="Clubs Page URL (fallback)"
           name="pageUrl"
           type="url"
           value={state.pageUrl}
@@ -53,8 +71,7 @@ export default function ClubSpotlightOptions({ data, onChange }: WidgetOptionsPr
           onChange={handleChange}
         />
         <div className="text-xs text-[var(--ui-text-muted)] text-center">
-          URL of the clubs page. Club names and images will be scraped from the HTML.
-          Defaults to the UNBC Over The Edge clubs page.
+          Fallback HTML page to scrape if the REST API is unavailable.
         </div>
 
         <FormSwitch

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { WidgetComponentProps, registerWidget } from '@/lib/widget-registry';
-import { buildCacheKey, buildProxyUrl, fetchTextWithCache } from '@/lib/data-cache';
+import { buildCacheKey, buildProxyUrl, fetchJsonWithCache, fetchTextWithCache } from '@/lib/data-cache';
 import { useFitScale } from '@/hooks/useFitScale';
 import ClubSpotlightOptions from './ClubSpotlightOptions';
 
@@ -14,12 +14,15 @@ interface ClubItem {
 
 interface ClubSpotlightConfig {
   pageUrl?: string;
+  apiUrl?: string;
   rotationSeconds?: number;
   corsProxy?: string;
   useCorsProxy?: boolean;
   refreshMinutes?: number;
 }
 
+// WordPress REST API for clubs custom post type with embedded featured images
+const DEFAULT_API_URL = 'https://overtheedge.unbc.ca/wp-json/wp/v2/clubs?per_page=100&_embed=wp:featuredmedia';
 const DEFAULT_PAGE_URL = 'https://overtheedge.unbc.ca/clubs/';
 
 const DEFAULT_CLUBS: ClubItem[] = [
@@ -27,6 +30,60 @@ const DEFAULT_CLUBS: ClubItem[] = [
   { id: '2', name: 'Debate Society', image: 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?w=300&h=300&fit=crop' },
   { id: '3', name: 'Photography Club', image: 'https://images.unsplash.com/photo-1452587925148-ce544e77e70d?w=300&h=300&fit=crop' },
 ];
+
+const decodeHtmlEntities = (value: string): string => {
+  if (typeof window === 'undefined') return value;
+  const textarea = document.createElement('textarea');
+  textarea.innerHTML = value;
+  return textarea.value;
+};
+
+// WordPress REST API response shape for a custom post type with _embed
+interface WpClubPost {
+  id?: number;
+  title?: { rendered?: string };
+  _embedded?: {
+    'wp:featuredmedia'?: Array<{
+      source_url?: string;
+      media_details?: {
+        sizes?: {
+          medium?: { source_url?: string };
+          thumbnail?: { source_url?: string };
+          full?: { source_url?: string };
+        };
+      };
+    }>;
+  };
+  // Fallback: featured image might be in content
+  content?: { rendered?: string };
+}
+
+/** Parse clubs from WP REST API JSON response */
+function parseClubsFromApi(posts: WpClubPost[]): ClubItem[] {
+  return posts
+    .map((post) => {
+      const name = decodeHtmlEntities(post.title?.rendered ?? '').trim();
+      if (!name) return null;
+
+      // Try to get featured image from _embedded
+      const media = post._embedded?.['wp:featuredmedia']?.[0];
+      const image =
+        media?.media_details?.sizes?.medium?.source_url ??
+        media?.media_details?.sizes?.full?.source_url ??
+        media?.source_url ??
+        '';
+
+      // If no featured image, try to extract from content HTML
+      let finalImage = image;
+      if (!finalImage && post.content?.rendered) {
+        const imgMatch = post.content.rendered.match(/<img[^>]+src=["']([^"']+)["']/i);
+        if (imgMatch) finalImage = imgMatch[1];
+      }
+
+      return { id: String(post.id ?? name), name, image: finalImage };
+    })
+    .filter((c): c is ClubItem => c !== null && c.name.length > 0);
+}
 
 /** Parse clubs from the overtheedge.unbc.ca/clubs/ HTML page. */
 function parseClubsFromHtml(html: string): ClubItem[] {
@@ -94,6 +151,7 @@ function parseClubsFromHtml(html: string): ClubItem[] {
 
 export default function ClubSpotlight({ config, theme, corsProxy: globalCorsProxy }: WidgetComponentProps) {
   const cfg = config as ClubSpotlightConfig | undefined;
+  const apiUrl = cfg?.apiUrl?.trim() || DEFAULT_API_URL;
   const pageUrl = cfg?.pageUrl?.trim() || DEFAULT_PAGE_URL;
   const rotationSeconds = Math.max(4, Math.min(120, cfg?.rotationSeconds ?? 10));
   const useCorsProxy = cfg?.useCorsProxy ?? true;
@@ -107,12 +165,34 @@ export default function ClubSpotlight({ config, theme, corsProxy: globalCorsProx
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const fetchClubs = useCallback(async () => {
+    setError(null);
+    const ttlMs = refreshMinutes * 60 * 1000;
+
+    // Strategy 1: Try the WordPress REST API (returns structured JSON with images)
     try {
-      setError(null);
-      const fetchUrl = buildProxyUrl(corsProxy, pageUrl);
-      const { text } = await fetchTextWithCache(fetchUrl, {
-        cacheKey: buildCacheKey('club-spotlight', pageUrl),
-        ttlMs: refreshMinutes * 60 * 1000,
+      const apiFetchUrl = buildProxyUrl(corsProxy, apiUrl);
+      const { data: posts } = await fetchJsonWithCache<WpClubPost[]>(apiFetchUrl, {
+        cacheKey: buildCacheKey('club-spotlight-api', apiUrl),
+        ttlMs,
+        allowStale: true,
+      });
+      const parsed = parseClubsFromApi(Array.isArray(posts) ? posts : []);
+      if (parsed.length > 0) {
+        setClubs(parsed);
+        setActiveIndex(0);
+        setUsingDefaults(false);
+        return;
+      }
+    } catch {
+      // API failed — fall through to HTML scraping
+    }
+
+    // Strategy 2: Scrape the HTML page directly
+    try {
+      const pageFetchUrl = buildProxyUrl(corsProxy, pageUrl);
+      const { text } = await fetchTextWithCache(pageFetchUrl, {
+        cacheKey: buildCacheKey('club-spotlight-page', pageUrl),
+        ttlMs,
         allowStale: true,
       });
       const parsed = parseClubsFromHtml(text);
@@ -120,13 +200,14 @@ export default function ClubSpotlight({ config, theme, corsProxy: globalCorsProx
         setClubs(parsed);
         setActiveIndex(0);
         setUsingDefaults(false);
-      } else {
-        setError('No clubs found on page');
+        return;
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load clubs');
+    } catch {
+      // HTML scrape also failed
     }
-  }, [corsProxy, pageUrl, refreshMinutes]);
+
+    setError('Could not load clubs from API or page');
+  }, [corsProxy, apiUrl, pageUrl, refreshMinutes]);
 
   useEffect(() => {
     fetchClubs();
@@ -238,6 +319,7 @@ registerWidget({
   component: ClubSpotlight,
   OptionsComponent: ClubSpotlightOptions,
   defaultProps: {
+    apiUrl: DEFAULT_API_URL,
     pageUrl: DEFAULT_PAGE_URL,
     rotationSeconds: 10,
     corsProxy: '',
