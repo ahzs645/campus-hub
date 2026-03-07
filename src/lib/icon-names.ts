@@ -10,6 +10,7 @@ export type IconName =
   | 'cloudSun'
   | 'droplets'
   | 'film'
+  | 'flame'
   | 'gauge'
   | 'globe'
   | 'image'
