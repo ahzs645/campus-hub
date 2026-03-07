@@ -1,16 +1,29 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { WidgetComponentProps, registerWidget } from '@/lib/widget-registry';
 import { useFitScale } from '@/hooks/useFitScale';
 import CountdownOptions from './CountdownOptions';
 
 type UnitVisibility = 'auto' | 'show' | 'hide';
 
+export interface Milestone {
+  label: string;
+  date: string;      // "YYYY-MM-DD"
+  time: string;      // "HH:MM"
+  emoji?: string;
+}
+
 interface CountdownConfig {
-  targetDate?: string;    // ISO date string or "YYYY-MM-DD"
-  targetTime?: string;    // "HH:MM" 24h format
+  // Legacy single-event fields (still supported for backwards compat)
+  targetDate?: string;
+  targetTime?: string;
   eventName?: string;
+  // New multi-milestone fields
+  milestones?: Milestone[];
+  rotationSeconds?: number;
+  hideCompleted?: boolean;
+  // Unit visibility
   showYears?: UnitVisibility;
   showDays?: UnitVisibility;
   showHours?: UnitVisibility;
@@ -39,7 +52,6 @@ function computeRemaining(target: Date): TimeRemaining {
 
   let remainder = total;
 
-  // Calculate years as 365.25 days
   const msPerYear = 365.25 * 24 * 60 * 60 * 1000;
   const years = Math.floor(remainder / msPerYear);
   remainder -= years * msPerYear;
@@ -63,7 +75,6 @@ function computeRemaining(target: Date): TimeRemaining {
 function shouldShowUnit(visibility: UnitVisibility, value: number, hasLargerUnit: boolean): boolean {
   if (visibility === 'show') return true;
   if (visibility === 'hide') return false;
-  // Auto: show if value > 0, or if a larger unit is shown (to avoid gaps)
   return value > 0 || hasLargerUnit;
 }
 
@@ -104,31 +115,70 @@ function getDefaultTarget(): Date {
   return new Date(`${year}-01-01T00:00:00`);
 }
 
+function milestoneToTarget(m: Milestone): Date {
+  const time = m.time?.trim() || '00:00';
+  return new Date(`${m.date}T${time}:00`);
+}
+
+/** Migrate legacy single-event config to milestones array */
+function getMilestones(cfg: CountdownConfig | undefined): Milestone[] {
+  if (cfg?.milestones && cfg.milestones.length > 0) {
+    return cfg.milestones;
+  }
+  // Legacy: convert single event fields to a milestone
+  if (cfg?.targetDate?.trim()) {
+    return [{
+      label: cfg.eventName?.trim() || '',
+      date: cfg.targetDate.trim(),
+      time: cfg.targetTime?.trim() || '00:00',
+    }];
+  }
+  // Default: next New Year
+  const target = getDefaultTarget();
+  const y = target.getFullYear();
+  return [{ label: `New Year ${y}`, date: `${y}-01-01`, time: '00:00', emoji: '🎉' }];
+}
+
 export default function Countdown({ config, theme }: WidgetComponentProps) {
   const cfg = config as CountdownConfig | undefined;
 
-  const eventName = cfg?.eventName?.trim() || '';
   const showYears = cfg?.showYears ?? 'auto';
   const showDays = cfg?.showDays ?? 'auto';
   const showHours = cfg?.showHours ?? 'auto';
   const showMinutes = cfg?.showMinutes ?? 'auto';
   const showSeconds = cfg?.showSeconds ?? 'auto';
   const showMilliseconds = cfg?.showMilliseconds ?? 'hide';
+  const hideCompleted = cfg?.hideCompleted ?? true;
+  const rotationSeconds = Math.max(3, Math.min(60, cfg?.rotationSeconds ?? 8));
 
-  // Build target date
-  const targetDate = cfg?.targetDate?.trim();
-  const targetTime = cfg?.targetTime?.trim() || '00:00';
-  const target = targetDate
-    ? new Date(`${targetDate}T${targetTime}:00`)
-    : getDefaultTarget();
+  const allMilestones = useMemo(() => getMilestones(cfg), [cfg]);
 
-  const isValidTarget = !isNaN(target.getTime());
+  // Filter out completed milestones if requested
+  const activeMilestones = useMemo(() => {
+    if (!hideCompleted) return allMilestones;
+    const now = Date.now();
+    const active = allMilestones.filter(m => {
+      const t = milestoneToTarget(m);
+      return !isNaN(t.getTime()) && t.getTime() > now;
+    });
+    // If all are completed, show the last one so the widget isn't empty
+    return active.length > 0 ? active : allMilestones.slice(-1);
+  }, [allMilestones, hideCompleted]);
 
-  const [remaining, setRemaining] = useState<TimeRemaining>(() =>
-    isValidTarget ? computeRemaining(target) : { total: 0, years: 0, days: 0, hours: 0, minutes: 0, seconds: 0, milliseconds: 0 }
-  );
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [remaining, setRemaining] = useState<TimeRemaining>({ total: 0, years: 0, days: 0, hours: 0, minutes: 0, seconds: 0, milliseconds: 0 });
   const rafRef = useRef<number | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const rotationRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Keep activeIndex in bounds when milestones change
+  useEffect(() => {
+    setActiveIndex(prev => prev >= activeMilestones.length ? 0 : prev);
+  }, [activeMilestones.length]);
+
+  const currentMilestone = activeMilestones[activeIndex % activeMilestones.length];
+  const target = currentMilestone ? milestoneToTarget(currentMilestone) : getDefaultTarget();
+  const isValidTarget = !isNaN(target.getTime());
 
   const update = useCallback(() => {
     if (isValidTarget) {
@@ -136,14 +186,13 @@ export default function Countdown({ config, theme }: WidgetComponentProps) {
     }
   }, [isValidTarget, target]);
 
+  // Countdown tick
   useEffect(() => {
     if (!isValidTarget) return;
 
-    const needsMs = showMilliseconds === 'show' || (showMilliseconds === 'auto');
     const useRaf = showMilliseconds === 'show';
 
     if (useRaf) {
-      // Use requestAnimationFrame for ms precision
       const tick = () => {
         update();
         rafRef.current = requestAnimationFrame(tick);
@@ -153,7 +202,7 @@ export default function Countdown({ config, theme }: WidgetComponentProps) {
         if (rafRef.current) cancelAnimationFrame(rafRef.current);
       };
     } else {
-      // Use setInterval at 1s for normal countdown, 100ms if auto-ms might appear
+      const needsMs = showMilliseconds === 'auto';
       const intervalMs = needsMs ? 100 : 1000;
       update();
       intervalRef.current = setInterval(update, intervalMs);
@@ -163,16 +212,25 @@ export default function Countdown({ config, theme }: WidgetComponentProps) {
     }
   }, [isValidTarget, showMilliseconds, update]);
 
+  // Auto-rotation between milestones
+  useEffect(() => {
+    if (activeMilestones.length <= 1) return;
+    rotationRef.current = setInterval(() => {
+      setActiveIndex(prev => (prev + 1) % activeMilestones.length);
+    }, rotationSeconds * 1000);
+    return () => {
+      if (rotationRef.current) clearInterval(rotationRef.current);
+    };
+  }, [activeMilestones.length, rotationSeconds]);
+
   const DESIGN_W = 500;
-  const DESIGN_H = 200;
+  const DESIGN_H = 220;
   const { containerRef, scale } = useFitScale(DESIGN_W, DESIGN_H);
 
   const isFinished = remaining.total <= 0;
 
   // Determine which units to show
   const units: { key: string; value: number; label: string; padWidth: number }[] = [];
-
-  // Build visibility chain — "auto" checks if value > 0 OR a larger visible unit exists
   const yearsVisible = shouldShowUnit(showYears, remaining.years, false);
   const daysVisible = shouldShowUnit(showDays, remaining.days, yearsVisible);
   const hoursVisible = shouldShowUnit(showHours, remaining.hours, yearsVisible || daysVisible);
@@ -186,6 +244,9 @@ export default function Countdown({ config, theme }: WidgetComponentProps) {
   if (minutesVisible) units.push({ key: 'minutes', value: remaining.minutes, label: remaining.minutes === 1 ? 'Min' : 'Mins', padWidth: 2 });
   if (secondsVisible) units.push({ key: 'seconds', value: remaining.seconds, label: remaining.seconds === 1 ? 'Sec' : 'Secs', padWidth: 2 });
   if (msVisible) units.push({ key: 'ms', value: remaining.milliseconds, label: 'MS', padWidth: 3 });
+
+  const eventLabel = currentMilestone?.label || '';
+  const eventEmoji = currentMilestone?.emoji || '';
 
   return (
     <div
@@ -202,13 +263,15 @@ export default function Countdown({ config, theme }: WidgetComponentProps) {
         }}
         className="flex flex-col items-center justify-center p-6"
       >
-        {/* Event Name */}
-        {eventName && (
+        {/* Event Name with optional emoji */}
+        {(eventLabel || eventEmoji) && (
           <div
-            className="text-sm font-semibold tracking-wide uppercase mb-4"
+            className="text-sm font-semibold tracking-wide uppercase mb-4 transition-opacity duration-500"
             style={{ color: theme.accent }}
           >
-            {eventName}
+            {eventEmoji && <span className="mr-1.5">{eventEmoji}</span>}
+            {eventLabel}
+            {eventEmoji && <span className="ml-1.5">{eventEmoji}</span>}
           </div>
         )}
 
@@ -217,11 +280,11 @@ export default function Countdown({ config, theme }: WidgetComponentProps) {
         ) : isFinished ? (
           <div className="text-center">
             <div className="text-4xl font-bold text-white mb-2">
-              Time&apos;s Up!
+              {eventEmoji || '🎉'} Time&apos;s Up!
             </div>
-            {eventName && (
+            {eventLabel && (
               <div className="text-lg" style={{ color: theme.accent }}>
-                {eventName} has arrived
+                {eventLabel} has arrived
               </div>
             )}
           </div>
@@ -246,9 +309,25 @@ export default function Countdown({ config, theme }: WidgetComponentProps) {
 
         {/* Target date display */}
         {isValidTarget && !isFinished && (
-          <div className="text-xs text-white/30 mt-4">
+          <div className="text-xs text-white/30 mt-3">
             {target.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-            {targetTime !== '00:00' && ` at ${targetTime}`}
+            {(currentMilestone?.time || '00:00') !== '00:00' && ` at ${currentMilestone?.time}`}
+          </div>
+        )}
+
+        {/* Dot indicators for multiple milestones */}
+        {activeMilestones.length > 1 && (
+          <div className="flex gap-1.5 mt-3">
+            {activeMilestones.map((_, i) => (
+              <div
+                key={i}
+                className="h-1.5 rounded-full transition-all duration-300"
+                style={{
+                  width: i === activeIndex % activeMilestones.length ? 20 : 8,
+                  backgroundColor: i === activeIndex % activeMilestones.length ? theme.accent : 'rgba(255,255,255,0.3)',
+                }}
+              />
+            ))}
           </div>
         )}
       </div>
@@ -259,7 +338,7 @@ export default function Countdown({ config, theme }: WidgetComponentProps) {
 registerWidget({
   type: 'countdown',
   name: 'Countdown',
-  description: 'Countdown timer to a specific date and time',
+  description: 'Countdown timer with multiple milestones, auto-rotation, and dot indicators',
   icon: 'hourglass',
   minW: 2,
   minH: 2,
@@ -268,9 +347,9 @@ registerWidget({
   component: Countdown,
   OptionsComponent: CountdownOptions,
   defaultProps: {
-    targetDate: '',
-    targetTime: '00:00',
-    eventName: '',
+    milestones: [],
+    rotationSeconds: 8,
+    hideCompleted: true,
     showYears: 'auto',
     showDays: 'auto',
     showHours: 'auto',
