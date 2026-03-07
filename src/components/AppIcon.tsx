@@ -31,6 +31,8 @@ import {
   Tv,
   UtensilsCrossed,
   Wind,
+  Users,
+  Hourglass,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { IconName } from '@/lib/icon-names';
@@ -76,6 +78,8 @@ const ICONS: Record<IconName, LucideIcon> = {
   warning: TriangleAlert,
   weather: CloudSun,
   wind: Wind,
+  users: Users,
+  hourglass: Hourglass,
 };
 
 export default function AppIcon({
