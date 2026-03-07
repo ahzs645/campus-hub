@@ -5,10 +5,65 @@ import { FormInput, FormSelect, FormSwitch } from '@/components/ui';
 import AppIcon from '@/components/AppIcon';
 import type { WidgetOptionsProps } from '@/lib/widget-registry';
 
+type DisplayMode = 'full' | 'temperature-only' | 'wind-only' | 'minimal' | 'custom';
+
+interface DisplayItems {
+  location: boolean;
+  icon: boolean;
+  temperature: boolean;
+  condition: boolean;
+  humidity: boolean;
+  wind: boolean;
+  pressure: boolean;
+  dewPoint: boolean;
+  windGust: boolean;
+  precipitation: boolean;
+  lastUpdated: boolean;
+}
+
+const DEFAULT_ITEMS: DisplayItems = {
+  location: true, icon: true, temperature: true, condition: true,
+  humidity: true, wind: true, pressure: true, dewPoint: false,
+  windGust: false, precipitation: false, lastUpdated: true,
+};
+
+const MODE_PRESETS: Record<Exclude<DisplayMode, 'custom'>, DisplayItems> = {
+  full: { ...DEFAULT_ITEMS },
+  'temperature-only': {
+    ...DEFAULT_ITEMS, humidity: false, wind: false, pressure: false, lastUpdated: false,
+  },
+  'wind-only': {
+    location: true, icon: false, temperature: false, condition: false,
+    humidity: false, wind: true, pressure: false, dewPoint: false,
+    windGust: true, precipitation: false, lastUpdated: false,
+  },
+  minimal: {
+    location: false, icon: true, temperature: true, condition: false,
+    humidity: false, wind: false, pressure: false, dewPoint: false,
+    windGust: false, precipitation: false, lastUpdated: false,
+  },
+};
+
+const ITEM_LABELS: Record<keyof DisplayItems, string> = {
+  location: 'Location Name',
+  icon: 'Weather Icon',
+  temperature: 'Temperature',
+  condition: 'Condition Text',
+  humidity: 'Humidity',
+  wind: 'Wind Speed',
+  pressure: 'Pressure',
+  dewPoint: 'Dew Point',
+  windGust: 'Wind Gusts',
+  precipitation: 'Precipitation',
+  lastUpdated: 'Last Updated Time',
+};
+
 interface WeatherData {
   location: string;
   units: 'celsius' | 'fahrenheit';
   showDetails: boolean;
+  displayMode: DisplayMode;
+  displayItems: DisplayItems;
   apiKey: string;
   dataSource: 'openweathermap' | 'unbc-rooftop';
   refreshInterval: number;
@@ -16,10 +71,17 @@ interface WeatherData {
 }
 
 export default function WeatherOptions({ data, onChange }: WidgetOptionsProps) {
+  const parseItems = (raw: unknown): DisplayItems => {
+    if (raw && typeof raw === 'object') return { ...DEFAULT_ITEMS, ...(raw as Partial<DisplayItems>) };
+    return { ...DEFAULT_ITEMS };
+  };
+
   const [state, setState] = useState<WeatherData>({
     location: (data?.location as string) ?? 'Campus',
     units: (data?.units as 'celsius' | 'fahrenheit') ?? 'fahrenheit',
     showDetails: (data?.showDetails as boolean) ?? true,
+    displayMode: (data?.displayMode as DisplayMode) ?? 'full',
+    displayItems: parseItems(data?.displayItems),
     apiKey: (data?.apiKey as string) ?? '',
     dataSource: (data?.dataSource as 'openweathermap' | 'unbc-rooftop') ?? 'openweathermap',
     refreshInterval: (data?.refreshInterval as number) ?? 10,
@@ -32,6 +94,8 @@ export default function WeatherOptions({ data, onChange }: WidgetOptionsProps) {
         location: (data.location as string) ?? 'Campus',
         units: (data.units as 'celsius' | 'fahrenheit') ?? 'fahrenheit',
         showDetails: (data.showDetails as boolean) ?? true,
+        displayMode: (data.displayMode as DisplayMode) ?? 'full',
+        displayItems: parseItems(data.displayItems),
         apiKey: (data.apiKey as string) ?? '',
         dataSource: (data.dataSource as 'openweathermap' | 'unbc-rooftop') ?? 'openweathermap',
         refreshInterval: (data.refreshInterval as number) ?? 10,
@@ -98,13 +162,65 @@ export default function WeatherOptions({ data, onChange }: WidgetOptionsProps) {
           ]}
           onChange={handleChange}
         />
+      </div>
 
-        <FormSwitch
-          label="Show Details (humidity, wind, pressure)"
-          name="showDetails"
-          checked={state.showDetails}
-          onChange={handleChange}
+      {/* Display Mode */}
+      <div className="space-y-4 border-t border-[color:var(--ui-item-border)] pt-6">
+        <h3 className="font-semibold text-[var(--ui-text)]">Display Mode</h3>
+
+        <FormSelect
+          label="What to show"
+          name="displayMode"
+          value={state.displayMode}
+          options={[
+            { value: 'full', label: 'Full (all details)' },
+            { value: 'temperature-only', label: 'Temperature Only' },
+            { value: 'wind-only', label: 'Wind Only' },
+            { value: 'minimal', label: 'Minimal (icon + temp)' },
+            { value: 'custom', label: 'Custom…' },
+          ]}
+          onChange={(name, value) => {
+            const mode = value as DisplayMode;
+            if (mode !== 'custom') {
+              const items = MODE_PRESETS[mode];
+              const newState = { ...state, displayMode: mode, displayItems: items };
+              setState(newState);
+              onChange(newState);
+            } else {
+              const newState = { ...state, displayMode: mode };
+              setState(newState);
+              onChange(newState);
+            }
+          }}
         />
+
+        {state.displayMode === 'custom' && (
+          <div className="space-y-2 pl-1">
+            {(Object.keys(ITEM_LABELS) as (keyof DisplayItems)[]).map((key) => (
+              <FormSwitch
+                key={key}
+                label={ITEM_LABELS[key]}
+                name={key}
+                checked={state.displayItems[key]}
+                onChange={(_name, checked) => {
+                  const newItems = { ...state.displayItems, [key]: checked };
+                  const newState = { ...state, displayItems: newItems };
+                  setState(newState);
+                  onChange(newState);
+                }}
+              />
+            ))}
+          </div>
+        )}
+
+        {state.displayMode !== 'custom' && (
+          <div className="text-xs text-[var(--ui-text-muted)]">
+            {state.displayMode === 'full' && 'Shows temperature, condition, humidity, wind, pressure, and update time.'}
+            {state.displayMode === 'temperature-only' && 'Shows only temperature, condition, and weather icon.'}
+            {state.displayMode === 'wind-only' && 'Shows a large wind speed display with direction and gusts.'}
+            {state.displayMode === 'minimal' && 'Shows just the weather icon and temperature — nothing else.'}
+          </div>
+        )}
       </div>
 
       {/* Refresh Interval */}

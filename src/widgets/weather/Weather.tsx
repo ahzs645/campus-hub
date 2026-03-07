@@ -33,15 +33,64 @@ interface WeatherData {
   precip?: number;
 }
 
+type DisplayMode = 'full' | 'temperature-only' | 'wind-only' | 'minimal' | 'custom';
+
+interface DisplayItems {
+  location?: boolean;
+  icon?: boolean;
+  temperature?: boolean;
+  condition?: boolean;
+  humidity?: boolean;
+  wind?: boolean;
+  pressure?: boolean;
+  dewPoint?: boolean;
+  windGust?: boolean;
+  precipitation?: boolean;
+  lastUpdated?: boolean;
+}
+
 interface WeatherConfig {
   location?: string;
   units?: 'celsius' | 'fahrenheit';
   apiKey?: string;
-  showDetails?: boolean;
+  showDetails?: boolean; // legacy, ignored if displayMode is set
+  displayMode?: DisplayMode;
+  displayItems?: DisplayItems;
   dataSource?: 'openweathermap' | 'unbc-rooftop';
   refreshInterval?: number; // minutes
   corsProxy?: string;
 }
+
+const DISPLAY_MODE_PRESETS: Record<Exclude<DisplayMode, 'custom'>, DisplayItems> = {
+  full: {
+    location: true, icon: true, temperature: true, condition: true,
+    humidity: true, wind: true, pressure: true, dewPoint: false,
+    windGust: false, precipitation: false, lastUpdated: true,
+  },
+  'temperature-only': {
+    location: true, icon: true, temperature: true, condition: true,
+    humidity: false, wind: false, pressure: false, dewPoint: false,
+    windGust: false, precipitation: false, lastUpdated: false,
+  },
+  'wind-only': {
+    location: true, icon: false, temperature: false, condition: false,
+    humidity: false, wind: true, pressure: false, dewPoint: false,
+    windGust: true, precipitation: false, lastUpdated: false,
+  },
+  minimal: {
+    location: false, icon: true, temperature: true, condition: false,
+    humidity: false, wind: false, pressure: false, dewPoint: false,
+    windGust: false, precipitation: false, lastUpdated: false,
+  },
+};
+
+const resolveDisplayItems = (config: WeatherConfig | undefined): DisplayItems => {
+  const mode = config?.displayMode ?? 'full';
+  if (mode === 'custom') {
+    return config?.displayItems ?? DISPLAY_MODE_PRESETS.full;
+  }
+  return DISPLAY_MODE_PRESETS[mode];
+};
 
 interface OpenWeatherResponse {
   weather?: Array<{
@@ -177,8 +226,8 @@ const parseUNBCWeatherData = (html: string, units: 'celsius' | 'fahrenheit'): We
 export default function Weather({ config, theme, corsProxy: globalCorsProxy }: WidgetComponentProps) {
   const weatherConfig = config as WeatherConfig | undefined;
   const units = weatherConfig?.units ?? 'fahrenheit';
-  const showDetails = weatherConfig?.showDetails ?? true;
   const location = weatherConfig?.location ?? 'Campus';
+  const show = resolveDisplayItems(weatherConfig);
   const apiKey = weatherConfig?.apiKey?.trim();
   const dataSource = weatherConfig?.dataSource ?? 'openweathermap';
   const refreshInterval = weatherConfig?.refreshInterval ?? 10; // minutes
@@ -297,38 +346,89 @@ export default function Weather({ config, theme, corsProxy: globalCorsProxy }: W
         className="flex flex-col justify-center p-6"
       >
         {/* Location */}
-        <div className="text-lg font-medium opacity-70 mb-1" style={{ color: theme.accent }}>
-          {weather.location}
-        </div>
+        {show.location && (
+          <div className="text-lg font-medium opacity-70 mb-1" style={{ color: theme.accent }}>
+            {weather.location}
+          </div>
+        )}
 
         {/* Main weather display */}
-        <div className="flex items-center gap-4">
-          <AppIcon name={WEATHER_ICONS[weather.icon]} className="w-20 h-20 text-white" />
-          <div>
-            <div className="text-6xl font-bold text-white leading-tight">
-              {displayTemp}{tempUnit}
-            </div>
-            <div className="text-lg text-white/70 capitalize">
-              {weather.condition.replace(/-/g, ' ')}
+        {(show.icon || show.temperature || show.condition) && (
+          <div className="flex items-center gap-4">
+            {show.icon && (
+              <AppIcon name={WEATHER_ICONS[weather.icon]} className="w-20 h-20 text-white" />
+            )}
+            <div>
+              {show.temperature && (
+                <div className="text-6xl font-bold text-white leading-tight">
+                  {displayTemp}{tempUnit}
+                </div>
+              )}
+              {show.condition && (
+                <div className="text-lg text-white/70 capitalize">
+                  {weather.condition.replace(/-/g, ' ')}
+                </div>
+              )}
             </div>
           </div>
-        </div>
+        )}
 
-        {/* Details */}
-        {showDetails && (
+        {/* Wind-only hero display (when wind is shown but not temperature) */}
+        {show.wind && !show.temperature && (
+          <div className="flex items-center gap-4 mt-2">
+            <AppIcon name="wind" className="w-16 h-16 text-white" />
+            <div>
+              <div className="text-5xl font-bold text-white leading-tight">
+                {weather.wind} <span className="text-2xl font-normal text-white/70">{windUnit}</span>
+              </div>
+              {weather.windDir != null && (
+                <div className="text-lg text-white/70">
+                  Direction: {weather.windDir}°
+                </div>
+              )}
+              {show.windGust && weather.windGust != null && (
+                <div className="text-base text-white/50">
+                  Gusts: {weather.windGust} {windUnit}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Detail items */}
+        {(show.humidity || (show.wind && show.temperature) || show.pressure || show.dewPoint || show.precipitation) && (
           <div className="mt-4 flex flex-wrap gap-x-5 gap-y-1 text-base text-white/60">
-            <div className="flex items-center gap-1.5">
-              <AppIcon name="droplets" className="w-4 h-4" />
-              <span>{weather.humidity}%</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <AppIcon name="wind" className="w-4 h-4" />
-              <span>{weather.wind} {windUnit}</span>
-            </div>
-            {weather.pressure != null && (
+            {show.humidity && (
+              <div className="flex items-center gap-1.5">
+                <AppIcon name="droplets" className="w-4 h-4" />
+                <span>{weather.humidity}%</span>
+              </div>
+            )}
+            {show.wind && show.temperature && (
+              <div className="flex items-center gap-1.5">
+                <AppIcon name="wind" className="w-4 h-4" />
+                <span>{weather.wind} {windUnit}</span>
+                {show.windGust && weather.windGust != null && (
+                  <span className="text-white/40">(gust {weather.windGust})</span>
+                )}
+              </div>
+            )}
+            {show.pressure && weather.pressure != null && (
               <div className="flex items-center gap-1.5">
                 <AppIcon name="gauge" className="w-4 h-4" />
                 <span>{weather.pressure} hPa</span>
+              </div>
+            )}
+            {show.dewPoint && weather.dewPoint != null && (
+              <div className="flex items-center gap-1.5">
+                <AppIcon name="droplets" className="w-4 h-4" />
+                <span>Dew {weather.dewPoint}{tempUnit}</span>
+              </div>
+            )}
+            {show.precipitation && weather.precip != null && (
+              <div className="flex items-center gap-1.5">
+                <AppIcon name="cloudRain" className="w-4 h-4" />
+                <span>{weather.precip} mm</span>
               </div>
             )}
           </div>
@@ -342,7 +442,7 @@ export default function Weather({ config, theme, corsProxy: globalCorsProxy }: W
         )}
 
         {/* Last updated */}
-        {lastUpdated && !error && (
+        {show.lastUpdated && lastUpdated && !error && (
           <div className="mt-2 text-sm text-white/40">
             Updated {lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </div>
@@ -368,6 +468,8 @@ registerWidget({
     location: 'Campus',
     units: 'fahrenheit',
     showDetails: true,
+    displayMode: 'full',
+    displayItems: DISPLAY_MODE_PRESETS.full,
     apiKey: '',
     dataSource: 'openweathermap',
     refreshInterval: 10,
