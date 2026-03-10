@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { WidgetComponentProps, registerWidget } from '@/lib/widget-registry';
 import { buildCacheKey, buildProxyUrl, fetchJsonWithCache, fetchTextWithCache } from '@/lib/data-cache';
-import { useFitScale } from '@/hooks/useFitScale';
+import { useAdaptiveFitScale } from '@/hooks/useFitScale';
 import GroundwaterLevelOptions from './GroundwaterLevelOptions';
 
 interface GroundwaterConfig {
@@ -328,9 +328,10 @@ export default function GroundwaterLevel({
     };
   }, [fetchData, refreshMs]);
 
-  const DESIGN_W = 340;
-  const DESIGN_H = 280;
-  const { containerRef, scale } = useFitScale(DESIGN_W, DESIGN_H);
+  const { containerRef, scale, designWidth: DESIGN_W, designHeight: DESIGN_H, isLandscape } = useAdaptiveFitScale({
+    landscape: { w: 340, h: 280 },
+    portrait: { w: 240, h: 380 },
+  });
 
   const levelDisplay =
     data.currentLevel != null ? data.currentLevel.toFixed(3) : '—';
@@ -357,18 +358,18 @@ export default function GroundwaterLevel({
           transform: `scale(${scale})`,
           transformOrigin: 'top left',
         }}
-        className="flex flex-col p-6"
+        className={`flex flex-col p-6 ${!isLandscape ? 'items-center' : ''}`}
       >
         {/* Header */}
         <div
-          className="text-sm font-medium opacity-70 mb-1"
+          className={`text-sm font-medium opacity-70 mb-1 ${!isLandscape ? 'text-center' : ''}`}
           style={{ color: theme.accent }}
         >
           {data.locationId} &mdash; Groundwater
         </div>
 
         {/* Main level display */}
-        <div className="flex items-center gap-5 mb-3">
+        <div className={`flex ${isLandscape ? 'items-center gap-5' : 'flex-col items-center gap-3'} mb-3`}>
           <div
             className="w-20 h-20 rounded-2xl flex items-center justify-center flex-shrink-0"
             style={{ backgroundColor: `${theme.accent}30` }}
@@ -405,7 +406,7 @@ export default function GroundwaterLevel({
           <div className="mb-3">
             <Sparkline
               data={historyValues}
-              width={292}
+              width={DESIGN_W - 48}
               height={60}
               color={theme.accent}
             />
@@ -430,7 +431,7 @@ export default function GroundwaterLevel({
 
         {/* Stats row */}
         {historyValues.length > 0 && (
-          <div className="flex gap-4 text-sm text-white/60">
+          <div className={`flex gap-4 text-sm text-white/60 ${!isLandscape ? 'justify-center' : ''}`}>
             <div>
               <span className="text-white/40 mr-1">Min</span>
               {Math.min(...historyValues).toFixed(2)}

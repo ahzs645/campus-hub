@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { WidgetComponentProps, registerWidget } from '@/lib/widget-registry';
-import { useFitScale } from '@/hooks/useFitScale';
+import { useAdaptiveFitScale } from '@/hooks/useFitScale';
 import ClockOptions from './ClockOptions';
 
 interface ClockConfig {
@@ -132,9 +132,13 @@ export default function Clock({ config, theme }: WidgetComponentProps) {
 
   const isAnalog = clockStyle === 'analog';
 
-  const DESIGN_W = isAnalog ? 240 : 320;
-  const DESIGN_H = isAnalog ? 260 : 100;
-  const { containerRef, scale } = useFitScale(DESIGN_W, DESIGN_H);
+  // Adaptive dimensions: analog clock adapts between landscape/portrait,
+  // digital clock swaps between wide banner and tall stacked layout
+  const { containerRef, scale, designWidth: DESIGN_W, designHeight: DESIGN_H, isLandscape } = useAdaptiveFitScale(
+    isAnalog
+      ? { landscape: { w: 300, h: 260 }, portrait: { w: 240, h: 300 } }
+      : { landscape: { w: 320, h: 100 }, portrait: { w: 200, h: 140 } },
+  );
 
   const alignmentStyles = {
     left: {

@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { WidgetComponentProps, registerWidget } from '@/lib/widget-registry';
 import { buildCacheKey, buildProxyUrl, fetchJsonWithCache, fetchTextWithCache } from '@/lib/data-cache';
-import { useFitScale } from '@/hooks/useFitScale';
+import { useAdaptiveFitScale } from '@/hooks/useFitScale';
 import AirQualityOptions from './AirQualityOptions';
 
 interface AirQualityConfig {
@@ -186,9 +186,10 @@ export default function AirQuality({ config, theme, corsProxy: globalCorsProxy }
     };
   }, [dataSource, fetchWaqi, fetchBcAqhi, refreshMs]);
 
-  const DESIGN_W = 340;
-  const DESIGN_H = 280;
-  const { containerRef, scale } = useFitScale(DESIGN_W, DESIGN_H);
+  const { containerRef, scale, designWidth: DESIGN_W, designHeight: DESIGN_H, isLandscape } = useAdaptiveFitScale({
+    landscape: { w: 340, h: 280 },
+    portrait: { w: 240, h: 380 },
+  });
 
   const pollutants = [
     { key: 'pm25', label: 'PM2.5', value: data.pm25 },
@@ -215,15 +216,15 @@ export default function AirQuality({ config, theme, corsProxy: globalCorsProxy }
           transform: `scale(${scale})`,
           transformOrigin: 'top left',
         }}
-        className="flex flex-col p-6"
+        className={`flex flex-col p-6 ${!isLandscape ? 'items-center' : ''}`}
       >
         {/* Header */}
-        <div className="text-sm font-medium opacity-70 mb-1" style={{ color: theme.accent }}>
+        <div className={`text-sm font-medium opacity-70 mb-1 ${!isLandscape ? 'text-center' : ''}`} style={{ color: theme.accent }}>
           {data.station ?? 'Air Quality'}
         </div>
 
         {/* Main AQI display */}
-        <div className="flex items-center gap-5 mb-4">
+        <div className={`flex ${isLandscape ? 'items-center gap-5' : 'flex-col items-center gap-3'} mb-4`}>
           <div
             className="w-20 h-20 rounded-2xl flex items-center justify-center flex-shrink-0"
             style={{ backgroundColor: data.color }}
@@ -264,7 +265,7 @@ export default function AirQuality({ config, theme, corsProxy: globalCorsProxy }
 
         {/* Pollutant breakdown */}
         {pollutants.length > 0 && (
-          <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-white/60">
+          <div className={`flex flex-wrap gap-x-4 gap-y-1 text-sm text-white/60 ${!isLandscape ? 'justify-center' : ''}`}>
             {pollutants.map((p) => (
               <div key={p.key} className="flex items-center gap-1">
                 <span className="font-medium text-white/40">{p.label}</span>

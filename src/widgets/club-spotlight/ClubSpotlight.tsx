@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { WidgetComponentProps, registerWidget } from '@/lib/widget-registry';
 import { buildCacheKey, buildProxyUrl, fetchJsonWithCache, fetchTextWithCache } from '@/lib/data-cache';
-import { useFitScale } from '@/hooks/useFitScale';
+import { useAdaptiveFitScale } from '@/hooks/useFitScale';
 import ClubSpotlightOptions from './ClubSpotlightOptions';
 
 interface ClubItem {
@@ -226,9 +226,11 @@ export default function ClubSpotlight({ config, theme, corsProxy: globalCorsProx
     };
   }, [clubs.length, rotationSeconds]);
 
-  const DESIGN_W = 380;
-  const DESIGN_H = 340;
-  const { containerRef, scale } = useFitScale(DESIGN_W, DESIGN_H);
+  // Portrait: taller with larger image; landscape: side-by-side layout
+  const { containerRef, scale, designWidth: DESIGN_W, designHeight: DESIGN_H, isLandscape } = useAdaptiveFitScale({
+    landscape: { w: 420, h: 260 },
+    portrait: { w: 280, h: 380 },
+  });
 
   const current = clubs[activeIndex % clubs.length];
 
@@ -245,19 +247,11 @@ export default function ClubSpotlight({ config, theme, corsProxy: globalCorsProx
           transform: `scale(${scale})`,
           transformOrigin: 'top left',
         }}
-        className="flex flex-col items-center justify-center p-6"
+        className={`flex ${isLandscape ? 'items-center gap-6' : 'flex-col items-center justify-center'} p-6`}
       >
-        {/* Header */}
-        <div
-          className="text-sm font-semibold tracking-wide uppercase mb-4"
-          style={{ color: theme.accent }}
-        >
-          Club Spotlight
-        </div>
-
         {/* Club Image */}
         <div
-          className="w-40 h-40 rounded-full overflow-hidden border-4 mb-4 transition-all duration-700"
+          className={`${isLandscape ? 'w-32 h-32' : 'w-40 h-40'} rounded-full overflow-hidden border-4 ${isLandscape ? '' : 'mb-4'} transition-all duration-700 flex-shrink-0`}
           style={{ borderColor: theme.accent }}
         >
           {current?.image ? (
@@ -277,31 +271,52 @@ export default function ClubSpotlight({ config, theme, corsProxy: globalCorsProx
           )}
         </div>
 
-        {/* Club Name */}
-        <div className="text-2xl font-bold text-white text-center leading-tight mb-2 px-4 truncate max-w-full">
-          {current?.name || 'Loading...'}
-        </div>
+        {/* Club details */}
+        <div className={isLandscape ? 'flex flex-col min-w-0' : ''}>
+          {/* Header */}
+          {isLandscape && (
+            <div
+              className="text-sm font-semibold tracking-wide uppercase mb-2"
+              style={{ color: theme.accent }}
+            >
+              Club Spotlight
+            </div>
+          )}
+          {!isLandscape && (
+            <div
+              className="text-sm font-semibold tracking-wide uppercase mb-4"
+              style={{ color: theme.accent }}
+            >
+              Club Spotlight
+            </div>
+          )}
 
-        {/* Progress dots */}
-        {clubs.length > 1 && (
-          <div className="flex gap-1.5 mt-2">
-            {clubs.map((_, i) => (
-              <div
-                key={i}
-                className="h-1.5 rounded-full transition-all duration-300"
-                style={{
-                  width: i === activeIndex ? 20 : 8,
-                  backgroundColor: i === activeIndex ? theme.accent : 'rgba(255,255,255,0.3)',
-                }}
-              />
-            ))}
+          {/* Club Name */}
+          <div className={`text-2xl font-bold text-white ${isLandscape ? 'text-left' : 'text-center'} leading-tight mb-2 truncate max-w-full`}>
+            {current?.name || 'Loading...'}
           </div>
-        )}
 
-        {/* Error / defaults notice */}
-        {error && usingDefaults && (
-          <div className="text-xs text-white/40 mt-2">Sample data — configure CORS proxy to load clubs</div>
-        )}
+          {/* Progress dots */}
+          {clubs.length > 1 && (
+            <div className={`flex gap-1.5 mt-2 ${!isLandscape ? 'justify-center' : ''}`}>
+              {clubs.map((_, i) => (
+                <div
+                  key={i}
+                  className="h-1.5 rounded-full transition-all duration-300"
+                  style={{
+                    width: i === activeIndex ? 20 : 8,
+                    backgroundColor: i === activeIndex ? theme.accent : 'rgba(255,255,255,0.3)',
+                  }}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* Error / defaults notice */}
+          {error && usingDefaults && (
+            <div className="text-xs text-white/40 mt-2">Sample data — configure CORS proxy to load clubs</div>
+          )}
+        </div>
       </div>
     </div>
   );

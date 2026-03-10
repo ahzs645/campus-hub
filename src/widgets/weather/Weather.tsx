@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { WidgetComponentProps, registerWidget } from '@/lib/widget-registry';
 import { buildCacheKey, buildProxyUrl, fetchJsonWithCache, fetchTextWithCache } from '@/lib/data-cache';
-import { useFitScale } from '@/hooks/useFitScale';
+import { useAdaptiveFitScale } from '@/hooks/useFitScale';
 import AppIcon from '@/components/AppIcon';
 import type { IconName } from '@/lib/icon-names';
 import WeatherOptions from './WeatherOptions';
@@ -325,10 +325,11 @@ export default function Weather({ config, theme, corsProxy: globalCorsProxy }: W
   const tempUnit = units === 'celsius' ? '°C' : '°F';
   const windUnit = units === 'celsius' ? 'm/s' : 'mph';
 
-  // Design at a fixed reference size; useFitScale will scale to fill container
-  const DESIGN_W = 340;
-  const DESIGN_H = 260;
-  const { containerRef, scale } = useFitScale(DESIGN_W, DESIGN_H);
+  // Adaptive design dimensions: landscape uses wide layout, portrait stacks vertically
+  const { containerRef, scale, designWidth, designHeight, isLandscape } = useAdaptiveFitScale({
+    landscape: { w: 340, h: 260 },
+    portrait: { w: 240, h: 360 },
+  });
 
   return (
     <div
@@ -338,27 +339,27 @@ export default function Weather({ config, theme, corsProxy: globalCorsProxy }: W
     >
       <div
         style={{
-          width: DESIGN_W,
-          height: DESIGN_H,
+          width: designWidth,
+          height: designHeight,
           transform: `scale(${scale})`,
           transformOrigin: 'top left',
         }}
-        className="flex flex-col justify-center p-6"
+        className={`flex flex-col ${isLandscape ? 'justify-center' : 'items-center justify-center'} p-6`}
       >
         {/* Location */}
         {show.location && (
-          <div className="text-lg font-medium opacity-70 mb-1" style={{ color: theme.accent }}>
+          <div className={`text-lg font-medium opacity-70 mb-1 ${!isLandscape ? 'text-center' : ''}`} style={{ color: theme.accent }}>
             {weather.location}
           </div>
         )}
 
         {/* Main weather display */}
         {(show.icon || show.temperature || show.condition) && (
-          <div className="flex items-center gap-4">
+          <div className={`flex ${isLandscape ? 'items-center gap-4' : 'flex-col items-center gap-2'}`}>
             {show.icon && (
-              <AppIcon name={WEATHER_ICONS[weather.icon]} className="w-20 h-20 text-white" />
+              <AppIcon name={WEATHER_ICONS[weather.icon]} className={`${isLandscape ? 'w-20 h-20' : 'w-24 h-24'} text-white`} />
             )}
-            <div>
+            <div className={!isLandscape ? 'text-center' : ''}>
               {show.temperature && (
                 <div className="text-6xl font-bold text-white leading-tight">
                   {displayTemp}{tempUnit}
@@ -375,9 +376,9 @@ export default function Weather({ config, theme, corsProxy: globalCorsProxy }: W
 
         {/* Wind-only hero display (when wind is shown but not temperature) */}
         {show.wind && !show.temperature && (
-          <div className="flex items-center gap-4 mt-2">
+          <div className={`flex ${isLandscape ? 'items-center gap-4 mt-2' : 'flex-col items-center gap-2 mt-2'}`}>
             <AppIcon name="wind" className="w-16 h-16 text-white" />
-            <div>
+            <div className={!isLandscape ? 'text-center' : ''}>
               <div className="text-5xl font-bold text-white leading-tight">
                 {weather.wind} <span className="text-2xl font-normal text-white/70">{windUnit}</span>
               </div>
@@ -397,7 +398,7 @@ export default function Weather({ config, theme, corsProxy: globalCorsProxy }: W
 
         {/* Detail items */}
         {(show.humidity || (show.wind && show.temperature) || show.pressure || show.dewPoint || show.precipitation) && (
-          <div className="mt-4 flex flex-wrap gap-x-5 gap-y-1 text-base text-white/60">
+          <div className={`mt-4 flex flex-wrap gap-x-5 gap-y-1 text-base text-white/60 ${!isLandscape ? 'justify-center' : ''}`}>
             {show.humidity && (
               <div className="flex items-center gap-1.5">
                 <AppIcon name="droplets" className="w-4 h-4" />
@@ -443,7 +444,7 @@ export default function Weather({ config, theme, corsProxy: globalCorsProxy }: W
 
         {/* Last updated */}
         {show.lastUpdated && lastUpdated && !error && (
-          <div className="mt-2 text-sm text-white/40">
+          <div className={`mt-2 text-sm text-white/40 ${!isLandscape ? 'text-center' : ''}`}>
             Updated {lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </div>
         )}

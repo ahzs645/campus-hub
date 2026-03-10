@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { WidgetComponentProps, registerWidget } from '@/lib/widget-registry';
 import { buildCacheKey, buildProxyUrl, fetchTextWithCache } from '@/lib/data-cache';
-import { useFitScale } from '@/hooks/useFitScale';
+import { useAdaptiveFitScale } from '@/hooks/useFitScale';
 import AppIcon from '@/components/AppIcon';
 import ClimbingGymOptions from './ClimbingGymOptions';
 
@@ -177,9 +177,10 @@ export default function ClimbingGym({ config, theme, corsProxy: globalCorsProxy 
 
   const isOpen = openStatus.isOpen;
 
-  const DESIGN_W = 340;
-  const DESIGN_H = 240;
-  const { containerRef, scale } = useFitScale(DESIGN_W, DESIGN_H);
+  const { containerRef, scale, designWidth: DESIGN_W, designHeight: DESIGN_H, isLandscape } = useAdaptiveFitScale({
+    landscape: { w: 340, h: 240 },
+    portrait: { w: 240, h: 340 },
+  });
 
   return (
     <div
@@ -194,17 +195,17 @@ export default function ClimbingGym({ config, theme, corsProxy: globalCorsProxy 
           transform: `scale(${scale})`,
           transformOrigin: 'top left',
         }}
-        className="flex flex-col justify-center p-6"
+        className={`flex flex-col ${isLandscape ? 'justify-center' : 'items-center justify-center'} p-6`}
       >
         {/* Gym name */}
-        <div className="text-lg font-medium opacity-70 mb-1" style={{ color: theme.accent }}>
+        <div className={`text-lg font-medium opacity-70 mb-1 ${!isLandscape ? 'text-center' : ''}`} style={{ color: theme.accent }}>
           {gymName}
         </div>
 
         {isOpen ? (
           <>
             {/* Main count display */}
-            <div className="flex items-center gap-4">
+            <div className={`flex ${isLandscape ? 'items-center gap-4' : 'flex-col items-center gap-2'}`}>
               <AppIcon name="mountain" className="w-16 h-16 text-white" />
               <div>
                 <div className="flex items-baseline gap-2">
@@ -243,7 +244,7 @@ export default function ClimbingGym({ config, theme, corsProxy: globalCorsProxy 
 
             {/* Open status + closes at */}
             {showHours && (
-              <div className="mt-3 flex items-center gap-2 text-sm">
+              <div className={`mt-3 flex items-center gap-2 text-sm ${!isLandscape ? 'justify-center' : ''}`}>
                 <span className="inline-block w-2 h-2 rounded-full flex-shrink-0 bg-green-500" />
                 <span className="font-medium text-green-500">Open</span>
                 <span className="text-white/40">{openStatus.closesOrOpensAt}</span>

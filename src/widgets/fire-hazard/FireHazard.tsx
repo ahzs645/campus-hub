@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { WidgetComponentProps, registerWidget } from '@/lib/widget-registry';
 import { buildCacheKey, buildProxyUrl, fetchTextWithCache } from '@/lib/data-cache';
-import { useFitScale } from '@/hooks/useFitScale';
+import { useAdaptiveFitScale } from '@/hooks/useFitScale';
 import FireHazardOptions from './FireHazardOptions';
 
 interface FireHazardConfig {
@@ -214,9 +214,10 @@ export default function FireHazard({
     };
   }, [fetchData, refreshMs]);
 
-  const DESIGN_W = 340;
-  const DESIGN_H = 280;
-  const { containerRef, scale } = useFitScale(DESIGN_W, DESIGN_H);
+  const { containerRef, scale, designWidth: DESIGN_W, designHeight: DESIGN_H, isLandscape } = useAdaptiveFitScale({
+    landscape: { w: 340, h: 280 },
+    portrait: { w: 240, h: 380 },
+  });
 
   // Flame icon paths (inline SVG for the main display)
   const flameIcon = (
@@ -252,18 +253,18 @@ export default function FireHazard({
           transform: `scale(${scale})`,
           transformOrigin: 'top left',
         }}
-        className="flex flex-col p-6"
+        className={`flex flex-col p-6 ${!isLandscape ? 'items-center' : ''}`}
       >
         {/* Header */}
         <div
-          className="text-sm font-medium opacity-70 mb-1"
+          className={`text-sm font-medium opacity-70 mb-1 ${!isLandscape ? 'text-center' : ''}`}
           style={{ color: theme.accent }}
         >
           {centreShort} &mdash; Fire Danger
         </div>
 
         {/* Main danger display */}
-        <div className="flex items-center gap-5 mb-4">
+        <div className={`flex ${isLandscape ? 'items-center gap-5' : 'flex-col items-center gap-3'} mb-4`}>
           <div
             className="w-20 h-20 rounded-2xl flex items-center justify-center flex-shrink-0"
             style={{ backgroundColor: data.color, color: data.textColor }}
@@ -306,7 +307,7 @@ export default function FireHazard({
 
         {/* Station breakdown (top 3) */}
         {data.stations.length > 0 && (
-          <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-white/60">
+          <div className={`flex flex-wrap gap-x-4 gap-y-1 text-sm text-white/60 ${!isLandscape ? 'justify-center' : ''}`}>
             {data.stations.slice(0, 4).map((s, i) => (
               <div key={i} className="flex items-center gap-1">
                 <span
