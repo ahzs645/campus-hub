@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { WidgetComponentProps, registerWidget } from '@/lib/widget-registry';
 import { buildCacheKey, fetchJsonWithCache } from '@/lib/data-cache';
-import { useFitScale } from '@/hooks/useFitScale';
+import { useAdaptiveFitScale } from '@/hooks/useFitScale';
 import UvIndexOptions from './UvIndexOptions';
 
 interface UvIndexConfig {
@@ -174,9 +174,10 @@ export default function UvIndex({ config, theme }: WidgetComponentProps) {
     };
   }, [dataSource, fetchOpenUv, fetchWaqiUv, refreshMs]);
 
-  const DESIGN_W = 340;
-  const DESIGN_H = 260;
-  const { containerRef, scale } = useFitScale(DESIGN_W, DESIGN_H);
+  const { containerRef, scale, designWidth: DESIGN_W, designHeight: DESIGN_H, isLandscape } = useAdaptiveFitScale({
+    landscape: { w: 340, h: 260 },
+    portrait: { w: 240, h: 360 },
+  });
 
   // Position marker on UV scale (0-14 range)
   const markerPercent = Math.min(100, (data.value / 14) * 100);
@@ -194,15 +195,15 @@ export default function UvIndex({ config, theme }: WidgetComponentProps) {
           transform: `scale(${scale})`,
           transformOrigin: 'top left',
         }}
-        className="flex flex-col p-6"
+        className={`flex flex-col p-6 ${!isLandscape ? 'items-center' : ''}`}
       >
         {/* Header */}
-        <div className="text-sm font-medium opacity-70 mb-1" style={{ color: theme.accent }}>
+        <div className={`text-sm font-medium opacity-70 mb-1 ${!isLandscape ? 'text-center' : ''}`} style={{ color: theme.accent }}>
           UV Index
         </div>
 
         {/* Main UV display */}
-        <div className="flex items-center gap-5 mb-4">
+        <div className={`flex ${isLandscape ? 'items-center gap-5' : 'flex-col items-center gap-3'} mb-4`}>
           <div
             className="w-20 h-20 rounded-2xl flex items-center justify-center flex-shrink-0"
             style={{ backgroundColor: data.color }}

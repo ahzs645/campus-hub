@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { WidgetComponentProps, registerWidget } from '@/lib/widget-registry';
-import { useFitScale } from '@/hooks/useFitScale';
+import { useAdaptiveFitScale } from '@/hooks/useFitScale';
 import CountdownOptions from './CountdownOptions';
 
 type UnitVisibility = 'auto' | 'show' | 'hide';
@@ -223,9 +223,11 @@ export default function Countdown({ config, theme }: WidgetComponentProps) {
     };
   }, [activeMilestones.length, rotationSeconds]);
 
-  const DESIGN_W = 500;
-  const DESIGN_H = 220;
-  const { containerRef, scale } = useFitScale(DESIGN_W, DESIGN_H);
+  // Landscape: wide banner for all units in a row; portrait: taller with wrapping units
+  const { containerRef, scale, designWidth: DESIGN_W, designHeight: DESIGN_H, isLandscape } = useAdaptiveFitScale({
+    landscape: { w: 500, h: 220 },
+    portrait: { w: 280, h: 360 },
+  });
 
   const isFinished = remaining.total <= 0;
 
@@ -289,7 +291,7 @@ export default function Countdown({ config, theme }: WidgetComponentProps) {
             )}
           </div>
         ) : (
-          <div className="flex items-center gap-1">
+          <div className={`flex ${isLandscape ? 'items-center gap-1' : 'flex-wrap items-center justify-center gap-1'}`}>
             {units.map((unit, i) => (
               <div key={unit.key} className="flex items-center">
                 {i > 0 && unit.key !== 'ms' && <Separator />}

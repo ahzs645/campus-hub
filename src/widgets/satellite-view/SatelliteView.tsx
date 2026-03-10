@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { WidgetComponentProps, registerWidget } from '@/lib/widget-registry';
-import { useFitScale } from '@/hooks/useFitScale';
+import { useAdaptiveFitScale } from '@/hooks/useFitScale';
 import SatelliteViewOptions from './SatelliteViewOptions';
 
 interface SatelliteViewConfig {
@@ -56,9 +56,11 @@ export default function SatelliteView({ config, theme }: WidgetComponentProps) {
   const showLabel = cfg?.showLabel ?? true;
   const locationLabel = cfg?.locationLabel?.trim() || '';
 
-  const DESIGN_W = 400;
-  const DESIGN_H = 300;
-  const { containerRef, scale } = useFitScale(DESIGN_W, DESIGN_H);
+  // Adapt to container aspect ratio for better coverage
+  const { containerRef, scale, designWidth: DESIGN_W, designHeight: DESIGN_H } = useAdaptiveFitScale({
+    landscape: { w: 400, h: 300 },
+    portrait: { w: 300, h: 400 },
+  });
 
   const TILE_SIZE = 256;
 
