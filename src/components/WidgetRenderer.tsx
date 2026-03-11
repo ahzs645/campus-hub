@@ -1,6 +1,6 @@
 'use client';
 
-import { getWidgetComponent } from '@/widgets';
+import { DISPLAY_WIDGET_COMPONENTS } from '@/lib/display-widget-components';
 import type { WidgetConfig } from '@/lib/config';
 
 interface WidgetRendererProps {
@@ -14,7 +14,7 @@ interface WidgetRendererProps {
 }
 
 export default function WidgetRenderer({ widget, theme, corsProxy }: WidgetRendererProps) {
-  const Component = getWidgetComponent(widget.type);
+  const Component = DISPLAY_WIDGET_COMPONENTS[widget.type];
 
   if (!Component) {
     return (

@@ -10,8 +10,8 @@ import {
   type WidgetConfig,
 } from '@/lib/config';
 import { buildCacheKey, fetchJsonWithCache } from '@/lib/data-cache';
+import { preloadDisplayWidgetComponent } from '@/lib/display-widget-components';
 import WidgetRenderer from '@/components/WidgetRenderer';
-import '@/widgets'; // Register all widgets
 
 interface PlaylistItem {
   id?: string;
@@ -241,6 +241,10 @@ function DisplayContent() {
 
   // Grid margin matches the editor formula: height * 0.0075
   const gridMargin = Math.max(2, Math.round(REF_HEIGHT * 0.0075));
+
+  useEffect(() => {
+    layout.forEach((widget) => preloadDisplayWidgetComponent(widget.type));
+  }, [layout]);
 
   return (
     <div

@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { WidgetComponentProps, registerWidget, getWidgetComponent } from '@/lib/widget-registry';
+import { DISPLAY_WIDGET_COMPONENTS, preloadDisplayWidgetComponent } from '@/lib/display-widget-components';
+import { WidgetComponentProps, registerWidget } from '@/lib/widget-registry';
 import WidgetStackOptions from './WidgetStackOptions';
 
 export interface ChildWidgetDef {
@@ -29,13 +30,19 @@ function RenderedChild({
   theme,
   corsProxy,
   isActive,
+  shouldRender = true,
 }: {
   child: ChildWidgetDef;
   theme: WidgetComponentProps['theme'];
   corsProxy?: string;
   isActive: boolean;
+  shouldRender?: boolean;
 }) {
-  const WidgetComponent = getWidgetComponent(child.type);
+  if (!shouldRender) {
+    return <div className="w-full h-full" />;
+  }
+
+  const WidgetComponent = DISPLAY_WIDGET_COMPONENTS[child.type];
   if (!WidgetComponent) {
     return (
       <div className="w-full h-full flex items-center justify-center text-white/30 text-sm">
@@ -117,7 +124,13 @@ function StackMode({
                 : {}),
             }}
           >
-            <RenderedChild child={child} theme={theme} corsProxy={corsProxy} isActive={isActive} />
+            <RenderedChild
+              child={child}
+              theme={theme}
+              corsProxy={corsProxy}
+              isActive={isActive}
+              shouldRender={isActive}
+            />
           </div>
         );
       })}
@@ -179,7 +192,13 @@ function CarouselMode({
                 : '0 10px 30px rgba(0,0,0,0.3)',
             }}
           >
-            <RenderedChild child={child} theme={theme} corsProxy={corsProxy} isActive={isActive} />
+            <RenderedChild
+              child={child}
+              theme={theme}
+              corsProxy={corsProxy}
+              isActive={isActive}
+              shouldRender={isVisible}
+            />
           </div>
         );
       })}
@@ -207,12 +226,14 @@ function CarouselMode({
 function FadeMode({
   items,
   activeIndex,
+  previousActiveIndex,
   theme,
   corsProxy,
   progress,
 }: {
   items: ChildWidgetDef[];
   activeIndex: number;
+  previousActiveIndex: number | null;
   theme: WidgetComponentProps['theme'];
   corsProxy?: string;
   progress: number;
@@ -221,13 +242,20 @@ function FadeMode({
     <div className="relative w-full h-full rounded-2xl overflow-hidden">
       {items.map((child, i) => {
         const isActive = i === activeIndex;
+        const wasActive = i === previousActiveIndex;
         return (
           <div
             key={child.id}
             className="absolute inset-0 transition-opacity duration-700"
             style={{ opacity: isActive ? 1 : 0 }}
           >
-            <RenderedChild child={child} theme={theme} corsProxy={corsProxy} isActive={isActive} />
+            <RenderedChild
+              child={child}
+              theme={theme}
+              corsProxy={corsProxy}
+              isActive={isActive}
+              shouldRender={isActive || wasActive}
+            />
           </div>
         );
       })}
@@ -275,15 +303,44 @@ export default function WidgetStack({ config, theme, corsProxy }: WidgetComponen
   const items = stackConfig?.children?.length ? stackConfig.children : DEFAULT_CHILDREN;
 
   const [activeIndex, setActiveIndex] = useState(0);
+  const [previousActiveIndex, setPreviousActiveIndex] = useState<number | null>(null);
   const [progress, setProgress] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const progressRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const fadeCleanupRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastActiveIndexRef = useRef<number | null>(null);
+  const resolvedActiveIndex = items.length > 0 ? activeIndex % items.length : 0;
+  const resolvedPreviousActiveIndex =
+    previousActiveIndex !== null && previousActiveIndex < items.length
+      ? previousActiveIndex
+      : null;
 
-  // Reset when children change
   useEffect(() => {
-    setActiveIndex(0);
-    setProgress(0);
-  }, [items.length]);
+    items.forEach((child) => preloadDisplayWidgetComponent(child.type));
+  }, [items]);
+
+  useEffect(() => {
+    if (lastActiveIndexRef.current === null || resolvedActiveIndex === lastActiveIndexRef.current) {
+      lastActiveIndexRef.current = resolvedActiveIndex;
+      return;
+    }
+
+    const previous = lastActiveIndexRef.current;
+    lastActiveIndexRef.current = resolvedActiveIndex;
+    setPreviousActiveIndex(previous);
+
+    if (fadeCleanupRef.current) clearTimeout(fadeCleanupRef.current);
+    fadeCleanupRef.current = setTimeout(() => {
+      setPreviousActiveIndex((current) => (current === previous ? null : current));
+      fadeCleanupRef.current = null;
+    }, 700);
+  }, [resolvedActiveIndex]);
+
+  useEffect(() => {
+    return () => {
+      if (fadeCleanupRef.current) clearTimeout(fadeCleanupRef.current);
+    };
+  }, []);
 
   // Auto-rotation timer
   const advance = useCallback(() => {
@@ -320,13 +377,20 @@ export default function WidgetStack({ config, theme, corsProxy }: WidgetComponen
   return (
     <div className="w-full h-full rounded-2xl overflow-hidden" style={{ backgroundColor: `${theme.primary}20` }}>
       {animationMode === 'stack' && (
-        <StackMode items={items} activeIndex={activeIndex} theme={theme} corsProxy={corsProxy} />
+        <StackMode items={items} activeIndex={resolvedActiveIndex} theme={theme} corsProxy={corsProxy} />
       )}
       {animationMode === 'carousel' && (
-        <CarouselMode items={items} activeIndex={activeIndex} theme={theme} corsProxy={corsProxy} />
+        <CarouselMode items={items} activeIndex={resolvedActiveIndex} theme={theme} corsProxy={corsProxy} />
       )}
       {animationMode === 'fade' && (
-        <FadeMode items={items} activeIndex={activeIndex} theme={theme} corsProxy={corsProxy} progress={progress} />
+        <FadeMode
+          items={items}
+          activeIndex={resolvedActiveIndex}
+          previousActiveIndex={resolvedPreviousActiveIndex}
+          theme={theme}
+          corsProxy={corsProxy}
+          progress={progress}
+        />
       )}
     </div>
   );
