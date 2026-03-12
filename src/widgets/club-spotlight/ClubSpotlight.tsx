@@ -21,8 +21,9 @@ interface ClubSpotlightConfig {
   refreshMinutes?: number;
 }
 
-// WordPress REST API for clubs custom post type with embedded featured images
-const DEFAULT_API_URL = 'https://overtheedge.unbc.ca/wp-json/wp/v2/clubs?per_page=100&_embed=wp:featuredmedia';
+// WordPress REST API for organization custom post type with embedded featured images.
+// org_status 181=Established, 183=Probationary, 182=New — excludes dissolved/inactive.
+const DEFAULT_API_URL = 'https://overtheedge.unbc.ca/wp-json/wp/v2/organization?per_page=100&_embed=wp:featuredmedia&org_status=181,183,182';
 const DEFAULT_PAGE_URL = 'https://overtheedge.unbc.ca/clubs/';
 
 const DEFAULT_CLUBS: ClubItem[] = [
@@ -67,9 +68,12 @@ function parseClubsFromApi(posts: WpClubPost[]): ClubItem[] {
 
       // Try to get featured image from _embedded
       const media = post._embedded?.['wp:featuredmedia']?.[0];
+      const sizes = media?.media_details?.sizes as Record<string, { source_url?: string }> | undefined;
       const image =
-        media?.media_details?.sizes?.medium?.source_url ??
-        media?.media_details?.sizes?.full?.source_url ??
+        sizes?.['ote-card-thumbnail']?.source_url ??
+        sizes?.medium?.source_url ??
+        sizes?.['ote-hero-image']?.source_url ??
+        sizes?.full?.source_url ??
         media?.source_url ??
         '';
 
@@ -95,15 +99,31 @@ function parseClubsFromHtml(html: string): ClubItem[] {
   // Try multiple selectors to find club entries.
   const clubs: ClubItem[] = [];
 
-  // Strategy 1: Look for article/card elements with images and titles
+  // Strategy 1: WordPress block post template (used on overtheedge.unbc.ca/clubs/)
+  // Clubs are rendered as <li> elements inside .wp-block-post-template with
+  // <h3 class="wp-block-post-title"> for names and <img> for images.
+  const postItems = doc.querySelectorAll('.wp-block-post-template li, .wp-block-post-template > *');
+  postItems.forEach((el, i) => {
+    const img = el.querySelector('img');
+    const heading = el.querySelector('.wp-block-post-title, h1, h2, h3, h4, h5, h6');
+    const image = img?.getAttribute('src') || img?.getAttribute('data-src') || '';
+    const name = heading?.textContent?.trim() || img?.getAttribute('alt')?.trim() || '';
+    if (name) {
+      clubs.push({ id: `wp-${i}`, name, image });
+    }
+  });
+
+  if (clubs.length > 0) return clubs;
+
+  // Strategy 2: Look for article/card elements with images and titles
   const articles = doc.querySelectorAll('article, .club, .club-card, .wp-block-group, .ote-club');
   articles.forEach((el, i) => {
     const img = el.querySelector('img');
     const heading = el.querySelector('h1, h2, h3, h4, h5, h6, .club-name, .title');
-    if (img && heading) {
-      const image = img.getAttribute('src') || img.getAttribute('data-src') || '';
+    if (heading) {
+      const image = img?.getAttribute('src') || img?.getAttribute('data-src') || '';
       const name = heading.textContent?.trim() || '';
-      if (name && image) {
+      if (name) {
         clubs.push({ id: `club-${i}`, name, image });
       }
     }
@@ -111,7 +131,7 @@ function parseClubsFromHtml(html: string): ClubItem[] {
 
   if (clubs.length > 0) return clubs;
 
-  // Strategy 2: Look for figure + figcaption or image + adjacent text patterns
+  // Strategy 3: Look for figure + figcaption or image + adjacent text patterns
   const figures = doc.querySelectorAll('figure');
   figures.forEach((fig, i) => {
     const img = fig.querySelector('img');
@@ -127,7 +147,7 @@ function parseClubsFromHtml(html: string): ClubItem[] {
 
   if (clubs.length > 0) return clubs;
 
-  // Strategy 3: Find all images within the content area with alt text
+  // Strategy 4: Find all images within the content area with alt text
   const contentArea = doc.querySelector('.entry-content, .page-content, main, .content');
   if (contentArea) {
     const images = contentArea.querySelectorAll('img');
@@ -334,7 +354,7 @@ registerWidget({
   component: ClubSpotlight,
   OptionsComponent: ClubSpotlightOptions,
   defaultProps: {
-    apiUrl: DEFAULT_API_URL,
+    apiUrl: 'https://overtheedge.unbc.ca/wp-json/wp/v2/organization?per_page=100&_embed=wp:featuredmedia&org_status=181,183,182',
     pageUrl: DEFAULT_PAGE_URL,
     rotationSeconds: 10,
     corsProxy: '',

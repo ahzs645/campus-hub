@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { FormInput, FormSwitch } from '@/components/ui';
 import type { WidgetOptionsProps } from '@/lib/widget-registry';
 
-const DEFAULT_API_URL = 'https://overtheedge.unbc.ca/wp-json/wp/v2/clubs?per_page=100&_embed=wp:featuredmedia';
+const DEFAULT_API_URL = 'https://overtheedge.unbc.ca/wp-json/wp/v2/organization?per_page=100&_embed=wp:featuredmedia&org_status=181,183,182';
 
 interface ClubSpotlightData {
   apiUrl: string;
