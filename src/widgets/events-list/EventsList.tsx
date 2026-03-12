@@ -7,6 +7,73 @@ import EventsListOptions from './EventsListOptions';
 
 type Event = CalendarEvent;
 
+/**
+ * Inline marquee for text that overflows its container.
+ * Measures the text; if it fits, renders normally. If it overflows,
+ * duplicates the text and scrolls it with a CSS animation.
+ */
+function MarqueeText({
+  text,
+  className,
+  style,
+  speed = 30,
+}: {
+  text: string;
+  className?: string;
+  style?: React.CSSProperties;
+  speed?: number;
+}) {
+  const outerRef = useRef<HTMLDivElement>(null);
+  const innerRef = useRef<HTMLSpanElement>(null);
+  const [overflows, setOverflows] = useState(false);
+  const [duration, setDuration] = useState(speed);
+
+  useEffect(() => {
+    const outer = outerRef.current;
+    const inner = innerRef.current;
+    if (!outer || !inner) return;
+
+    const check = () => {
+      const ow = outer.clientWidth;
+      const iw = inner.scrollWidth;
+      const doesOverflow = iw > ow + 2; // 2px tolerance
+      setOverflows(doesOverflow);
+      if (doesOverflow) {
+        // Speed: ~40px per second
+        setDuration(iw / 40);
+      }
+    };
+
+    check();
+    const ro = new ResizeObserver(check);
+    ro.observe(outer);
+    return () => ro.disconnect();
+  }, [text]);
+
+  if (!overflows) {
+    return (
+      <div ref={outerRef} className={`overflow-hidden whitespace-nowrap ${className ?? ''}`} style={style}>
+        <span ref={innerRef}>{text}</span>
+      </div>
+    );
+  }
+
+  return (
+    <div ref={outerRef} className={`overflow-hidden whitespace-nowrap ${className ?? ''}`} style={style}>
+      <span
+        ref={innerRef}
+        className="inline-block animate-marquee"
+        style={{ animationDuration: `${duration}s` }}
+      >
+        <span>{text}</span>
+        <span className="mx-8 opacity-30">&bull;</span>
+        <span>{text}</span>
+        <span className="mx-8 opacity-30">&bull;</span>
+      </span>
+    </div>
+  );
+}
+
 type DisplayMode = 'scroll' | 'ticker' | 'paginate';
 
 interface EventsListConfig {
@@ -85,7 +152,8 @@ export default function EventsList({ config, theme }: WidgetComponentProps) {
 
   /* ---------- ticker / paginate logic ---------- */
 
-  const displayEvents = events.slice(0, maxItems);
+  // Filter out events with blank titles
+  const displayEvents = events.filter(e => e.title?.trim()).slice(0, maxItems);
   const totalEvents = displayEvents.length;
 
   const totalPages = displayMode === 'paginate'
@@ -136,7 +204,7 @@ export default function EventsList({ config, theme }: WidgetComponentProps) {
       <div className={`font-semibold text-white leading-snug line-clamp-2 ${grow ? 'text-2xl' : 'text-xl'}`}>
         {event.title}
       </div>
-      <div className={`opacity-90 flex items-center gap-3 mt-2 flex-wrap flex-shrink-0 ${grow ? 'text-lg' : 'text-base'}`}>
+      <div className={`opacity-90 flex items-center gap-3 mt-2 flex-shrink-0 min-w-0 ${grow ? 'text-lg' : 'text-base'}`}>
         {event.date && (
           <span
             className={`font-bold px-3 py-1 rounded ${grow ? 'text-lg' : 'text-base'}`}
@@ -147,12 +215,12 @@ export default function EventsList({ config, theme }: WidgetComponentProps) {
         )}
         {event.time && <span className="text-white/70">{event.time}</span>}
         {event.location && (
-          <span className="text-white/50 flex items-center gap-1.5">
-            <svg className={grow ? 'w-6 h-6' : 'w-5 h-5'} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <span className="text-white/50 flex items-center gap-1.5 min-w-0 flex-1">
+            <svg className={`${grow ? 'w-6 h-6' : 'w-5 h-5'} flex-shrink-0`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
-            {event.location}
+            <MarqueeText text={event.location} className="flex-1 min-w-0" />
           </span>
         )}
       </div>
