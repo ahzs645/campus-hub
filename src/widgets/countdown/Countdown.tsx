@@ -224,10 +224,12 @@ export default function Countdown({ config, theme }: WidgetComponentProps) {
   }, [activeMilestones.length, rotationSeconds]);
 
   // Landscape: wide banner for all units in a row; portrait: taller with wrapping units
-  const { containerRef, scale, designWidth: DESIGN_W, designHeight: DESIGN_H, isLandscape } = useAdaptiveFitScale({
+  const { containerRef, scale, designWidth: BASE_W, designHeight: DESIGN_H, isLandscape, containerWidth } = useAdaptiveFitScale({
     landscape: { w: 500, h: 220 },
     portrait: { w: 280, h: 360 },
   });
+  // Fill the full container width when stretched horizontally
+  const DESIGN_W = containerWidth > 0 ? Math.max(BASE_W, containerWidth / scale) : BASE_W;
 
   const isFinished = remaining.total <= 0;
 

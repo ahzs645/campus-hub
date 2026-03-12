@@ -89,6 +89,10 @@ interface AdaptiveFitScaleResult {
   designWidth: number;
   /** The design height currently in use */
   designHeight: number;
+  /** Current container width in px (0 before first measure) */
+  containerWidth: number;
+  /** Current container height in px (0 before first measure) */
+  containerHeight: number;
   /** True when the container is wider than it is tall */
   isLandscape: boolean;
 }
@@ -105,6 +109,8 @@ export function useAdaptiveFitScale(designs: AdaptiveDesign): AdaptiveFitScaleRe
     isLandscape: true,
     designWidth: designs.landscape.w,
     designHeight: designs.landscape.h,
+    containerWidth: 0,
+    containerHeight: 0,
   });
 
   const designsRef = useRef(designs);
@@ -127,6 +133,8 @@ export function useAdaptiveFitScale(designs: AdaptiveDesign): AdaptiveFitScaleRe
       isLandscape: landscape,
       designWidth: dw,
       designHeight: dh,
+      containerWidth: cw,
+      containerHeight: ch,
     });
   }, []);
 

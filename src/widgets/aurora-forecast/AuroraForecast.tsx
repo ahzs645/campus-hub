@@ -153,13 +153,16 @@ export default function AuroraForecast({
   const {
     containerRef,
     scale,
-    designWidth: DW,
+    designWidth: BASE_W,
     designHeight: DH,
     isLandscape,
+    containerWidth,
   } = useAdaptiveFitScale({
     landscape: { w: 380, h: 280 },
     portrait: { w: 260, h: 400 },
   });
+  // Fill the full container width when stretched horizontally
+  const DW = containerWidth > 0 ? Math.max(BASE_W, containerWidth / scale) : BASE_W;
 
   const level = kpLevel(data.currentKp);
   const visibility = auroraVisibility(data.currentKp, latitude);
