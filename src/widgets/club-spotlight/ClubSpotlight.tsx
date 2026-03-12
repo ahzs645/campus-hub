@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import QRCodeLib from 'qrcode';
 import { WidgetComponentProps, registerWidget } from '@/lib/widget-registry';
 import { buildCacheKey, buildProxyUrl, fetchJsonWithCache, fetchTextWithCache } from '@/lib/data-cache';
 import { useAdaptiveFitScale } from '@/hooks/useFitScale';
@@ -10,6 +11,7 @@ interface ClubItem {
   id: string;
   name: string;
   image: string;
+  link: string;
 }
 
 interface ClubSpotlightConfig {
@@ -19,6 +21,8 @@ interface ClubSpotlightConfig {
   corsProxy?: string;
   useCorsProxy?: boolean;
   refreshMinutes?: number;
+  showQrCode?: boolean;
+  qrLabel?: string;
 }
 
 // WordPress REST API for organization custom post type with embedded featured images.
@@ -27,9 +31,9 @@ const DEFAULT_API_URL = 'https://overtheedge.unbc.ca/wp-json/wp/v2/organization?
 const DEFAULT_PAGE_URL = 'https://overtheedge.unbc.ca/clubs/';
 
 const DEFAULT_CLUBS: ClubItem[] = [
-  { id: '1', name: 'Outdoors Club', image: 'https://images.unsplash.com/photo-1551632811-561732d1e306?w=300&h=300&fit=crop' },
-  { id: '2', name: 'Debate Society', image: 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?w=300&h=300&fit=crop' },
-  { id: '3', name: 'Photography Club', image: 'https://images.unsplash.com/photo-1452587925148-ce544e77e70d?w=300&h=300&fit=crop' },
+  { id: '1', name: 'Outdoors Club', image: 'https://images.unsplash.com/photo-1551632811-561732d1e306?w=300&h=300&fit=crop', link: '' },
+  { id: '2', name: 'Debate Society', image: 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?w=300&h=300&fit=crop', link: '' },
+  { id: '3', name: 'Photography Club', image: 'https://images.unsplash.com/photo-1452587925148-ce544e77e70d?w=300&h=300&fit=crop', link: '' },
 ];
 
 const decodeHtmlEntities = (value: string): string => {
@@ -43,6 +47,7 @@ const decodeHtmlEntities = (value: string): string => {
 interface WpClubPost {
   id?: number;
   title?: { rendered?: string };
+  link?: string;
   _embedded?: {
     'wp:featuredmedia'?: Array<{
       source_url?: string;
@@ -84,7 +89,7 @@ function parseClubsFromApi(posts: WpClubPost[]): ClubItem[] {
         if (imgMatch) finalImage = imgMatch[1];
       }
 
-      return { id: String(post.id ?? name), name, image: finalImage };
+      return { id: String(post.id ?? name), name, image: finalImage, link: post.link ?? '' };
     })
     .filter((c): c is ClubItem => c !== null && c.name.length > 0);
 }
@@ -108,8 +113,9 @@ function parseClubsFromHtml(html: string): ClubItem[] {
     const heading = el.querySelector('.wp-block-post-title, h1, h2, h3, h4, h5, h6');
     const image = img?.getAttribute('src') || img?.getAttribute('data-src') || '';
     const name = heading?.textContent?.trim() || img?.getAttribute('alt')?.trim() || '';
+    const link = el.querySelector('a')?.getAttribute('href') || '';
     if (name) {
-      clubs.push({ id: `wp-${i}`, name, image });
+      clubs.push({ id: `wp-${i}`, name, image, link });
     }
   });
 
@@ -123,8 +129,9 @@ function parseClubsFromHtml(html: string): ClubItem[] {
     if (heading) {
       const image = img?.getAttribute('src') || img?.getAttribute('data-src') || '';
       const name = heading.textContent?.trim() || '';
+      const link = el.querySelector('a')?.getAttribute('href') || '';
       if (name) {
-        clubs.push({ id: `club-${i}`, name, image });
+        clubs.push({ id: `club-${i}`, name, image, link });
       }
     }
   });
@@ -140,7 +147,7 @@ function parseClubsFromHtml(html: string): ClubItem[] {
       const image = img.getAttribute('src') || img.getAttribute('data-src') || '';
       const name = caption?.textContent?.trim() || img.getAttribute('alt')?.trim() || '';
       if (name && image) {
-        clubs.push({ id: `fig-${i}`, name, image });
+        clubs.push({ id: `fig-${i}`, name, image, link: '' });
       }
     }
   });
@@ -161,7 +168,7 @@ function parseClubsFromHtml(html: string): ClubItem[] {
         const parent = img.closest('div, a, li, td');
         const heading = parent?.querySelector('h1, h2, h3, h4, h5, h6');
         const name = heading?.textContent?.trim() || alt;
-        clubs.push({ id: `img-${i}`, name, image });
+        clubs.push({ id: `img-${i}`, name, image, link: '' });
       }
     });
   }
@@ -177,6 +184,8 @@ export default function ClubSpotlight({ config, theme, corsProxy: globalCorsProx
   const useCorsProxy = cfg?.useCorsProxy ?? true;
   const corsProxy = useCorsProxy ? (cfg?.corsProxy?.trim() || globalCorsProxy) : undefined;
   const refreshMinutes = Math.max(5, Math.min(1440, cfg?.refreshMinutes ?? 30));
+  const showQrCode = cfg?.showQrCode ?? false;
+  const qrLabel = cfg?.qrLabel ?? 'Learn more';
 
   const [clubs, setClubs] = useState<ClubItem[]>(DEFAULT_CLUBS);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -246,13 +255,31 @@ export default function ClubSpotlight({ config, theme, corsProxy: globalCorsProx
     };
   }, [clubs.length, rotationSeconds]);
 
+  // QR code for current club page
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+  const current = clubs[activeIndex % clubs.length];
+  const currentLink = current?.link || '';
+
+  useEffect(() => {
+    if (!showQrCode || !currentLink) {
+      setQrDataUrl(null);
+      return;
+    }
+    QRCodeLib.toDataURL(currentLink, {
+      errorCorrectionLevel: 'M',
+      color: { dark: '#000000', light: '#ffffff' },
+      margin: 1,
+      width: 256,
+    })
+      .then(setQrDataUrl)
+      .catch(() => setQrDataUrl(null));
+  }, [showQrCode, currentLink]);
+
   // Portrait: taller with larger image; landscape: side-by-side layout
   const { containerRef, scale, designWidth: DESIGN_W, designHeight: DESIGN_H, isLandscape } = useAdaptiveFitScale({
     landscape: { w: 420, h: 260 },
     portrait: { w: 280, h: 380 },
   });
-
-  const current = clubs[activeIndex % clubs.length];
 
   return (
     <div
@@ -337,6 +364,21 @@ export default function ClubSpotlight({ config, theme, corsProxy: globalCorsProx
             <div className="text-xs text-white/40 mt-2">Sample data — configure CORS proxy to load clubs</div>
           )}
         </div>
+
+        {/* QR Code */}
+        {showQrCode && qrDataUrl && (
+          <div className={`flex flex-col items-center flex-shrink-0 ${isLandscape ? '' : 'mt-3'}`}>
+            <img
+              src={qrDataUrl}
+              alt={qrLabel}
+              className="w-16 h-16 rounded"
+              style={{ objectFit: 'contain' }}
+            />
+            {qrLabel && (
+              <span className="text-[9px] text-white/50 mt-1 whitespace-nowrap">{qrLabel}</span>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -360,5 +402,7 @@ registerWidget({
     corsProxy: '',
     useCorsProxy: true,
     refreshMinutes: 30,
+    showQrCode: false,
+    qrLabel: 'Learn more',
   },
 });

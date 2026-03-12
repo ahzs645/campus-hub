@@ -13,6 +13,8 @@ interface ClubSpotlightData {
   corsProxy: string;
   useCorsProxy: boolean;
   refreshMinutes: number;
+  showQrCode: boolean;
+  qrLabel: string;
 }
 
 export default function ClubSpotlightOptions({ data, onChange }: WidgetOptionsProps) {
@@ -23,6 +25,8 @@ export default function ClubSpotlightOptions({ data, onChange }: WidgetOptionsPr
     corsProxy: (data?.corsProxy as string) ?? '',
     useCorsProxy: (data?.useCorsProxy as boolean) ?? true,
     refreshMinutes: (data?.refreshMinutes as number) ?? 30,
+    showQrCode: (data?.showQrCode as boolean) ?? false,
+    qrLabel: (data?.qrLabel as string) ?? 'Learn more',
   });
 
   useEffect(() => {
@@ -34,6 +38,8 @@ export default function ClubSpotlightOptions({ data, onChange }: WidgetOptionsPr
         corsProxy: (data.corsProxy as string) ?? '',
         useCorsProxy: (data.useCorsProxy as boolean) ?? true,
         refreshMinutes: (data.refreshMinutes as number) ?? 30,
+        showQrCode: (data.showQrCode as boolean) ?? false,
+        qrLabel: (data.qrLabel as string) ?? 'Learn more',
       });
     }
   }, [data]);
@@ -121,6 +127,33 @@ export default function ClubSpotlightOptions({ data, onChange }: WidgetOptionsPr
           max={1440}
           onChange={handleChange}
         />
+      </div>
+
+      {/* QR Code */}
+      <div className="space-y-4 border-t border-[color:var(--ui-item-border)] pt-6">
+        <h3 className="font-semibold text-[var(--ui-text)] text-center">QR Code</h3>
+
+        <FormSwitch
+          label="Show QR Code"
+          name="showQrCode"
+          checked={state.showQrCode}
+          onChange={handleChange}
+        />
+        <div className="text-xs text-[var(--ui-text-muted)] text-center">
+          Shows a QR code linking to the current club&apos;s page on Over The Edge.
+          The QR code updates automatically as clubs rotate.
+        </div>
+
+        {state.showQrCode && (
+          <FormInput
+            label="QR Label"
+            name="qrLabel"
+            type="text"
+            value={state.qrLabel}
+            placeholder="Learn more"
+            onChange={handleChange}
+          />
+        )}
       </div>
 
       {/* Preview */}
