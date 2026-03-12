@@ -241,7 +241,7 @@ export default function Countdown({ config, theme }: WidgetComponentProps) {
   const msVisible = shouldShowUnit(showMilliseconds, remaining.milliseconds, false);
 
   if (yearsVisible) units.push({ key: 'years', value: remaining.years, label: remaining.years === 1 ? 'Year' : 'Years', padWidth: 1 });
-  if (daysVisible) units.push({ key: 'days', value: remaining.days, label: remaining.days === 1 ? 'Day' : 'Days', padWidth: yearsVisible ? 3 : 1 });
+  if (daysVisible) units.push({ key: 'days', value: remaining.days, label: remaining.days === 1 ? 'Day' : 'Days', padWidth: remaining.days >= 100 ? 3 : remaining.days >= 10 ? 2 : 1 });
   if (hoursVisible) units.push({ key: 'hours', value: remaining.hours, label: remaining.hours === 1 ? 'Hour' : 'Hours', padWidth: 2 });
   if (minutesVisible) units.push({ key: 'minutes', value: remaining.minutes, label: remaining.minutes === 1 ? 'Min' : 'Mins', padWidth: 2 });
   if (secondsVisible) units.push({ key: 'seconds', value: remaining.seconds, label: remaining.seconds === 1 ? 'Sec' : 'Secs', padWidth: 2 });

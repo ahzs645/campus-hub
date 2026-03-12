@@ -312,7 +312,7 @@ export default function ClubSpotlight({ config, theme, corsProxy: globalCorsProx
           )}
 
           {/* Club Name */}
-          <div className={`text-2xl font-bold text-white ${isLandscape ? 'text-left' : 'text-center'} leading-tight mb-2 truncate max-w-full`}>
+          <div className={`text-2xl font-bold text-white ${isLandscape ? 'text-left' : 'text-center'} leading-tight mb-2`}>
             {current?.name || 'Loading...'}
           </div>
 
