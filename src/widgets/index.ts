@@ -24,6 +24,7 @@ import './air-quality/AirQuality';
 import './club-spotlight/ClubSpotlight';
 import './uv-index/UvIndex';
 import './countdown/Countdown';
+import './drought-level/DroughtLevel';
 import './fire-hazard/FireHazard';
 import './groundwater-level/GroundwaterLevel';
 import './satellite-view/SatelliteView';

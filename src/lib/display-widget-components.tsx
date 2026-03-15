@@ -41,6 +41,7 @@ const DISPLAY_WIDGET_LOADERS: Record<string, DisplayWidgetLoader> = {
   'uv-index': () => import('@/widgets/uv-index/UvIndex'),
   countdown: () => import('@/widgets/countdown/Countdown'),
   'fire-hazard': () => import('@/widgets/fire-hazard/FireHazard'),
+  'drought-level': () => import('@/widgets/drought-level/DroughtLevel'),
   'groundwater-level': () => import('@/widgets/groundwater-level/GroundwaterLevel'),
   'satellite-view': () => import('@/widgets/satellite-view/SatelliteView'),
   'aurora-forecast': () => import('@/widgets/aurora-forecast/AuroraForecast'),

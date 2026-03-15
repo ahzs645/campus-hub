@@ -34,4 +34,5 @@ export type IconName =
   | 'weather'
   | 'wind'
   | 'users'
-  | 'hourglass';
+  | 'hourglass'
+  | 'cloudOff';

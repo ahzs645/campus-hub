@@ -5,6 +5,7 @@ import {
   Clock3,
   Cloud,
   CloudFog,
+  CloudOff,
   CloudLightning,
   CloudRain,
   CloudSun,
@@ -82,6 +83,7 @@ const ICONS: Record<IconName, LucideIcon> = {
   wind: Wind,
   users: Users,
   hourglass: Hourglass,
+  cloudOff: CloudOff,
 };
 
 export default function AppIcon({
