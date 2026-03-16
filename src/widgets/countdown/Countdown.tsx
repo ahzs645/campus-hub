@@ -177,7 +177,10 @@ export default function Countdown({ config, theme }: WidgetComponentProps) {
   }, [activeMilestones.length]);
 
   const currentMilestone = activeMilestones[activeIndex % activeMilestones.length];
-  const target = currentMilestone ? milestoneToTarget(currentMilestone) : getDefaultTarget();
+  const target = useMemo(
+    () => (currentMilestone ? milestoneToTarget(currentMilestone) : getDefaultTarget()),
+    [currentMilestone]
+  );
   const isValidTarget = !isNaN(target.getTime());
 
   const update = useCallback(() => {
@@ -249,6 +252,10 @@ export default function Countdown({ config, theme }: WidgetComponentProps) {
   if (secondsVisible) units.push({ key: 'seconds', value: remaining.seconds, label: remaining.seconds === 1 ? 'Sec' : 'Secs', padWidth: 2 });
   if (msVisible) units.push({ key: 'ms', value: remaining.milliseconds, label: 'MS', padWidth: 3 });
 
+  const useCompactLayout =
+    !isLandscape ||
+    (containerWidth > 0 && units.length > 0 && containerWidth / units.length < 135);
+
   const eventLabel = currentMilestone?.label || '';
   const eventEmoji = currentMilestone?.emoji || '';
 
@@ -293,11 +300,17 @@ export default function Countdown({ config, theme }: WidgetComponentProps) {
             )}
           </div>
         ) : (
-          <div className={`flex ${isLandscape ? 'items-center gap-1' : 'flex-wrap items-center justify-center gap-1'}`}>
+          <div
+            className={
+              useCompactLayout
+                ? 'flex w-fit max-w-[320px] flex-wrap items-center justify-center gap-x-3 gap-y-3'
+                : 'flex items-center justify-center gap-1'
+            }
+          >
             {units.map((unit, i) => (
               <div key={unit.key} className="flex items-center">
-                {i > 0 && unit.key !== 'ms' && <Separator />}
-                {i > 0 && unit.key === 'ms' && (
+                {!useCompactLayout && i > 0 && unit.key !== 'ms' && <Separator />}
+                {!useCompactLayout && i > 0 && unit.key === 'ms' && (
                   <div className="text-3xl font-bold text-white/30 self-start mt-1 mx-0.5">.</div>
                 )}
                 <UnitDisplay
@@ -313,7 +326,7 @@ export default function Countdown({ config, theme }: WidgetComponentProps) {
 
         {/* Target date display */}
         {isValidTarget && !isFinished && (
-          <div className="text-xs text-white/30 mt-3">
+          <div className="text-xs text-white/30 text-center mt-3">
             {target.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
             {(currentMilestone?.time || '00:00') !== '00:00' && ` at ${currentMilestone?.time}`}
           </div>
