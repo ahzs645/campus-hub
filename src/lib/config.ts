@@ -1,5 +1,5 @@
 // Configuration encoding/decoding utilities for URL-based config
-import { compressToEncodedURIComponent, decompressFromEncodedURIComponent } from 'lz-string';
+import createWebShareEngine from '@firstform/json-url/web-share';
 
 export interface WidgetConfig {
   id: string;
@@ -52,6 +52,13 @@ export interface DisplayConfig {
 }
 
 export type ShareUrlMode = 'fullscreen' | 'edit';
+
+const configCodec = createWebShareEngine<DisplayConfig>({
+  codecs: ['lz'],
+  defaultCodec: 'lz',
+  alwaysPrefix: false,
+  maxLength: 100_000,
+});
 
 export const DEFAULT_CONFIG: DisplayConfig = {
   layout: [
@@ -167,23 +174,26 @@ const decodeBase64Url = (encoded: string): string | null => {
   }
 };
 
-export function encodeConfig(config: DisplayConfig): string {
+export async function encodeConfig(config: DisplayConfig): Promise<string> {
   try {
-    const json = JSON.stringify(config);
-    return compressToEncodedURIComponent(json);
+    return await configCodec.compress(config);
   } catch {
     return '';
   }
 }
 
-export function decodeConfig(encoded: string): DisplayConfig | null {
+export async function decodeConfig(encoded: string): Promise<DisplayConfig | null> {
   try {
-    const decompressed = decompressFromEncodedURIComponent(encoded);
-    const json = decompressed || decodeBase64Url(encoded);
-    if (!json) return null;
-    return normalizeConfig(JSON.parse(json) as DisplayConfig);
+    const decoded = await configCodec.decompress(encoded, { deURI: true });
+    return normalizeConfig(decoded);
   } catch {
-    return null;
+    try {
+      const json = decodeBase64Url(encoded);
+      if (!json) return null;
+      return normalizeConfig(JSON.parse(json) as DisplayConfig);
+    } catch {
+      return null;
+    }
   }
 }
 
@@ -213,15 +223,23 @@ export function filterInBoundsLayout(config: DisplayConfig): DisplayConfig {
   };
 }
 
+export async function generateSharePath(
+  config: DisplayConfig,
+  mode: ShareUrlMode = 'fullscreen',
+): Promise<string> {
+  const exported = filterInBoundsLayout(config);
+  const encoded = await encodeConfig(exported);
+  const basePath = getBasePath();
+  const path = mode === 'edit' ? '/configure' : '/display';
+  return `${basePath}${path}?config=${encoded}`;
+}
+
 // Generate a shareable URL with the config
-export function generateShareUrl(
+export async function generateShareUrl(
   config: DisplayConfig,
   origin: string,
   mode: ShareUrlMode = 'fullscreen',
-): string {
-  const exported = filterInBoundsLayout(config);
-  const encoded = encodeConfig(exported);
-  const basePath = getBasePath();
-  const path = mode === 'edit' ? '/configure' : '/display';
-  return `${origin}${basePath}${path}?config=${encoded}`;
+): Promise<string> {
+  const sharePath = await generateSharePath(config, mode);
+  return `${origin}${sharePath}`;
 }

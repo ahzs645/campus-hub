@@ -12,35 +12,33 @@ Campus Hub stores the entire display configuration in the URL itself. There is n
 https://campus.ahmadjalil.com/display?config=NobwRALg...
                                               ▲
                                               │
-                               LZ-compressed JSON config
+                              Compressed `json-url` token
 ```
 
 1. The configurator serializes the `DisplayConfig` object to JSON.
-2. The JSON is compressed using [lz-string](https://github.com/pieroxy/lz-string)'s `compressToEncodedURIComponent()`.
+2. The JSON is compressed using [`@firstform/json-url`](https://www.npmjs.com/package/@firstform/json-url) with its `lz` codec.
 3. The compressed string is appended as the `config` query parameter.
 4. The display page reads the parameter, decompresses it, and renders the layout.
 
 ### Encoding
 
 ```typescript
-import { compressToEncodedURIComponent } from 'lz-string';
+import { encodeConfig } from '@/lib/config';
 
-const json = JSON.stringify(config);
-const encoded = compressToEncodedURIComponent(json);
+const encoded = await encodeConfig(config);
 const url = `${origin}/display?config=${encoded}`;
 ```
 
 ### Decoding
 
 ```typescript
-import { decompressFromEncodedURIComponent } from 'lz-string';
+import { decodeConfig } from '@/lib/config';
 
 const encoded = searchParams.get('config');
-const json = decompressFromEncodedURIComponent(encoded);
-const config = JSON.parse(json);
+const config = encoded ? await decodeConfig(encoded) : null;
 ```
 
-The app also supports a legacy base64url encoding as a fallback.
+The app also supports legacy `lz-string` and base64url tokens as fallbacks, so older shared links continue to load.
 
 ## URL length considerations
 

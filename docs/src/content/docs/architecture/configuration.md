@@ -114,13 +114,13 @@ This allows Campus Hub to gracefully handle configs from older versions or manua
 import { encodeConfig, decodeConfig } from '@/lib/config';
 
 // Encode: DisplayConfig → compressed string
-const encoded = encodeConfig(config);
+const encoded = await encodeConfig(config);
 
 // Decode: compressed string → DisplayConfig
-const config = decodeConfig(encoded);
+const config = await decodeConfig(encoded);
 ```
 
-The encoding uses `lz-string`'s `compressToEncodedURIComponent`, which produces URL-safe strings without base64 padding issues.
+Campus Hub now routes URL encoding through `@firstform/json-url` using its `lz` codec, while still accepting legacy tokens for backward compatibility.
 
 ### Export format
 

@@ -1,12 +1,11 @@
 import Link from 'next/link';
-import { encodeConfig, DEFAULT_CONFIG } from '@/lib/config';
+import { DEFAULT_CONFIG, generateSharePath } from '@/lib/config';
 import AppIcon from '@/components/AppIcon';
 
-export default function Home() {
-  const defaultConfigUrl = encodeConfig(DEFAULT_CONFIG);
+export default async function Home() {
+  const displayPath = await generateSharePath(DEFAULT_CONFIG);
   // Next.js <Link> automatically adds basePath, so use root-relative paths
   const configurePath = '/configure';
-  const displayPath = `/display?config=${defaultConfigUrl}`;
 
   return (
     <div className="min-h-screen flex flex-col relative overflow-hidden">

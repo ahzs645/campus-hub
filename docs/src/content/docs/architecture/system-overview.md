@@ -80,7 +80,7 @@ Key features:
 │                                              │
 │         │ encodeConfig()                     │
 │         ▼                                    │
-│  LZ-compressed string                       │
+│  Compressed `json-url` token                │
 │         │                                    │
 │         ▼                                    │
 │  URL: /display?config=NobwRA...              │

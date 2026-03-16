@@ -3,7 +3,6 @@
 import { useState, useCallback, useRef, useEffect, type ChangeEvent } from 'react';
 import dynamic from 'next/dynamic';
 import {
-  encodeConfig,
   DEFAULT_CONFIG,
   normalizeConfig,
   decodeConfig,
@@ -202,6 +201,7 @@ const findPlacement = (
 export default function ConfigurePage() {
   const [config, setConfig] = useState<DisplayConfig>(DEFAULT_CONFIG);
   const [shareUrl, setShareUrl] = useState<string>('');
+  const [fullscreenPreviewUrl, setFullscreenPreviewUrl] = useState<string>('');
   const [shareUrlMode, setShareUrlMode] = useState<ShareUrlMode>('fullscreen');
   const [showShareModal, setShowShareModal] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -239,26 +239,36 @@ export default function ConfigurePage() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    try {
-      const configParam = new URLSearchParams(window.location.search).get('config');
-      if (configParam) {
-        const decoded = decodeConfig(configParam);
-        if (decoded) {
-          setConfig(decoded);
-          if (decoded.aspectRatio) setAspectRatioRaw(decoded.aspectRatio);
-          return;
+    let cancelled = false;
+
+    const loadInitialConfig = async () => {
+      try {
+        const configParam = new URLSearchParams(window.location.search).get('config');
+        if (configParam) {
+          const decoded = await decodeConfig(configParam);
+          if (decoded && !cancelled) {
+            setConfig(decoded);
+            if (decoded.aspectRatio) setAspectRatioRaw(decoded.aspectRatio);
+            return;
+          }
         }
+        const saved = localStorage.getItem(CONFIG_STORAGE_KEY);
+        if (saved && !cancelled) {
+          const parsed = JSON.parse(saved) as DisplayConfig;
+          const normalized = normalizeConfig(parsed);
+          setConfig(normalized);
+          if (normalized.aspectRatio) setAspectRatioRaw(normalized.aspectRatio);
+        }
+      } catch {
+        // Ignore corrupted cache
       }
-      const saved = localStorage.getItem(CONFIG_STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved) as DisplayConfig;
-        const normalized = normalizeConfig(parsed);
-        setConfig(normalized);
-        if (normalized.aspectRatio) setAspectRatioRaw(normalized.aspectRatio);
-      }
-    } catch {
-      // Ignore corrupted cache
-    }
+    };
+
+    void loadInitialConfig();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -475,22 +485,59 @@ export default function ConfigurePage() {
     setEditingWidget(null);
   }, []);
 
-  const buildShareUrl = useCallback((mode: ShareUrlMode) => {
+  const buildShareUrl = useCallback(async (mode: ShareUrlMode) => {
     return generateShareUrl(config, window.location.origin, mode);
   }, [config]);
 
-  const generateUrl = useCallback(() => {
-    const url = buildShareUrl(shareUrlMode);
+  const generateUrl = useCallback(async () => {
+    const url = await buildShareUrl(shareUrlMode);
     setShareUrl(url);
     setShowShareModal(true);
     setCopied(false);
   }, [buildShareUrl, shareUrlMode]);
 
-  const handleShareUrlModeChange = useCallback((mode: ShareUrlMode) => {
+  const handleShareUrlModeChange = useCallback(async (mode: ShareUrlMode) => {
     setShareUrlMode(mode);
-    setShareUrl(buildShareUrl(mode));
+    const url = await buildShareUrl(mode);
+    setShareUrl(url);
     setCopied(false);
   }, [buildShareUrl]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    let cancelled = false;
+
+    const updateFullscreenPreview = async () => {
+      const url = await buildShareUrl('fullscreen');
+      if (!cancelled) {
+        setFullscreenPreviewUrl(url);
+      }
+    };
+
+    void updateFullscreenPreview();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [buildShareUrl]);
+
+  useEffect(() => {
+    if (!showShareModal || typeof window === 'undefined') return;
+    let cancelled = false;
+
+    const updateVisibleShareUrl = async () => {
+      const url = await buildShareUrl(shareUrlMode);
+      if (!cancelled) {
+        setShareUrl(url);
+      }
+    };
+
+    void updateVisibleShareUrl();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [buildShareUrl, shareUrlMode, showShareModal]);
 
   const copyUrl = useCallback(async () => {
     if (!shareUrl) return;
@@ -685,9 +732,12 @@ export default function ConfigurePage() {
                     Generate URL
                   </button>
                   <a
-                    href={`/display?config=${encodeConfig(filterInBoundsLayout(config))}`}
+                    href={fullscreenPreviewUrl || '#'}
                     target="_blank"
                     rel="noopener noreferrer"
+                    onClick={(event) => {
+                      if (!fullscreenPreviewUrl) event.preventDefault();
+                    }}
                     className="px-4 py-2 rounded-lg font-medium border border-[color:var(--ui-panel-border)] hover:bg-[var(--ui-item-hover)] transition-all"
                   >
                     Open Fullscreen
@@ -717,9 +767,12 @@ export default function ConfigurePage() {
               Generate URL
             </button>
             <a
-              href={`/display?config=${encodeConfig(filterInBoundsLayout(config))}`}
+              href={fullscreenPreviewUrl || '#'}
               target="_blank"
               rel="noopener noreferrer"
+              onClick={(event) => {
+                if (!fullscreenPreviewUrl) event.preventDefault();
+              }}
               className="flex-1 px-2.5 py-1.5 rounded-lg font-medium text-xs border border-[color:var(--ui-panel-border)] hover:bg-[var(--ui-item-hover)] transition-all text-center"
             >
               Open Fullscreen

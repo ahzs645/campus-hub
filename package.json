@@ -12,10 +12,10 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@firstform/json-url": "^4.1.0",
     "gridstack": "^12.4.2",
     "gtfs-realtime-bindings": "^1.1.1",
     "lucide-react": "^0.542.0",
-    "lz-string": "^1.5.0",
     "next": "16.1.6",
     "qrcode": "^1.5.4",
     "react": "19.2.3",

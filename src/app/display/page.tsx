@@ -117,7 +117,7 @@ function DisplayContent() {
       if (!resolvedPlaylist && !resolvedConfig) {
         const configParam = searchParams.get('config');
         if (configParam) {
-          const decoded = decodeConfig(configParam);
+          const decoded = await decodeConfig(configParam);
           if (decoded) resolvedConfig = decoded;
         }
       }
