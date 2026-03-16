@@ -120,7 +120,7 @@ const encoded = await encodeConfig(config);
 const config = await decodeConfig(encoded);
 ```
 
-Campus Hub now routes URL encoding through `@firstform/json-url` using its `lz` codec, while still accepting legacy tokens for backward compatibility.
+Campus Hub now routes URL encoding through `@firstform/json-url`'s web-share engine, which tries multiple codecs and keeps the shortest token while still accepting legacy tokens for backward compatibility.
 
 ### Export format
 

@@ -54,6 +54,10 @@ export interface DisplayConfig {
 export type ShareUrlMode = 'fullscreen' | 'edit';
 
 const configCodec = createWebShareEngine<DisplayConfig>({
+  maxLength: 100_000,
+});
+
+const legacyLzConfigCodec = createWebShareEngine<DisplayConfig>({
   codecs: ['lz'],
   defaultCodec: 'lz',
   alwaysPrefix: false,
@@ -188,11 +192,16 @@ export async function decodeConfig(encoded: string): Promise<DisplayConfig | nul
     return normalizeConfig(decoded);
   } catch {
     try {
-      const json = decodeBase64Url(encoded);
-      if (!json) return null;
-      return normalizeConfig(JSON.parse(json) as DisplayConfig);
+      const decoded = await legacyLzConfigCodec.decompress(encoded, { deURI: true });
+      return normalizeConfig(decoded);
     } catch {
-      return null;
+      try {
+        const json = decodeBase64Url(encoded);
+        if (!json) return null;
+        return normalizeConfig(JSON.parse(json) as DisplayConfig);
+      } catch {
+        return null;
+      }
     }
   }
 }

@@ -33,7 +33,7 @@ Campus Hub is a **modular digital signage platform** built for campus and buildi
 ```
 
 1. You design a layout in the **Configurator** at `/configure`.
-2. Click **Generate URL** — the full configuration is compressed by `@firstform/json-url` and appended as a query parameter.
+2. Click **Generate URL** — `@firstform/json-url` tries multiple codecs, keeps the shortest token, and appends it as a query parameter.
 3. Open the URL on any display screen. The **Display** page at `/display` decodes the config and renders widgets in a CSS grid that scales to fit the screen.
 4. Widgets that need external data fetch it client-side, optionally routing through a CORS proxy.
 

@@ -80,7 +80,7 @@ Key features:
 │                                              │
 │         │ encodeConfig()                     │
 │         ▼                                    │
-│  Compressed `json-url` token                │
+│  Shortest `json-url` share token            │
 │         │                                    │
 │         ▼                                    │
 │  URL: /display?config=NobwRA...              │

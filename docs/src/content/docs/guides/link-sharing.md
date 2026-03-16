@@ -12,11 +12,11 @@ Campus Hub stores the entire display configuration in the URL itself. There is n
 https://campus.ahmadjalil.com/display?config=NobwRALg...
                                               ▲
                                               │
-                              Compressed `json-url` token
+                          Compact `json-url` share token
 ```
 
 1. The configurator serializes the `DisplayConfig` object to JSON.
-2. The JSON is compressed using [`@firstform/json-url`](https://www.npmjs.com/package/@firstform/json-url) with its `lz` codec.
+2. [`@firstform/json-url`](https://www.npmjs.com/package/@firstform/json-url) tries multiple web-share codecs and keeps the shortest token.
 3. The compressed string is appended as the `config` query parameter.
 4. The display page reads the parameter, decompresses it, and renders the layout.
 
@@ -29,6 +29,8 @@ const encoded = await encodeConfig(config);
 const url = `${origin}/display?config=${encoded}`;
 ```
 
+Typical new tokens are prefixed like `1.br.<payload>` or `1.df.<payload>`, which lets the decoder identify the codec automatically.
+
 ### Decoding
 
 ```typescript
@@ -38,7 +40,7 @@ const encoded = searchParams.get('config');
 const config = encoded ? await decodeConfig(encoded) : null;
 ```
 
-The app also supports legacy `lz-string` and base64url tokens as fallbacks, so older shared links continue to load.
+The app also supports legacy prefixless `lz` tokens and base64url tokens as fallbacks, so older shared links continue to load.
 
 ## URL length considerations
 
