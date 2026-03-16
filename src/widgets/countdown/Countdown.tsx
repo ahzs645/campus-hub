@@ -42,12 +42,21 @@ interface TimeRemaining {
   milliseconds: number;
 }
 
-function computeRemaining(target: Date): TimeRemaining {
-  const now = Date.now();
+const EMPTY_REMAINING: TimeRemaining = {
+  total: 0,
+  years: 0,
+  days: 0,
+  hours: 0,
+  minutes: 0,
+  seconds: 0,
+  milliseconds: 0,
+};
+
+function computeRemaining(target: Date, now: number = Date.now()): TimeRemaining {
   const total = Math.max(0, target.getTime() - now);
 
   if (total <= 0) {
-    return { total: 0, years: 0, days: 0, hours: 0, minutes: 0, seconds: 0, milliseconds: 0 };
+    return EMPTY_REMAINING;
   }
 
   let remainder = total;
@@ -152,42 +161,39 @@ export default function Countdown({ config, theme }: WidgetComponentProps) {
   const rotationSeconds = Math.max(3, Math.min(60, cfg?.rotationSeconds ?? 8));
 
   const allMilestones = useMemo(() => getMilestones(cfg), [cfg]);
+  const [nowMs, setNowMs] = useState(() => Date.now());
 
   // Filter out completed milestones if requested
   const activeMilestones = useMemo(() => {
     if (!hideCompleted) return allMilestones;
-    const now = Date.now();
     const active = allMilestones.filter(m => {
       const t = milestoneToTarget(m);
-      return !isNaN(t.getTime()) && t.getTime() > now;
+      return !isNaN(t.getTime()) && t.getTime() > nowMs;
     });
     // If all are completed, show the last one so the widget isn't empty
     return active.length > 0 ? active : allMilestones.slice(-1);
-  }, [allMilestones, hideCompleted]);
+  }, [allMilestones, hideCompleted, nowMs]);
 
   const [activeIndex, setActiveIndex] = useState(0);
-  const [remaining, setRemaining] = useState<TimeRemaining>({ total: 0, years: 0, days: 0, hours: 0, minutes: 0, seconds: 0, milliseconds: 0 });
   const rafRef = useRef<number | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const rotationRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Keep activeIndex in bounds when milestones change
-  useEffect(() => {
-    setActiveIndex(prev => prev >= activeMilestones.length ? 0 : prev);
-  }, [activeMilestones.length]);
-
-  const currentMilestone = activeMilestones[activeIndex % activeMilestones.length];
+  const normalizedActiveIndex =
+    activeMilestones.length > 0 ? activeIndex % activeMilestones.length : 0;
+  const currentMilestone = activeMilestones[normalizedActiveIndex];
   const target = useMemo(
     () => (currentMilestone ? milestoneToTarget(currentMilestone) : getDefaultTarget()),
     [currentMilestone]
   );
   const isValidTarget = !isNaN(target.getTime());
-
-  const update = useCallback(() => {
-    if (isValidTarget) {
-      setRemaining(computeRemaining(target));
-    }
-  }, [isValidTarget, target]);
+  const remaining = useMemo(
+    () => (isValidTarget ? computeRemaining(target, nowMs) : EMPTY_REMAINING),
+    [isValidTarget, nowMs, target]
+  );
+  const tick = useCallback(() => {
+    setNowMs(Date.now());
+  }, []);
 
   // Countdown tick
   useEffect(() => {
@@ -196,24 +202,25 @@ export default function Countdown({ config, theme }: WidgetComponentProps) {
     const useRaf = showMilliseconds === 'show';
 
     if (useRaf) {
-      const tick = () => {
-        update();
-        rafRef.current = requestAnimationFrame(tick);
+      const frame = () => {
+        tick();
+        rafRef.current = requestAnimationFrame(frame);
       };
-      rafRef.current = requestAnimationFrame(tick);
+      rafRef.current = requestAnimationFrame(frame);
       return () => {
         if (rafRef.current) cancelAnimationFrame(rafRef.current);
       };
     } else {
       const needsMs = showMilliseconds === 'auto';
       const intervalMs = needsMs ? 100 : 1000;
-      update();
-      intervalRef.current = setInterval(update, intervalMs);
+      rafRef.current = requestAnimationFrame(tick);
+      intervalRef.current = setInterval(tick, intervalMs);
       return () => {
+        if (rafRef.current) cancelAnimationFrame(rafRef.current);
         if (intervalRef.current) clearInterval(intervalRef.current);
       };
     }
-  }, [isValidTarget, showMilliseconds, update]);
+  }, [isValidTarget, showMilliseconds, tick]);
 
   // Auto-rotation between milestones
   useEffect(() => {
@@ -340,8 +347,8 @@ export default function Countdown({ config, theme }: WidgetComponentProps) {
                 key={i}
                 className="h-1.5 rounded-full transition-all duration-300"
                 style={{
-                  width: i === activeIndex % activeMilestones.length ? 20 : 8,
-                  backgroundColor: i === activeIndex % activeMilestones.length ? theme.accent : 'rgba(255,255,255,0.3)',
+                  width: i === normalizedActiveIndex ? 20 : 8,
+                  backgroundColor: i === normalizedActiveIndex ? theme.accent : 'rgba(255,255,255,0.3)',
                 }}
               />
             ))}
