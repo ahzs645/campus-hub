@@ -14,7 +14,7 @@ export const CONFIG = {
    *   - "https://hub.yourcampus.edu" (production)
    *   - "file:///android_asset/web" (bundled, Android TV only)
    */
-  CAMPUS_HUB_URL: "http://localhost:3000",
+  CAMPUS_HUB_URL: "https://campus.ahmadjalil.com",
 
   /**
    * Default path to load. Typically "/display/" to go straight
