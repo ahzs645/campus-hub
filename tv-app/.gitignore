@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+
+# React Native
+ios/build/
+ios/Pods/
+android/build/
+android/app/build/
+android/.gradle/
+
+# Metro
+.metro-health-check*
+
+# Xcode
+*.xcworkspace
+*.xcuserdata
+DerivedData/
+
+# Android
+*.apk
+*.aab
+*.keystore
+local.properties
+
+# Editor
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
