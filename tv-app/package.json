@@ -1,0 +1,29 @@
+{
+  "name": "campus-hub-tv",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "android-tv": "react-native run-android",
+    "tvos": "react-native run-ios --scheme CampusHubTV --simulator 'Apple TV'",
+    "start": "react-native start",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "react": "19.0.0",
+    "react-native": "npm:react-native-tvos@0.76.6-0",
+    "react-native-webview": "^13.12.5"
+  },
+  "devDependencies": {
+    "@react-native/babel-preset": "0.76.9",
+    "@react-native/eslint-config": "0.76.9",
+    "@react-native/metro-config": "0.76.9",
+    "@react-native/typescript-config": "0.76.9",
+    "@types/react": "^19.0.0",
+    "babel-plugin-module-resolver": "^5.0.2",
+    "eslint": "^9.0.0",
+    "typescript": "^5.9.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
