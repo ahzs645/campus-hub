@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Tv, Camera, ArrowLeft, Wifi, CheckCircle2, AlertCircle, Loader2, RefreshCw, Send, Settings2, RotateCcw, Eye, Info } from 'lucide-react';
 
@@ -13,6 +14,7 @@ type TVInfo = {
 };
 
 export default function TVSetupPage() {
+  const searchParams = useSearchParams();
   const [state, setState] = useState<ConnectionState>('scanning');
   const [tvInfo, setTVInfo] = useState<TVInfo | null>(null);
   const [error, setError] = useState('');
@@ -65,7 +67,11 @@ export default function TVSetupPage() {
       setConfigUrl(data.url || '');
       setState('connected');
     } catch {
-      setError(`Could not connect to TV at ${url}. Make sure you're on the same Wi-Fi network.`);
+      const isHttps = typeof window !== 'undefined' && window.location.protocol === 'https:';
+      const mixedContentHint = isHttps
+        ? '\n\nNote: Your browser may block connections from HTTPS to a local HTTP device. Try opening this page directly: ' + url
+        : '';
+      setError(`Could not connect to TV at ${url}. Make sure you're on the same Wi-Fi network.${mixedContentHint}`);
       setState('error');
     }
   }, [stopCamera]);
@@ -131,6 +137,14 @@ export default function TVSetupPage() {
   useEffect(() => {
     return () => stopCamera();
   }, [stopCamera]);
+
+  // Auto-connect if ?tv= param is present (from QR code scan)
+  useEffect(() => {
+    const tvUrl = searchParams.get('tv');
+    if (tvUrl) {
+      connectToTV(tvUrl);
+    }
+  }, [searchParams, connectToTV]);
 
   const showStatus = (msg: string, type: 'success' | 'error') => {
     setStatusMsg(msg);
@@ -394,13 +408,26 @@ export default function TVSetupPage() {
             {state === 'error' && (
               <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center gap-3 p-6">
                 <AlertCircle className="w-8 h-8 text-red-400" />
-                <p className="text-sm text-red-300 text-center">{error}</p>
-                <button
-                  onClick={startCamera}
-                  className="px-4 py-2 rounded-lg bg-white/10 text-sm text-white/70 hover:bg-white/15 transition-all"
-                >
-                  Try Again
-                </button>
+                <p className="text-sm text-red-300 text-center whitespace-pre-line">{error}</p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={startCamera}
+                    className="px-4 py-2 rounded-lg bg-white/10 text-sm text-white/70 hover:bg-white/15 transition-all"
+                  >
+                    Try Again
+                  </button>
+                  {searchParams.get('tv') && (
+                    <a
+                      href={searchParams.get('tv')!}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-4 py-2 rounded-lg text-sm font-semibold transition-all hover:scale-105"
+                      style={{ backgroundColor: '#B79527', color: '#035642' }}
+                    >
+                      Open TV Directly
+                    </a>
+                  )}
+                </div>
               </div>
             )}
           </div>

@@ -14,8 +14,9 @@ import {
   Pressable,
   Animated,
 } from "react-native";
-import { WebView } from "react-native-webview";
+import { WebView, WebViewMessageEvent } from "react-native-webview";
 import { CONFIG } from "@/utils/config";
+import { useTVRemote } from "@/hooks/useTVRemote";
 
 type Props = {
   url: string;
@@ -33,14 +34,18 @@ export const TVWebView = forwardRef<TVWebViewHandle, Props>(
     const [isLoading, setIsLoading] = useState(true);
     const [hasError, setHasError] = useState(false);
     const [showToolbar, setShowToolbar] = useState(false);
+    const [focusedBtn, setFocusedBtn] = useState(0);
     const toolbarOpacity = useRef(new Animated.Value(0)).current;
     const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const tapCount = useRef(0);
+    const tapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const BUTTONS = ["reload", "setup", "close"] as const;
 
     useImperativeHandle(ref, () => ({
       reload: () => webViewRef.current?.reload(),
     }));
 
-    // Auto-reload for long-running unattended displays
     useEffect(() => {
       if (CONFIG.AUTO_RELOAD_INTERVAL_MS <= 0) return;
       const interval = setInterval(() => {
@@ -49,9 +54,10 @@ export const TVWebView = forwardRef<TVWebViewHandle, Props>(
       return () => clearInterval(interval);
     }, []);
 
-    const showToolbarWithTimer = useCallback(() => {
+    const openToolbar = useCallback(() => {
       if (hideTimer.current) clearTimeout(hideTimer.current);
       setShowToolbar(true);
+      setFocusedBtn(1); // Focus on "Setup" by default
       Animated.timing(toolbarOpacity, {
         toValue: 1,
         duration: 200,
@@ -63,22 +69,86 @@ export const TVWebView = forwardRef<TVWebViewHandle, Props>(
           duration: 300,
           useNativeDriver: true,
         }).start(() => setShowToolbar(false));
-      }, 4000);
+      }, 8000);
     }, [toolbarOpacity]);
 
-    const handleTap = useCallback(() => {
-      if (showToolbar) {
-        // Already showing — hide it
-        if (hideTimer.current) clearTimeout(hideTimer.current);
-        Animated.timing(toolbarOpacity, {
-          toValue: 0,
-          duration: 200,
-          useNativeDriver: true,
-        }).start(() => setShowToolbar(false));
-      } else {
-        showToolbarWithTimer();
-      }
-    }, [showToolbar, showToolbarWithTimer, toolbarOpacity]);
+    const dismissToolbar = useCallback(() => {
+      if (hideTimer.current) clearTimeout(hideTimer.current);
+      Animated.timing(toolbarOpacity, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }).start(() => setShowToolbar(false));
+    }, [toolbarOpacity]);
+
+    const executeButton = useCallback(
+      (btn: (typeof BUTTONS)[number]) => {
+        switch (btn) {
+          case "reload":
+            webViewRef.current?.reload();
+            dismissToolbar();
+            break;
+          case "setup":
+            dismissToolbar();
+            onOpenSetup?.();
+            break;
+          case "close":
+            dismissToolbar();
+            break;
+        }
+      },
+      [dismissToolbar, onOpenSetup]
+    );
+
+    // TV remote / keyboard navigation
+    useTVRemote(
+      useCallback(
+        (action) => {
+          if (showToolbar) {
+            switch (action) {
+              case "left":
+                setFocusedBtn((i) => Math.max(0, i - 1));
+                break;
+              case "right":
+                setFocusedBtn((i) => Math.min(BUTTONS.length - 1, i + 1));
+                break;
+              case "select":
+                executeButton(BUTTONS[focusedBtn]);
+                break;
+              case "menu":
+                dismissToolbar();
+                break;
+            }
+          } else {
+            // When toolbar is hidden: menu or select opens it
+            if (action === "menu" || action === "select") {
+              openToolbar();
+            }
+          }
+        },
+        [showToolbar, focusedBtn, executeButton, dismissToolbar, openToolbar]
+      )
+    );
+
+    // Listen for triple-tap from inside the WebView (touch fallback)
+    const handleWebViewMessage = useCallback(
+      (event: WebViewMessageEvent) => {
+        const msg = event.nativeEvent.data;
+        if (msg === "TAP") {
+          tapCount.current += 1;
+          if (tapTimer.current) clearTimeout(tapTimer.current);
+          if (tapCount.current >= 3) {
+            tapCount.current = 0;
+            showToolbar ? dismissToolbar() : openToolbar();
+          } else {
+            tapTimer.current = setTimeout(() => {
+              tapCount.current = 0;
+            }, 800);
+          }
+        }
+      },
+      [showToolbar, openToolbar, dismissToolbar]
+    );
 
     const handleLoadStart = useCallback(() => {
       setIsLoading(true);
@@ -99,6 +169,14 @@ export const TVWebView = forwardRef<TVWebViewHandle, Props>(
         document.body.style.overflow = 'hidden';
         document.documentElement.style.overflow = 'hidden';
         document.addEventListener('touchmove', function(e) { e.preventDefault(); }, { passive: false });
+        document.addEventListener('click', function(e) {
+          window.ReactNativeWebView.postMessage('TAP');
+        });
+        document.addEventListener('touchend', function(e) {
+          if (e.changedTouches.length === 1) {
+            window.ReactNativeWebView.postMessage('TAP');
+          }
+        });
       })();
       true;
     `;
@@ -113,6 +191,7 @@ export const TVWebView = forwardRef<TVWebViewHandle, Props>(
           onLoadEnd={handleLoadEnd}
           onError={handleError}
           onHttpError={handleError}
+          onMessage={handleWebViewMessage}
           injectedJavaScript={injectedJS}
           javaScriptEnabled={true}
           domStorageEnabled={true}
@@ -121,52 +200,72 @@ export const TVWebView = forwardRef<TVWebViewHandle, Props>(
           mixedContentMode="compatibility"
           cacheEnabled={true}
           cacheMode="LOAD_DEFAULT"
-          focusable={true}
+          focusable={!showToolbar}
         />
 
-        {/* Invisible tap layer over the WebView */}
-        <Pressable
-          style={styles.tapLayer}
-          onPress={handleTap}
-        />
-
-        {/* Floating toolbar */}
+        {/* Full-screen overlay + toolbar */}
         {showToolbar && (
-          <Animated.View
-            style={[styles.toolbar, { opacity: toolbarOpacity }]}
-          >
-            <Pressable
-              style={styles.toolbarBtn}
-              onPress={() => {
-                webViewRef.current?.reload();
-                showToolbarWithTimer();
-              }}
+          <Pressable style={styles.toolbarOverlay} onPress={dismissToolbar}>
+            <Animated.View
+              style={[styles.toolbar, { opacity: toolbarOpacity }]}
             >
-              <Text style={styles.toolbarBtnIcon}>↻</Text>
-              <Text style={styles.toolbarBtnLabel}>Reload</Text>
-            </Pressable>
+              {BUTTONS.map((btn, i) => (
+                <Pressable
+                  key={btn}
+                  style={[
+                    styles.toolbarBtn,
+                    btn === "setup" && styles.toolbarBtnPrimary,
+                    btn === "close" && styles.toolbarBtnClose,
+                    focusedBtn === i && styles.toolbarBtnFocused,
+                  ]}
+                  onPress={(e) => {
+                    e.stopPropagation?.();
+                    executeButton(btn);
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.toolbarBtnIcon,
+                      focusedBtn === i && styles.toolbarBtnTextFocused,
+                    ]}
+                  >
+                    {btn === "reload" ? "↻" : btn === "setup" ? "⚙" : "✕"}
+                  </Text>
+                  {btn !== "close" && (
+                    <Text
+                      style={[
+                        styles.toolbarBtnLabel,
+                        btn === "setup" && styles.toolbarBtnLabelPrimary,
+                        focusedBtn === i && styles.toolbarBtnTextFocused,
+                      ]}
+                    >
+                      {btn === "reload" ? "Reload" : "Setup / QR Code"}
+                    </Text>
+                  )}
+                </Pressable>
+              ))}
+            </Animated.View>
 
-            <Pressable
-              style={[styles.toolbarBtn, styles.toolbarBtnPrimary]}
-              onPress={onOpenSetup}
-            >
-              <Text style={styles.toolbarBtnIcon}>⚙</Text>
-              <Text style={[styles.toolbarBtnLabel, styles.toolbarBtnLabelPrimary]}>
-                Setup / QR Code
+            <View style={styles.toolbarHint}>
+              <Text style={styles.toolbarHintText}>
+                ← → Navigate • OK/Enter Select • Back/Esc Dismiss
               </Text>
-            </Pressable>
-          </Animated.View>
+            </View>
+          </Pressable>
         )}
 
         {isLoading && (
-          <View style={styles.loadingOverlay}>
+          <View style={styles.loadingOverlay} pointerEvents="none">
             <ActivityIndicator size="large" color="#3b82f6" />
             <Text style={styles.loadingText}>Loading Campus Hub...</Text>
+            <Text style={styles.loadingHint}>
+              Press OK or Enter for settings
+            </Text>
           </View>
         )}
 
         {hasError && (
-          <Pressable style={styles.errorOverlay} onPress={handleTap}>
+          <Pressable style={styles.errorOverlay} onPress={openToolbar}>
             <Text style={styles.errorIcon}>!</Text>
             <Text style={styles.errorTitle}>Unable to Connect</Text>
             <Text style={styles.errorMessage}>
@@ -174,7 +273,7 @@ export const TVWebView = forwardRef<TVWebViewHandle, Props>(
               {url}
             </Text>
             <Text style={styles.errorHint}>
-              Tap screen to open settings
+              Press OK/Enter or tap for settings
             </Text>
           </Pressable>
         )}
@@ -199,49 +298,64 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#000",
   },
-  tapLayer: {
-    position: "absolute",
-    top: 0,
-    right: 0,
-    width: 80,
-    height: 80,
-    // Invisible corner tap target — doesn't block WebView interaction
+  toolbarOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 100,
   },
   toolbar: {
-    position: "absolute",
-    top: 24,
-    right: 24,
     flexDirection: "row",
-    gap: 10,
-    backgroundColor: "rgba(0,0,0,0.85)",
-    borderRadius: 14,
-    padding: 8,
+    gap: 12,
+    backgroundColor: "rgba(0,0,0,0.9)",
+    borderRadius: 16,
+    padding: 10,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
+    borderColor: "rgba(255,255,255,0.15)",
   },
   toolbarBtn: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 10,
+    gap: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 12,
     backgroundColor: "rgba(255,255,255,0.08)",
+    borderWidth: 2,
+    borderColor: "transparent",
   },
   toolbarBtnPrimary: {
-    backgroundColor: "#3b82f6",
+    backgroundColor: "rgba(59,130,246,0.3)",
+  },
+  toolbarBtnClose: {
+    paddingHorizontal: 16,
+  },
+  toolbarBtnFocused: {
+    borderColor: "#3b82f6",
+    backgroundColor: "rgba(59,130,246,0.25)",
   },
   toolbarBtnIcon: {
-    fontSize: 18,
+    fontSize: 20,
     color: "#e5e7eb",
   },
   toolbarBtnLabel: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: "600",
     color: "#e5e7eb",
   },
   toolbarBtnLabelPrimary: {
+    color: "#93c5fd",
+  },
+  toolbarBtnTextFocused: {
     color: "#fff",
+  },
+  toolbarHint: {
+    marginTop: 16,
+  },
+  toolbarHintText: {
+    color: "rgba(255,255,255,0.35)",
+    fontSize: 13,
   },
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject,
@@ -254,6 +368,11 @@ const styles = StyleSheet.create({
     fontSize: 20,
     marginTop: 16,
     fontWeight: "300",
+  },
+  loadingHint: {
+    color: "#4b5563",
+    fontSize: 14,
+    marginTop: 12,
   },
   errorOverlay: {
     ...StyleSheet.absoluteFillObject,
