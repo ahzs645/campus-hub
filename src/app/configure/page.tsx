@@ -13,6 +13,13 @@ import {
   type ShareUrlMode,
   type WidgetConfig,
 } from '@/lib/config';
+import {
+  clearDashboardHistory,
+  listDashboardHistory,
+  saveDashboardHistory,
+  serializeDisplayConfig,
+  type DashboardHistoryEntry,
+} from '@/lib/dashboard-history';
 import { DEMO_PRESETS } from '@/lib/presets';
 import { getAllWidgets, getWidget } from '@/widgets';
 import AppIcon from '@/components/AppIcon';
@@ -200,6 +207,9 @@ const findPlacement = (
 
 export default function ConfigurePage() {
   const [config, setConfig] = useState<DisplayConfig>(DEFAULT_CONFIG);
+  const [hasLoadedInitialConfig, setHasLoadedInitialConfig] = useState(false);
+  const [recentDashboards, setRecentDashboards] = useState<DashboardHistoryEntry[]>([]);
+  const [historyState, setHistoryState] = useState<'loading' | 'ready'>('loading');
   const [shareUrl, setShareUrl] = useState<string>('');
   const [fullscreenPreviewUrl, setFullscreenPreviewUrl] = useState<string>('');
   const [shareUrlMode, setShareUrlMode] = useState<ShareUrlMode>('fullscreen');
@@ -224,6 +234,25 @@ export default function ConfigurePage() {
   const gridRef = useRef<GridStackWrapperRef>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
   const [isMobile, setIsMobile] = useState(false);
+  const currentConfigSignature = serializeDisplayConfig(config);
+
+  const hydrateEditorState = useCallback((nextConfig: DisplayConfig) => {
+    setConfig(nextConfig);
+    setEditingWidget(null);
+    setPlacementError(null);
+    setShowShareModal(false);
+    setShareUrl('');
+    setCopied(false);
+  }, []);
+
+  const refreshDashboardHistory = useCallback(async () => {
+    try {
+      const entries = await listDashboardHistory();
+      setRecentDashboards(entries);
+    } finally {
+      setHistoryState('ready');
+    }
+  }, []);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -261,18 +290,23 @@ export default function ConfigurePage() {
         }
       } catch {
         // Ignore corrupted cache
+      } finally {
+        if (!cancelled) {
+          setHasLoadedInitialConfig(true);
+        }
       }
     };
 
     void loadInitialConfig();
+    void refreshDashboardHistory();
 
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [refreshDashboardHistory]);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (!hasLoadedInitialConfig || typeof window === 'undefined') return;
     const timeout = setTimeout(() => {
       try {
         localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(config));
@@ -281,7 +315,23 @@ export default function ConfigurePage() {
       }
     }, 300);
     return () => clearTimeout(timeout);
-  }, [config]);
+  }, [config, hasLoadedInitialConfig]);
+
+  useEffect(() => {
+    if (!hasLoadedInitialConfig) return;
+    const timeout = setTimeout(() => {
+      void saveDashboardHistory(config)
+        .then((entries) => {
+          setRecentDashboards(entries);
+          setHistoryState('ready');
+        })
+        .catch(() => {
+          setHistoryState('ready');
+        });
+    }, 1500);
+
+    return () => clearTimeout(timeout);
+  }, [config, hasLoadedInitialConfig]);
 
   useEffect(() => {
     if (!config.gridRows) return;
@@ -593,12 +643,7 @@ export default function ConfigurePage() {
       const parsed = JSON.parse(text) as unknown;
       const importedConfig = getConfigFromImport(parsed);
       const normalized = normalizeConfig(importedConfig);
-      setConfig(normalized);
-      setEditingWidget(null);
-      setPlacementError(null);
-      setShowShareModal(false);
-      setShareUrl('');
-      setCopied(false);
+      hydrateEditorState(normalized);
       setJsonTransferMessage({ tone: 'success', text: `Imported ${file.name}.` });
     } catch {
       setJsonTransferMessage({
@@ -606,7 +651,7 @@ export default function ConfigurePage() {
         text: 'Import failed. Upload a valid Campus Hub config JSON.',
       });
     }
-  }, []);
+  }, [hydrateEditorState]);
 
   const renderGridItem = useCallback(
     (item: GridStackItem) => {
@@ -1127,6 +1172,96 @@ export default function ConfigurePage() {
             {sidebarTab === 'presets' && (
               <>
                 <div className="bg-[var(--ui-panel-bg)] rounded-xl p-4 space-y-3 border border-[color:var(--ui-panel-border)]">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <h2 className="font-bold text-lg flex items-center gap-2">
+                        <span className="text-[var(--color-accent)]">Recent Drafts</span>
+                      </h2>
+                      <p className="text-xs text-white/50">Stored in your browser local DB. Keep up to 5 previous dashboard versions.</p>
+                    </div>
+                    {recentDashboards.length > 0 && (
+                      <button
+                        onClick={() => {
+                          setHistoryState('loading');
+                          void clearDashboardHistory()
+                            .then(() => refreshDashboardHistory())
+                            .catch(() => setHistoryState('ready'));
+                        }}
+                        className="text-xs text-white/50 hover:text-white transition-colors"
+                      >
+                        Clear cache
+                      </button>
+                    )}
+                  </div>
+
+                  {historyState === 'loading' ? (
+                    <div className="text-xs text-white/40 rounded-lg border border-[color:var(--ui-item-border)] bg-[var(--ui-item-bg)] px-3 py-2">
+                      Loading local dashboard history...
+                    </div>
+                  ) : recentDashboards.length === 0 ? (
+                    <div className="text-xs text-white/40 rounded-lg border border-[color:var(--ui-item-border)] bg-[var(--ui-item-bg)] px-3 py-3">
+                      No cached drafts yet. Your last 5 dashboard states will appear here as you edit.
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {recentDashboards.map((entry, index) => {
+                        const snapshot = entry.config;
+                        const isCurrent = entry.signature === currentConfigSignature;
+                        const widgetCount = snapshot.layout.length;
+                        const timestamp = new Intl.DateTimeFormat(undefined, {
+                          dateStyle: 'medium',
+                          timeStyle: 'short',
+                        }).format(entry.savedAt);
+
+                        return (
+                          <button
+                            key={entry.id}
+                            onClick={() => hydrateEditorState(snapshot)}
+                            className="w-full p-3 rounded-lg bg-[var(--ui-item-bg)] hover:bg-[var(--ui-item-hover)] border border-[color:var(--ui-item-border)] hover:border-[var(--ui-item-border-hover)] transition-all text-left"
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm font-medium truncate">
+                                    {snapshot.schoolName || `Dashboard ${index + 1}`}
+                                  </span>
+                                  {isCurrent && (
+                                    <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[var(--ui-accent-soft)] text-[var(--color-accent)]">
+                                      Current
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-[11px] text-white/45 mt-1">{timestamp}</div>
+                                <div className="text-xs text-white/55 mt-1">
+                                  {widgetCount} widget{widgetCount === 1 ? '' : 's'} · {snapshot.gridCols ?? DEFAULT_GRID_COLS}×{snapshot.gridRows ?? DEFAULT_GRID_ROWS} grid
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-1.5 flex-shrink-0">
+                                <span
+                                  className="w-3 h-3 rounded-full border border-white/15"
+                                  style={{ backgroundColor: snapshot.theme.primary }}
+                                  title="Primary color"
+                                />
+                                <span
+                                  className="w-3 h-3 rounded-full border border-white/15"
+                                  style={{ backgroundColor: snapshot.theme.accent }}
+                                  title="Accent color"
+                                />
+                                <span
+                                  className="w-3 h-3 rounded-full border border-white/15"
+                                  style={{ backgroundColor: snapshot.theme.background }}
+                                  title="Background color"
+                                />
+                              </div>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                <div className="bg-[var(--ui-panel-bg)] rounded-xl p-4 space-y-3 border border-[color:var(--ui-panel-border)]">
                   <h2 className="font-bold text-lg flex items-center gap-2">
                     <span className="text-[var(--color-accent)]">Demo Presets</span>
                   </h2>
@@ -1135,7 +1270,7 @@ export default function ConfigurePage() {
                     {DEMO_PRESETS.map((preset) => (
                       <button
                         key={preset.id}
-                        onClick={() => setConfig(normalizeConfig(preset.config))}
+                        onClick={() => hydrateEditorState(normalizeConfig(preset.config))}
                         className="p-2 rounded-lg bg-[var(--ui-item-bg)] hover:bg-[var(--ui-item-hover)] border border-[color:var(--ui-item-border)] hover:border-[var(--ui-item-border-hover)] transition-all text-left group"
                       >
                         <div className="mb-1">
