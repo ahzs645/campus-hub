@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Tv, Camera, ArrowLeft, Wifi, CheckCircle2, AlertCircle, Loader2, RefreshCw, Send, Settings2, RotateCcw, Eye, Info } from 'lucide-react';
@@ -13,7 +13,19 @@ type TVInfo = {
   currentUrl?: string;
 };
 
-export default function TVSetupPage() {
+export default function TVSetupPageWrapper() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-white/40" />
+      </div>
+    }>
+      <TVSetupPage />
+    </Suspense>
+  );
+}
+
+function TVSetupPage() {
   const searchParams = useSearchParams();
   const [state, setState] = useState<ConnectionState>('scanning');
   const [tvInfo, setTVInfo] = useState<TVInfo | null>(null);
