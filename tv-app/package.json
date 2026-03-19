@@ -14,8 +14,9 @@
     "react-native-webview": "^13.12.5"
   },
   "devDependencies": {
-    "@react-native-community/cli": "^20.1.2",
-    "@react-native-community/cli-platform-android": "^20.1.2",
+    "@react-native-community/cli": "^14.1.0",
+    "@react-native-community/cli-platform-android": "^14.1.0",
+    "@react-native-community/cli-server-api": "^14.1.0",
     "@react-native/babel-preset": "0.76.9",
     "@react-native/eslint-config": "0.76.9",
     "@react-native/metro-config": "0.76.9",
