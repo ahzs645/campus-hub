@@ -97,6 +97,23 @@ export default async function Home() {
               </svg>
               View Demo
             </Link>
+
+            <Link
+              href="/tv-setup"
+              className="group px-8 py-4 rounded-xl font-semibold text-lg border-2 transition-all hover:scale-105 hover:bg-white/5 flex items-center gap-3"
+              style={{ borderColor: '#B79527', color: '#B79527' }}
+            >
+              <svg
+                className="w-5 h-5 transition-transform group-hover:scale-110"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <rect x="2" y="7" width="20" height="15" rx="2" ry="2" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+                <polyline points="17 2 12 7 7 2" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              Setup TV
+            </Link>
           </div>
 
           {/* Features */}
