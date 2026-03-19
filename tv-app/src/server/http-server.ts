@@ -48,13 +48,15 @@ export function startServer(port: number, handler: RequestHandler) {
 
       try {
         const response = handler(method || "GET", path || "/", body, headers);
+        // Calculate byte length for UTF-8 (avoid Buffer which may not exist in Hermes)
+        const byteLen = unescape(encodeURIComponent(response.body)).length;
         const responseStr =
           `HTTP/1.1 ${response.status} OK\r\n` +
           `Content-Type: ${response.contentType}\r\n` +
           `Access-Control-Allow-Origin: *\r\n` +
           `Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n` +
           `Access-Control-Allow-Headers: Content-Type\r\n` +
-          `Content-Length: ${Buffer.byteLength(response.body)}\r\n` +
+          `Content-Length: ${byteLen}\r\n` +
           `Connection: close\r\n` +
           `\r\n` +
           response.body;
