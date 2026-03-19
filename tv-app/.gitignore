@@ -6,7 +6,9 @@ ios/build/
 ios/Pods/
 android/build/
 android/app/build/
+android/app/.cxx/
 android/.gradle/
+android/.cxx/
 
 # Metro
 .metro-health-check*
