@@ -109,6 +109,7 @@ export default function App() {
       ref={webViewRef}
       url={displayUrl}
       showIdentify={showIdentify}
+      onOpenSetup={() => setMode("setup")}
     />
   );
 }
