@@ -1,7 +1,6 @@
 /**
  * HTML page served by the TV's embedded HTTP server.
- * Users scan the QR code, open this page on their phone,
- * and configure what the TV displays.
+ * Styled to match the Campus Hub dashboard theme.
  */
 export function getConfigPageHTML(
   currentConfig: { url?: string; configJson?: string },
@@ -14,42 +13,59 @@ export function getConfigPageHTML(
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Campus Hub TV - Setup</title>
 <style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-    background: #0a0a0a;
+    font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    background: #0a0f0d;
     color: #e5e7eb;
     min-height: 100vh;
     padding: 20px;
+    position: relative;
+    overflow-x: hidden;
   }
-  .container { max-width: 480px; margin: 0 auto; }
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    opacity: 0.3;
+    background:
+      radial-gradient(ellipse at 20% 20%, rgba(183, 149, 39, 0.15) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 80%, rgba(3, 86, 66, 0.3) 0%, transparent 50%),
+      radial-gradient(ellipse at 50% 50%, rgba(183, 149, 39, 0.08) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+  .container { max-width: 480px; margin: 0 auto; position: relative; z-index: 1; }
   .header {
     text-align: center;
     padding: 24px 0 20px;
-    border-bottom: 1px solid #1f2937;
+    border-bottom: 1px solid rgba(183, 149, 39, 0.15);
     margin-bottom: 24px;
   }
   .header h1 {
-    font-size: 22px;
+    font-size: 24px;
     font-weight: 700;
     color: #f9fafb;
     margin-bottom: 4px;
+    letter-spacing: -0.02em;
   }
   .header .device {
     font-size: 13px;
-    color: #6b7280;
+    color: rgba(255,255,255,0.4);
   }
   .connected {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    background: #064e3b;
+    background: rgba(3, 86, 66, 0.3);
     color: #34d399;
     font-size: 12px;
     font-weight: 600;
-    padding: 4px 12px;
+    padding: 5px 14px;
     border-radius: 20px;
     margin-bottom: 12px;
+    border: 1px solid rgba(52, 211, 153, 0.2);
   }
   .connected::before {
     content: '';
@@ -57,51 +73,65 @@ export function getConfigPageHTML(
     height: 6px;
     background: #34d399;
     border-radius: 50%;
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
   }
   .section {
-    background: #111827;
-    border: 1px solid #1f2937;
-    border-radius: 12px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(183, 149, 39, 0.12);
+    border-radius: 14px;
     padding: 20px;
     margin-bottom: 16px;
+    backdrop-filter: blur(10px);
   }
   .section h2 {
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 600;
-    color: #d1d5db;
-    margin-bottom: 12px;
+    color: rgba(255,255,255,0.7);
+    margin-bottom: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
   }
   .section p {
     font-size: 13px;
-    color: #6b7280;
+    color: rgba(255,255,255,0.4);
     margin-bottom: 12px;
     line-height: 1.5;
   }
   label {
     display: block;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 500;
-    color: #9ca3af;
+    color: rgba(255,255,255,0.5);
     margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
   }
   input, textarea {
     width: 100%;
-    padding: 10px 12px;
-    background: #0a0a0a;
-    border: 1px solid #374151;
-    border-radius: 8px;
+    padding: 11px 14px;
+    background: rgba(0,0,0,0.3);
+    border: 1px solid rgba(183, 149, 39, 0.15);
+    border-radius: 10px;
     color: #f3f4f6;
     font-size: 14px;
-    font-family: inherit;
+    font-family: 'DM Sans', sans-serif;
     outline: none;
-    transition: border-color 0.15s;
+    transition: border-color 0.2s, box-shadow 0.2s;
   }
   input:focus, textarea:focus {
-    border-color: #3b82f6;
+    border-color: rgba(183, 149, 39, 0.5);
+    box-shadow: 0 0 0 3px rgba(183, 149, 39, 0.1);
+  }
+  input::placeholder, textarea::placeholder {
+    color: rgba(255,255,255,0.2);
   }
   textarea {
-    min-height: 140px;
-    font-family: 'SF Mono', 'Fira Code', monospace;
+    min-height: 130px;
+    font-family: 'JetBrains Mono', 'SF Mono', monospace;
     font-size: 12px;
     resize: vertical;
   }
@@ -110,87 +140,47 @@ export function getConfigPageHTML(
     width: 100%;
     padding: 12px;
     border: none;
-    border-radius: 8px;
+    border-radius: 10px;
     font-size: 14px;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.15s;
+    transition: all 0.2s;
+    font-family: 'DM Sans', sans-serif;
   }
   .btn-primary {
-    background: #3b82f6;
-    color: white;
+    background: #B79527;
+    color: #035642;
   }
-  .btn-primary:hover { background: #2563eb; }
-  .btn-primary:active { transform: scale(0.98); }
-  .btn-secondary {
-    background: #1f2937;
-    color: #d1d5db;
-    margin-top: 8px;
-  }
-  .btn-secondary:hover { background: #374151; }
-  .or-divider {
-    text-align: center;
-    color: #4b5563;
-    font-size: 12px;
-    padding: 16px 0;
-    position: relative;
-  }
-  .or-divider::before, .or-divider::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    width: 40%;
-    height: 1px;
-    background: #1f2937;
-  }
-  .or-divider::before { left: 0; }
-  .or-divider::after { right: 0; }
-  .status {
-    text-align: center;
-    padding: 12px;
-    border-radius: 8px;
-    font-size: 13px;
-    font-weight: 500;
-    margin-top: 12px;
-    display: none;
-  }
-  .status.success { display: block; background: #064e3b; color: #34d399; }
-  .status.error { display: block; background: #450a0a; color: #f87171; }
-  .status.loading { display: block; background: #1e1b4b; color: #818cf8; }
-  .current {
-    background: #0a0a0a;
-    border-radius: 8px;
-    padding: 10px 12px;
-    font-size: 12px;
-    font-family: 'SF Mono', 'Fira Code', monospace;
-    color: #6b7280;
-    word-break: break-all;
-    margin-top: 8px;
-  }
+  .btn-primary:hover { background: #c9a52e; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(183, 149, 39, 0.3); }
+  .btn-primary:active { transform: translateY(0); }
   .tabs {
     display: flex;
     gap: 4px;
     margin-bottom: 16px;
-    background: #0a0a0a;
-    border-radius: 8px;
+    background: rgba(0,0,0,0.3);
+    border-radius: 10px;
     padding: 3px;
+    border: 1px solid rgba(255,255,255,0.05);
   }
   .tab {
     flex: 1;
-    padding: 8px;
+    padding: 9px;
     text-align: center;
     font-size: 13px;
     font-weight: 500;
-    border-radius: 6px;
+    border-radius: 8px;
     cursor: pointer;
-    color: #6b7280;
+    color: rgba(255,255,255,0.4);
     border: none;
     background: none;
-    transition: all 0.15s;
+    transition: all 0.2s;
+    font-family: 'DM Sans', sans-serif;
   }
+  .tab:hover { color: rgba(255,255,255,0.6); }
   .tab.active {
-    background: #1f2937;
-    color: #f3f4f6;
+    background: rgba(183, 149, 39, 0.15);
+    color: #B79527;
+    font-weight: 600;
   }
   .tab-content { display: none; }
   .tab-content.active { display: block; }
@@ -198,27 +188,66 @@ export function getConfigPageHTML(
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 8px;
-    margin-top: 12px;
   }
   .action-btn {
-    padding: 10px 8px;
-    background: #1f2937;
-    border: 1px solid #374151;
-    border-radius: 8px;
-    color: #d1d5db;
-    font-size: 12px;
+    padding: 11px 8px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(183, 149, 39, 0.12);
+    border-radius: 10px;
+    color: rgba(255,255,255,0.6);
+    font-size: 13px;
     font-weight: 500;
     cursor: pointer;
     text-align: center;
-    transition: all 0.15s;
+    transition: all 0.2s;
+    font-family: 'DM Sans', sans-serif;
   }
-  .action-btn:hover { background: #374151; }
+  .action-btn:hover { background: rgba(183, 149, 39, 0.1); border-color: rgba(183, 149, 39, 0.25); color: #B79527; }
   .action-btn:active { transform: scale(0.97); }
+  .status {
+    text-align: center;
+    padding: 12px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 500;
+    margin-top: 12px;
+    display: none;
+  }
+  .status.success { display: block; background: rgba(3, 86, 66, 0.25); color: #34d399; border: 1px solid rgba(52, 211, 153, 0.2); }
+  .status.error { display: block; background: rgba(127, 29, 29, 0.25); color: #f87171; border: 1px solid rgba(248, 113, 113, 0.2); }
+  .status.loading { display: block; background: rgba(183, 149, 39, 0.1); color: #B79527; border: 1px solid rgba(183, 149, 39, 0.2); }
+  .current {
+    background: rgba(0,0,0,0.3);
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 12px;
+    font-family: 'JetBrains Mono', 'SF Mono', monospace;
+    color: rgba(255,255,255,0.4);
+    word-break: break-all;
+    border: 1px solid rgba(255,255,255,0.05);
+  }
+  .logo-dots {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    margin-bottom: 12px;
+  }
+  .logo-dots span:nth-child(1) {
+    width: 10px; height: 10px; border-radius: 50%; background: #B79527; animation: pulse 2s infinite;
+  }
+  .logo-dots span:nth-child(2) {
+    width: 6px; height: 6px; border-radius: 50%; background: #B79527; opacity: 0.5;
+  }
+  .logo-dots span:nth-child(3) {
+    width: 4px; height: 4px; border-radius: 50%; background: #B79527; opacity: 0.25;
+  }
 </style>
 </head>
 <body>
 <div class="container">
   <div class="header">
+    <div class="logo-dots"><span></span><span></span><span></span></div>
     <div class="connected">Connected to TV</div>
     <h1>Campus Hub TV</h1>
     <div class="device">${deviceName}</div>
