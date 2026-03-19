@@ -18,6 +18,7 @@ export interface WidgetConfig {
     | 'widget-stack'
     | 'bus-connection'
     | 'climbing-gym'
+    | 'group-fitness'
     | 'qrcode'
     | 'library-availability'
     | 'confessions';

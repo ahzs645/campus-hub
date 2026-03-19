@@ -18,6 +18,7 @@ import './climbing-gym/ClimbingGym';
 import './cafeteria-menu/CafeteriaMenu';
 import './widget-stack/WidgetStack';
 import './library-availability/LibraryAvailability';
+import './group-fitness/GroupFitness';
 import './confessions/Confessions';
 import './rich-text/RichText';
 import './air-quality/AirQuality';

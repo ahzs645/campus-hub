@@ -33,6 +33,7 @@ const DISPLAY_WIDGET_LOADERS: Record<string, DisplayWidgetLoader> = {
   'climbing-gym': () => import('@/widgets/climbing-gym/ClimbingGym'),
   qrcode: () => import('@/widgets/qrcode/QRCode'),
   'library-availability': () => import('@/widgets/library-availability/LibraryAvailability'),
+  'group-fitness': () => import('@/widgets/group-fitness/GroupFitness'),
   confessions: () => import('@/widgets/confessions/Confessions'),
   'cafeteria-menu': () => import('@/widgets/cafeteria-menu/CafeteriaMenu'),
   'rich-text': () => import('@/widgets/rich-text/RichText'),
