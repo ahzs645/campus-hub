@@ -65,6 +65,14 @@ This keeps setup serverless and avoids a relay/signaling service for the TV shel
 - It avoids WebRTC signaling, TURN, and backend coordination.
 - It is simpler to support operationally for same-network signage installs.
 
+### Operational constraints
+
+- The phone and TV must be on the same local network.
+- Guest Wi-Fi, client isolation, and segmented enterprise LANs can block direct pairing.
+- The recommended path is to scan the QR code and open the TV's own local page directly.
+- A hosted helper page can assist with manual entry, but some browsers restrict HTTPS-to-local-device requests.
+- Android emulator addresses such as `10.0.2.15` are emulator-internal; validate real QR scanning on actual Android TV / Google TV hardware or use `adb forward tcp:8888 tcp:8888` during local development.
+
 ### What was considered and not used
 
 - **Public-site-only control without a local endpoint**: browsers do not give normal websites reliable LAN discovery or unrestricted direct local connectivity.

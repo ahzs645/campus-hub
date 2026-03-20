@@ -57,14 +57,18 @@ function TVSetupPage() {
     }
   }, []);
 
+  const normalizePairCode = useCallback((value?: string) => {
+    return (value ?? '').replace(/\D/g, '').slice(0, 6);
+  }, []);
+
   const parseTVTarget = useCallback((target: string, explicitPairCode?: string) => {
     const parsed = new URL(target);
     const detectedPairCode = parsed.searchParams.get('pair') ?? '';
     return {
       url: `${parsed.protocol}//${parsed.host}`,
-      pairCode: (explicitPairCode || detectedPairCode).trim(),
+      pairCode: normalizePairCode(explicitPairCode || detectedPairCode),
     };
-  }, []);
+  }, [normalizePairCode]);
 
   const createPairHeaders = useCallback((pairCodeValue?: string) => {
     const headers: HeadersInit = {};
@@ -87,7 +91,10 @@ function TVSetupPage() {
         headers,
         signal: AbortSignal.timeout(5000),
       });
-      if (!res.ok) throw new Error('TV not responding');
+      if (!res.ok) {
+        const payload = await res.json().catch(() => ({}));
+        throw new Error(payload.error || 'TV not responding');
+      }
       const data = await res.json();
 
       // Also get device info
@@ -115,7 +122,12 @@ function TVSetupPage() {
       setConfigUrl(data.url || '');
       setConfigJson(data.configJson || '');
       setState('connected');
-    } catch {
+    } catch (error) {
+      if (error instanceof Error && error.message) {
+        setError(error.message);
+        setState('error');
+        return;
+      }
       const isHttps = typeof window !== 'undefined' && window.location.protocol === 'https:';
       const mixedContentHint = isHttps
         ? '\n\nNote: Your browser may block connections from HTTPS to a local HTTP device. The TV QR flow opens the local page directly, which is the recommended setup path.'
@@ -229,10 +241,12 @@ function TVSetupPage() {
         showStatus('Applied! TV is updating...', 'success');
         setTVInfo({ ...tvInfo, currentUrl: type === 'url' ? value : tvInfo.currentUrl });
       } else {
-        showStatus('Failed to apply', 'error');
+        const payload = await res.json().catch(() => ({}));
+        showStatus(payload.error || 'Failed to apply', 'error');
       }
-    } catch {
-      showStatus('Connection lost to TV', 'error');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Connection lost to TV';
+      showStatus(message, 'error');
     }
   };
 
@@ -249,9 +263,14 @@ function TVSetupPage() {
         signal: AbortSignal.timeout(5000),
       });
       const data = await res.json();
+      if (!res.ok) {
+        showStatus(data.error || 'Request failed', 'error');
+        return;
+      }
       showStatus(data.message || 'Done!', 'success');
-    } catch {
-      showStatus('Connection lost to TV', 'error');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Connection lost to TV';
+      showStatus(message, 'error');
     }
   };
 
@@ -524,7 +543,7 @@ function TVSetupPage() {
                 inputMode="numeric"
                 maxLength={6}
                 value={pairCode}
-                onChange={(e) => setPairCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                onChange={(e) => setPairCode(normalizePairCode(e.target.value))}
                 placeholder="123456"
                 className="px-3 py-2.5 bg-black/30 border border-white/10 rounded-lg text-sm text-white placeholder:text-white/20 outline-none focus:border-[#B79527]/50 transition-colors"
               />

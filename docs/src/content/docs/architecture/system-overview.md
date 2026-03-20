@@ -191,6 +191,8 @@ This model was chosen because it matches the product's current deployment assump
 There are also explicit limits to this approach:
 
 - **No LAN discovery from a normal hosted web page** — browsers do not expose LocalSend-style nearby-device discovery to ordinary sites.
+- **The QR should open the TV's local page directly** — while a hosted helper page can assist, browsers may restrict or degrade HTTPS-to-local-device control flows.
+- **Same-network assumptions are real** — guest Wi-Fi, client isolation, VLAN separation, and other LAN policies can block direct setup even when both devices are nearby.
 - **No serverless WebRTC setup win** — using WebRTC would still introduce signaling complexity that is unnecessary for local signage control.
 - **No reliance on experimental browser APIs** — emerging proposals such as the Local Peer-to-Peer API are promising, but not mature enough to be the foundation of the shipped pairing flow.
 
