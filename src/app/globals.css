@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@source "../../node_modules/@campus-hub/engine/src";
 
 :root {
   --background: #022b21;
