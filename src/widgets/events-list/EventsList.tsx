@@ -195,12 +195,15 @@ export default function EventsList({ config, theme }: WidgetComponentProps) {
   const renderEventCard = (event: Event, index: number, grow = false) => (
     <div
       key={event.id ?? index}
-      className={`p-5 rounded-xl border-l-4 overflow-hidden${grow ? ' flex-1 min-h-0 flex flex-col justify-center' : ''}`}
+      className={`p-5 pl-8 rounded-xl overflow-hidden relative${grow ? ' flex-1 min-h-0 flex flex-col justify-center' : ''}`}
       style={{
         backgroundColor: `${theme.primary}50`,
-        borderColor: event.color ?? theme.accent,
       }}
     >
+      <div
+        className="absolute left-3 top-4 bottom-4 w-1 rounded-full"
+        style={{ backgroundColor: event.color ?? theme.accent }}
+      />
       <div className={`font-semibold text-white leading-snug line-clamp-2 ${grow ? 'text-2xl' : 'text-xl'}`}>
         {event.title}
       </div>

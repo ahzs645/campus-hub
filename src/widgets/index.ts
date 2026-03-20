@@ -44,6 +44,10 @@ import './rock-paper-scissors/RockPaperScissors';
 import './nothing-glyph/NothingGlyph';
 import './word-of-the-day/WordOfTheDay';
 import './coin-dice/CoinDice';
+import './rss-reader/RSSReader';
+import './google-calendar/GoogleCalendar';
+import './simple-table/SimpleTable';
+import './word-clock/WordClock';
 
 // Re-export registry functions
 export { getWidget, getAllWidgets, getWidgetComponent } from '@/lib/widget-registry';

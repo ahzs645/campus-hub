@@ -160,7 +160,7 @@ export default function RSSReader({ config, theme, corsProxy: globalCorsProxy }:
       >
         {/* Header */}
         <div className="flex items-center gap-3 px-5 py-4 shrink-0" style={{ borderBottom: `1px solid ${theme.accent}20` }}>
-          <AppIcon name="rss" className="w-5 h-5" style={{ color: theme.accent }} />
+          <span style={{ color: theme.accent }}><AppIcon name="rss" className="w-5 h-5" /></span>
           <span className="text-lg font-semibold text-white truncate">{feedTitle}</span>
           {!feedUrl && (
             <span className="text-xs px-2 py-0.5 rounded-full bg-white/10 text-white/50 ml-auto">Demo</span>

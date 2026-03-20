@@ -114,6 +114,10 @@ body {
   animation: rich-text-scroll-up linear infinite;
 }
 
+.rss-scroll {
+  animation: rich-text-scroll-up linear infinite;
+}
+
 .rich-text-content strong {
   font-weight: 700;
 }

@@ -10,6 +10,64 @@ import { MODES as GLYPH_MODES } from '@/widgets/nothing-glyph/NothingGlyph';
 // Import all widgets to trigger registration
 import '@/widgets/index';
 
+// Tag assignments for each widget type
+const WIDGET_TAGS: Record<string, string[]> = {
+  'clock':                ['Time'],
+  'countdown':            ['Time'],
+  'time-progress':        ['Time'],
+  'holiday-calendar':     ['Time', 'Fun'],
+  'f1-countdown':         ['Time', 'Sports'],
+  'weather':              ['Environment'],
+  'air-quality':          ['Environment'],
+  'uv-index':             ['Environment'],
+  'fire-hazard':          ['Environment'],
+  'aurora-forecast':      ['Environment'],
+  'drought-level':        ['Environment'],
+  'groundwater-level':    ['Environment'],
+  'satellite-view':       ['Environment'],
+  'cafeteria-menu':       ['Campus'],
+  'club-spotlight':       ['Campus'],
+  'confessions':          ['Campus'],
+  'group-fitness':        ['Campus', 'Sports'],
+  'library-availability': ['Campus'],
+  'job-board':            ['Campus'],
+  'events-list':          ['Campus'],
+  'climbing-gym':         ['Campus', 'Sports'],
+  'bus-connection':       ['Transit'],
+  'news-ticker':          ['Info'],
+  'exchange-rate':        ['Info'],
+  'crypto-tracker':       ['Info'],
+  'iss-tracker':          ['Info'],
+  'rss-reader':           ['Info'],
+  'poster-carousel':      ['Media'],
+  'poster-feed':          ['Media'],
+  'slideshow':            ['Media'],
+  'image':                ['Media'],
+  'media-player':         ['Media'],
+  'youtube':              ['Media'],
+  'web':                  ['Media'],
+  'rich-text':            ['Media'],
+  'nothing-glyph':        ['Fun'],
+  'bottle-spin':          ['Fun'],
+  'rock-paper-scissors':  ['Fun'],
+  'kaomoji':              ['Fun'],
+  'coin-dice':            ['Fun'],
+  'word-of-the-day':      ['Fun'],
+  'flashcard':            ['Fun'],
+  'qrcode':               ['Utility'],
+  'widget-stack':         ['Utility'],
+  'google-calendar':      ['Campus', 'Time'],
+};
+
+function getWidgetTags(type: string): string[] {
+  return WIDGET_TAGS[type] ?? ['Other'];
+}
+
+// All unique tags in display order
+const ALL_TAGS = ['Campus', 'Environment', 'Time', 'Info', 'Media', 'Transit', 'Sports', 'Fun', 'Utility'];
+
+type SortMode = 'name' | 'tag' | 'size';
+
 // Default theme for rendering previews
 const PREVIEW_THEME = {
   primary: '#B79527',
@@ -56,17 +114,32 @@ export default function GalleryPage() {
   const [search, setSearch] = useState('');
   const [previewSize, setPreviewSize] = useState<SizePreset>('medium');
   const [playgroundWidget, setPlaygroundWidget] = useState<WidgetDefinition | null>(null);
+  const [activeTag, setActiveTag] = useState<string | null>(null);
+  const [sortMode, setSortMode] = useState<SortMode>('name');
 
   useEffect(() => {
     setWidgets(getAllWidgets());
   }, []);
 
-  const filtered = widgets.filter(
-    (w) =>
-      w.name.toLowerCase().includes(search.toLowerCase()) ||
-      w.description.toLowerCase().includes(search.toLowerCase()) ||
-      w.type.toLowerCase().includes(search.toLowerCase()),
-  );
+  const filtered = widgets
+    .filter((w) => {
+      const matchesSearch =
+        !search ||
+        w.name.toLowerCase().includes(search.toLowerCase()) ||
+        w.description.toLowerCase().includes(search.toLowerCase()) ||
+        w.type.toLowerCase().includes(search.toLowerCase());
+      const matchesTag =
+        !activeTag || getWidgetTags(w.type).includes(activeTag);
+      return matchesSearch && matchesTag;
+    })
+    .sort((a, b) => {
+      if (sortMode === 'name') return a.name.localeCompare(b.name);
+      if (sortMode === 'size') return (b.defaultW * b.defaultH) - (a.defaultW * a.defaultH);
+      // sort by first tag then name
+      const tagA = getWidgetTags(a.type)[0];
+      const tagB = getWidgetTags(b.type)[0];
+      return tagA.localeCompare(tagB) || a.name.localeCompare(b.name);
+    });
 
   const scale = BASE_SCALE[previewSize];
 
@@ -134,8 +207,50 @@ export default function GalleryPage() {
         </div>
       </header>
 
+      {/* Filters */}
+      <div className="max-w-7xl mx-auto px-6 pt-5 pb-2 flex items-center gap-3 flex-wrap">
+        {/* Tag pills */}
+        <button
+          onClick={() => setActiveTag(null)}
+          className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${
+            !activeTag
+              ? 'bg-[#B79527] text-[#035642] border-[#B79527]'
+              : 'text-white/50 border-white/10 hover:border-white/20 hover:text-white/70'
+          }`}
+        >
+          All
+        </button>
+        {ALL_TAGS.map((tag) => (
+          <button
+            key={tag}
+            onClick={() => setActiveTag(activeTag === tag ? null : tag)}
+            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${
+              activeTag === tag
+                ? 'bg-[#B79527] text-[#035642] border-[#B79527]'
+                : 'text-white/50 border-white/10 hover:border-white/20 hover:text-white/70'
+            }`}
+          >
+            {tag}
+          </button>
+        ))}
+
+        {/* Sort */}
+        <div className="ml-auto flex items-center gap-2">
+          <span className="text-[10px] text-white/30 uppercase tracking-wider">Sort</span>
+          <select
+            value={sortMode}
+            onChange={(e) => setSortMode(e.target.value as SortMode)}
+            className="bg-white/5 border border-white/10 rounded-lg text-xs text-white/60 px-2 py-1.5 focus:outline-none focus:border-[#B79527]/50"
+          >
+            <option value="name" className="bg-[#1a1a1a]">Name</option>
+            <option value="tag" className="bg-[#1a1a1a]">Category</option>
+            <option value="size" className="bg-[#1a1a1a]">Size</option>
+          </select>
+        </div>
+      </div>
+
       {/* Gallery Grid */}
-      <main className="max-w-7xl mx-auto px-6 py-8">
+      <main className="max-w-7xl mx-auto px-6 py-4">
         <div className="flex flex-wrap gap-6 justify-center">
           {filtered.map((widget) => {
             const size = getWidgetPreviewSize(widget, scale);
@@ -221,7 +336,19 @@ function WidgetCard({
           <AppIcon name={widget.icon} className="w-4 h-4 text-[#B79527]" />
         </div>
         <div className="min-w-0 flex-1">
-          <h3 className="text-sm font-semibold text-white truncate">{widget.name}</h3>
+          <div className="flex items-center gap-2">
+            <h3 className="text-sm font-semibold text-white truncate">{widget.name}</h3>
+            <div className="flex gap-1 shrink-0">
+              {getWidgetTags(widget.type).map((tag) => (
+                <span
+                  key={tag}
+                  className="px-1.5 py-0.5 rounded text-[9px] font-medium bg-white/[0.06] text-white/35"
+                >
+                  {tag}
+                </span>
+              ))}
+            </div>
+          </div>
           <p className="text-xs text-white/40 truncate">{widget.description}</p>
         </div>
         <button
