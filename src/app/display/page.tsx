@@ -48,6 +48,25 @@ const resolveUrl = (url: string): string => {
   }
 };
 
+const parseConfigJsonParam = (value: string): DisplayConfig | null => {
+  const candidates = [value];
+
+  try {
+    const decoded = decodeURIComponent(value);
+    if (decoded !== value) {
+      candidates.push(decoded);
+    }
+  } catch {}
+
+  for (const candidate of candidates) {
+    try {
+      return normalizeConfig(JSON.parse(candidate) as DisplayConfig);
+    } catch {}
+  }
+
+  return null;
+};
+
 function DisplayContent() {
   const searchParams = useSearchParams();
   const paramsKey = searchParams.toString();
@@ -119,6 +138,16 @@ function DisplayContent() {
         if (configParam) {
           const decoded = await decodeConfig(configParam);
           if (decoded) resolvedConfig = decoded;
+        }
+      }
+
+      if (!resolvedPlaylist && !resolvedConfig) {
+        const configJsonParam = searchParams.get('configJson');
+        if (configJsonParam) {
+          resolvedConfig = parseConfigJsonParam(configJsonParam);
+          if (!resolvedConfig) {
+            console.error('Failed to parse configJson');
+          }
         }
       }
 

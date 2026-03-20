@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { getAllWidgets, type WidgetDefinition } from '@/lib/widget-registry';
 import AppIcon from '@/components/AppIcon';
-import GLYPH_CATALOG from '@/widgets/nothing-glyph/glyphCatalog';
+import { MODES as GLYPH_MODES } from '@/widgets/nothing-glyph/NothingGlyph';
+
 
 // Import all widgets to trigger registration
 import '@/widgets/index';
@@ -134,11 +135,11 @@ function WidgetCard({
   size: { w: number; h: number };
 }) {
   const Component = widget.component;
-  const [glyphId, setGlyphId] = useState(widget.defaultProps?.glyphId as string ?? '');
+  const [glyphMode, setGlyphMode] = useState(widget.defaultProps?.mode as string ?? 'pendulum');
   const isGlyph = widget.type === 'nothing-glyph';
 
   const config = isGlyph
-    ? { ...widget.defaultProps, glyphId }
+    ? { ...widget.defaultProps, mode: glyphMode }
     : widget.defaultProps;
 
   return (
@@ -187,13 +188,13 @@ function WidgetCard({
       {isGlyph && (
         <div className="px-4 py-2 border-t border-white/[0.06]">
           <select
-            value={glyphId}
-            onChange={(e) => setGlyphId(e.target.value)}
+            value={glyphMode}
+            onChange={(e) => setGlyphMode(e.target.value)}
             className="w-full bg-white/5 border border-white/10 rounded-lg text-xs text-white/70 px-2 py-1.5 focus:outline-none focus:border-[#B79527]/50"
           >
-            {GLYPH_CATALOG.map((g) => (
-              <option key={g.id} value={g.id} className="bg-[#1a1a1a]">
-                {g.name} — {g.creator}
+            {GLYPH_MODES.map((m) => (
+              <option key={m.id} value={m.id} className="bg-[#1a1a1a]">
+                {m.name} — {m.description}
               </option>
             ))}
           </select>

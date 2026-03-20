@@ -9,6 +9,10 @@ type Props = {
 };
 
 export function SetupScreen({ serverUrl, deviceName }: Props) {
+  const setupHost = CONFIG.CAMPUS_HUB_URL.replace(/^https?:\/\//, "").replace(
+    /\/$/,
+    ""
+  );
   const qrValue = serverUrl
     ? `${CONFIG.CAMPUS_HUB_URL}/tv-setup?tv=${encodeURIComponent(serverUrl)}`
     : null;
@@ -41,7 +45,7 @@ export function SetupScreen({ serverUrl, deviceName }: Props) {
               </View>
               <View>
                 <Text style={styles.stepText}>
-                  Open your phone's camera and scan{"\n"}the QR code on the right
+                  Open your phone&apos;s camera and scan{"\n"}the QR code on the right
                 </Text>
               </View>
             </View>
@@ -59,7 +63,7 @@ export function SetupScreen({ serverUrl, deviceName }: Props) {
               <Text style={styles.helpText}>
                 Or visit{" "}
                 <Text style={styles.helpUrl}>
-                  {CONFIG.CAMPUS_HUB_URL.replace("https://", "")}/tv-setup
+                  {setupHost}/tv-setup
                 </Text>
               </Text>
             </View>

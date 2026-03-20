@@ -13,13 +13,18 @@ type ActionCallback = (action: TVAction) => void;
 
 const SERVER_PORT = 8888;
 
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : "Unknown error";
+}
+
 export function startTVServer(
   currentConfig: TVConfig,
   deviceName: string,
   onConfigChange: ConfigCallback,
   onAction: ActionCallback
 ) {
-  let config = { ...currentConfig };
+  const initialConfig = { ...currentConfig };
+  let config = { ...initialConfig };
 
   const serverInstance = startServer(SERVER_PORT, (method, path, body) => {
     // CORS preflight
@@ -42,10 +47,21 @@ export function startTVServer(
     // API: update config
     if (path === "/api/config" && method === "POST") {
       try {
-        const data = JSON.parse(body);
+        const data = JSON.parse(body) as {
+          type?: string;
+          value?: string;
+        };
 
         if (data.type === "url") {
-          config = { url: data.value };
+          if (typeof data.value !== "string" || !data.value.trim()) {
+            return {
+              status: 400,
+              contentType: "application/json",
+              body: JSON.stringify({ error: "A non-empty URL is required" }),
+            };
+          }
+
+          config = { url: data.value.trim() };
           onConfigChange(config);
           return {
             status: 200,
@@ -55,8 +71,16 @@ export function startTVServer(
         }
 
         if (data.type === "json") {
+          if (typeof data.value !== "string" || !data.value.trim()) {
+            return {
+              status: 400,
+              contentType: "application/json",
+              body: JSON.stringify({ error: "A JSON config is required" }),
+            };
+          }
+
           // Validate JSON config
-          const parsed = JSON.parse(data.value);
+          JSON.parse(data.value);
           config = {
             url: config.url,
             configJson: data.value,
@@ -74,11 +98,11 @@ export function startTVServer(
           contentType: "application/json",
           body: JSON.stringify({ error: "Unknown config type" }),
         };
-      } catch (e: any) {
+      } catch (error) {
         return {
           status: 400,
           contentType: "application/json",
-          body: JSON.stringify({ error: e.message }),
+          body: JSON.stringify({ error: getErrorMessage(error) }),
         };
       }
     }
@@ -86,7 +110,17 @@ export function startTVServer(
     // API: actions (reload, reset, identify, info)
     if (path === "/api/action" && method === "POST") {
       try {
-        const data = JSON.parse(body);
+        const data = JSON.parse(body) as {
+          action?: string;
+        };
+
+        if (typeof data.action !== "string") {
+          return {
+            status: 400,
+            contentType: "application/json",
+            body: JSON.stringify({ error: "Action is required" }),
+          };
+        }
 
         if (data.action === "info") {
           return {
@@ -95,9 +129,26 @@ export function startTVServer(
             body: JSON.stringify({
               device: deviceName,
               currentUrl: config.url,
+              hasConfigJson: Boolean(config.configJson),
               port: SERVER_PORT,
             }),
           };
+        }
+
+        if (
+          data.action !== "reload" &&
+          data.action !== "reset" &&
+          data.action !== "identify"
+        ) {
+          return {
+            status: 400,
+            contentType: "application/json",
+            body: JSON.stringify({ error: `Unknown action '${data.action}'` }),
+          };
+        }
+
+        if (data.action === "reset") {
+          config = { ...initialConfig };
         }
 
         onAction(data.action);
@@ -112,11 +163,11 @@ export function startTVServer(
                 : `Action '${data.action}' executed`,
           }),
         };
-      } catch (e: any) {
+      } catch (error) {
         return {
           status: 400,
           contentType: "application/json",
-          body: JSON.stringify({ error: e.message }),
+          body: JSON.stringify({ error: getErrorMessage(error) }),
         };
       }
     }

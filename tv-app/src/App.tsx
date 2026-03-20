@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import { StatusBar } from "react-native";
-import NetInfo from "@react-native-community/netinfo";
+import NetInfo, { type NetInfoState } from "@react-native-community/netinfo";
 import { TVWebView } from "@/components/TVWebView";
 import { SetupScreen } from "@/screens/SetupScreen";
 import { startTVServer, TVConfig, TVAction } from "@/server/tv-server";
@@ -9,13 +9,25 @@ import { CONFIG } from "@/utils/config";
 
 const DEVICE_NAME = "Campus Hub TV";
 const SERVER_PORT = 8888;
+const DEFAULT_DISPLAY_URL = `${CONFIG.CAMPUS_HUB_URL}${CONFIG.DEFAULT_PATH}`;
+
+function getServerUrl(state: NetInfoState): string {
+  const ipAddress =
+    state.details && "ipAddress" in state.details
+      ? state.details.ipAddress
+      : null;
+
+  if (ipAddress) {
+    return `http://${ipAddress}:${SERVER_PORT}`;
+  }
+
+  return `http://localhost:${SERVER_PORT}`;
+}
 
 export default function App() {
   const [mode, setMode] = useState<"display" | "setup">("display");
   const [serverUrl, setServerUrl] = useState<string | null>(null);
-  const [displayUrl, setDisplayUrl] = useState(
-    `${CONFIG.CAMPUS_HUB_URL}${CONFIG.DEFAULT_PATH}`
-  );
+  const [displayUrl, setDisplayUrl] = useState(DEFAULT_DISPLAY_URL);
   const webViewRef = useRef<{ reload: () => void } | null>(null);
   const [showIdentify, setShowIdentify] = useState(false);
   const serverRef = useRef<{ stop: () => void } | null>(null);
@@ -23,7 +35,7 @@ export default function App() {
   useEffect(() => {
     StatusBar.setHidden(true);
 
-    const currentConfig: TVConfig = { url: displayUrl };
+    const currentConfig: TVConfig = { url: DEFAULT_DISPLAY_URL };
 
     const handleConfigChange = (config: TVConfig) => {
       if (config.configJson) {
@@ -43,7 +55,7 @@ export default function App() {
           webViewRef.current?.reload();
           break;
         case "reset":
-          setDisplayUrl(`${CONFIG.CAMPUS_HUB_URL}${CONFIG.DEFAULT_PATH}`);
+          setDisplayUrl(DEFAULT_DISPLAY_URL);
           setMode("display");
           break;
         case "identify":
@@ -61,19 +73,15 @@ export default function App() {
     );
     serverRef.current = server;
 
-    NetInfo.fetch().then((state) => {
-      const ip =
-        state.type === "wifi"
-          ? (state as any).details?.ipAddress
-          : null;
-      if (ip) {
-        setServerUrl(`http://${ip}:${SERVER_PORT}`);
-      } else {
-        setServerUrl(`http://localhost:${SERVER_PORT}`);
-      }
-    });
+    const syncServerUrl = (state: NetInfoState) => {
+      setServerUrl(getServerUrl(state));
+    };
+
+    const unsubscribeNetInfo = NetInfo.addEventListener(syncServerUrl);
+    NetInfo.fetch().then(syncServerUrl);
 
     return () => {
+      unsubscribeNetInfo();
       serverRef.current?.stop();
     };
   }, []);
