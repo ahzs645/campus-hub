@@ -11,7 +11,7 @@ interface ClockConfig {
   format24h?: boolean;
   alignment?: 'left' | 'center' | 'right';
   verticalAlignment?: 'top' | 'center' | 'bottom';
-  style?: 'digital' | 'analog';
+  style?: 'digital' | 'analog' | 'mosaic';
 }
 
 function AnalogClock({ time, theme, showSeconds }: { time: Date; theme: { primary: string; accent: string }; showSeconds: boolean }) {
@@ -110,6 +110,60 @@ function AnalogClock({ time, theme, showSeconds }: { time: Date; theme: { primar
   );
 }
 
+function MosaicClock({ time, theme, showSeconds }: { time: Date; theme: { primary: string; accent: string }; showSeconds: boolean }) {
+  const hours = time.getHours() % 12;
+  const minutes = time.getMinutes();
+  const seconds = time.getSeconds();
+
+  const hourAngle = (hours + minutes / 60) * 30;
+  const minuteAngle = (minutes + seconds / 60) * 6;
+  const secondAngle = seconds * 6;
+
+  const cx = 100, cy = 100;
+
+  function handRects(angle: number, length: number, size: number, color: string) {
+    const rad = (angle - 90) * (Math.PI / 180);
+    const step = size;
+    const count = Math.floor(length / step);
+    return Array.from({ length: count }).map((_, i) => {
+      const d = (i + 1) * step;
+      const x = cx + Math.cos(rad) * d - size / 2;
+      const y = cy + Math.sin(rad) * d - size / 2;
+      return <rect key={i} x={x} y={y} width={size} height={size} fill={color} />;
+    });
+  }
+
+  // Dotted background grid
+  const dots: React.JSX.Element[] = [];
+  const spacing = 9;
+  const radius = 85;
+  for (let gx = cx - radius; gx <= cx + radius; gx += spacing) {
+    for (let gy = cy - radius; gy <= cy + radius; gy += spacing) {
+      const dist = Math.sqrt((gx - cx) ** 2 + (gy - cy) ** 2);
+      if (dist < radius) {
+        dots.push(<circle key={`${gx}-${gy}`} cx={gx} cy={gy} r={2.5} fill={`${theme.accent}20`} />);
+      }
+    }
+  }
+
+  return (
+    <svg viewBox="0 0 200 200" className="w-full h-full">
+      {/* Clock face */}
+      <circle cx={cx} cy={cy} r={90} fill={`${theme.accent}15`} />
+      {/* Dotted background */}
+      {dots}
+      {/* Hour hand */}
+      {handRects(hourAngle, 45, 12, theme.accent)}
+      {/* Minute hand */}
+      {handRects(minuteAngle, 72, 12, `${theme.accent}CC`)}
+      {/* Second hand */}
+      {showSeconds && handRects(secondAngle, 80, 10, theme.primary)}
+      {/* Center square */}
+      <rect x={cx - 4.5} y={cy - 4.5} width={9} height={9} fill={theme.accent} />
+    </svg>
+  );
+}
+
 export default function Clock({ config, theme }: WidgetComponentProps) {
   const [time, setTime] = useState<Date | null>(null);
   const clockConfig = config as ClockConfig | undefined;
@@ -131,11 +185,12 @@ export default function Clock({ config, theme }: WidgetComponentProps) {
       : 'top';
 
   const isAnalog = clockStyle === 'analog';
+  const isMosaic = clockStyle === 'mosaic';
 
   // Adaptive dimensions: analog clock adapts between landscape/portrait,
   // digital clock swaps between wide banner and tall stacked layout
   const { containerRef, scale, designWidth: DESIGN_W, designHeight: DESIGN_H, isLandscape } = useAdaptiveFitScale(
-    isAnalog
+    isAnalog || isMosaic
       ? { landscape: { w: 300, h: 260 }, portrait: { w: 240, h: 300 } }
       : { landscape: { w: 320, h: 100 }, portrait: { w: 200, h: 140 } },
   );
@@ -200,7 +255,7 @@ export default function Clock({ config, theme }: WidgetComponentProps) {
     hour12: !format24h,
   };
 
-  if (isAnalog) {
+  if (isAnalog || isMosaic) {
     return (
       <div
         ref={containerRef}
@@ -216,7 +271,10 @@ export default function Clock({ config, theme }: WidgetComponentProps) {
           className={`flex flex-col items-center justify-center ${horizontalLayout.containerClass}`}
         >
           <div className="w-[200px] h-[200px]">
-            <AnalogClock time={time} theme={theme} showSeconds={showSeconds} />
+            {isMosaic
+              ? <MosaicClock time={time} theme={theme} showSeconds={showSeconds} />
+              : <AnalogClock time={time} theme={theme} showSeconds={showSeconds} />
+            }
           </div>
           {showDate && (
             <div className="text-sm opacity-80 mt-1 font-medium tracking-wide text-white/80 text-center">

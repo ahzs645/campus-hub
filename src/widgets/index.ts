@@ -31,6 +31,16 @@ import './groundwater-level/GroundwaterLevel';
 import './satellite-view/SatelliteView';
 import './aurora-forecast/AuroraForecast';
 import './job-board/JobBoard';
+import './exchange-rate/ExchangeRate';
+import './kaomoji/Kaomoji';
+import './holiday-calendar/HolidayCalendar';
+import './crypto-tracker/CryptoTracker';
+import './iss-tracker/ISSTracker';
+import './f1-countdown/F1Countdown';
+import './time-progress/TimeProgress';
+import './flashcard/Flashcard';
+import './bottle-spin/BottleSpin';
+import './rock-paper-scissors/RockPaperScissors';
 
 // Re-export registry functions
 export { getWidget, getAllWidgets, getWidgetComponent } from '@/lib/widget-registry';

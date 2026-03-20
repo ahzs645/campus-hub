@@ -10,10 +10,12 @@
 		13B07FBC1A68108700A75B9A /* AppDelegate.mm in Sources */ = {isa = PBXBuildFile; fileRef = 13B07FB01A68108700A75B9A /* AppDelegate.mm */; };
 		13B07FBF1A68108700A75B9A /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB11A68108700A75B9A /* LaunchScreen.storyboard */; };
 		13B07FC11A68108700A75B9A /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 13B07FB71A68108700A75B9A /* main.m */; };
+		3D92A8C5EB087B271F83E098 /* libPods-CampusHubTV.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 03574AEB2C76082F509EFF86 /* libPods-CampusHubTV.a */; };
 		7A4D352A1CD3A3F500BBF3BA /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 7A4D35291CD3A3F500BBF3BA /* PrivacyInfo.xcprivacy */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		03574AEB2C76082F509EFF86 /* libPods-CampusHubTV.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-CampusHubTV.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07F961A680F5B00A75B9A /* CampusHubTV.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CampusHubTV.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07FAF1A68108700A75B9A /* AppDelegate.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = AppDelegate.h; path = CampusHubTV/AppDelegate.h; sourceTree = "<group>"; };
 		13B07FB01A68108700A75B9A /* AppDelegate.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; name = AppDelegate.mm; path = CampusHubTV/AppDelegate.mm; sourceTree = "<group>"; };
@@ -21,6 +23,8 @@
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = CampusHubTV/Info.plist; sourceTree = "<group>"; };
 		13B07FB71A68108700A75B9A /* main.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = main.m; path = CampusHubTV/main.m; sourceTree = "<group>"; };
 		7A4D35291CD3A3F500BBF3BA /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xml; name = PrivacyInfo.xcprivacy; path = CampusHubTV/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		894F7A82240BBCAE4DB1E072 /* Pods-CampusHubTV.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-CampusHubTV.release.xcconfig"; path = "Target Support Files/Pods-CampusHubTV/Pods-CampusHubTV.release.xcconfig"; sourceTree = "<group>"; };
+		DE1D8EB8FF871CF24A909758 /* Pods-CampusHubTV.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-CampusHubTV.debug.xcconfig"; path = "Target Support Files/Pods-CampusHubTV/Pods-CampusHubTV.debug.xcconfig"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -28,6 +32,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				3D92A8C5EB087B271F83E098 /* libPods-CampusHubTV.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -50,6 +55,7 @@
 		2D16E6871FA4F8E400B85C8A /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				03574AEB2C76082F509EFF86 /* libPods-CampusHubTV.a */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -68,6 +74,7 @@
 				832341AE1AAA6A7D00B99B32 /* Libraries */,
 				83CBBA001A601CBA00E9B192 /* Products */,
 				2D16E6871FA4F8E400B85C8A /* Frameworks */,
+				9C308BF55B1388DCCC7DAF30 /* Pods */,
 			);
 			indentWidth = 2;
 			sourceTree = "<group>";
@@ -80,6 +87,16 @@
 				13B07F961A680F5B00A75B9A /* CampusHubTV.app */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		9C308BF55B1388DCCC7DAF30 /* Pods */ = {
+			isa = PBXGroup;
+			children = (
+				DE1D8EB8FF871CF24A909758 /* Pods-CampusHubTV.debug.xcconfig */,
+				894F7A82240BBCAE4DB1E072 /* Pods-CampusHubTV.release.xcconfig */,
+			);
+			name = Pods;
+			path = Pods;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -239,7 +256,7 @@
 /* Begin XCBuildConfiguration section */
 		13B07F941A680F5B00A75B9A /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 3B4392A12AC88292D35C810B /* Pods-CampusHubTV.debug.xcconfig */;
+			baseConfigurationReference = DE1D8EB8FF871CF24A909758 /* Pods-CampusHubTV.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = "App Icon & Top Shelf Image";
 				CLANG_ENABLE_MODULES = YES;
@@ -269,7 +286,7 @@
 		};
 		13B07F951A680F5B00A75B9A /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 5709B34CF0A7D63546082F79 /* Pods-CampusHubTV.release.xcconfig */;
+			baseConfigurationReference = 894F7A82240BBCAE4DB1E072 /* Pods-CampusHubTV.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = "App Icon & Top Shelf Image";
 				CLANG_ENABLE_MODULES = YES;
@@ -368,6 +385,7 @@
 				REACT_NATIVE_PATH = "${PODS_ROOT}/../../node_modules/react-native";
 				SDKROOT = appletvos;
 				SUPPORTED_PLATFORMS = "appletvsimulator appletvos";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) DEBUG";
 				TARGETED_DEVICE_FAMILY = 3;
 				TVOS_DEPLOYMENT_TARGET = 16.0;
 				USE_HERMES = true;

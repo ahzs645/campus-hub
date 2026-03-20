@@ -35,4 +35,13 @@ export type IconName =
   | 'wind'
   | 'users'
   | 'hourglass'
-  | 'cloudOff';
+  | 'cloudOff'
+  | 'arrowLeftRight'
+  | 'smile'
+  | 'partyPopper'
+  | 'coins'
+  | 'satellite'
+  | 'flag'
+  | 'languages'
+  | 'hand'
+  | 'wine';

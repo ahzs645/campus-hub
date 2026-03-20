@@ -6,7 +6,7 @@ import type { WidgetOptionsProps } from '@/lib/widget-registry';
 
 type ClockAlignment = 'left' | 'center' | 'right';
 type ClockVerticalAlignment = 'top' | 'center' | 'bottom';
-type ClockStyle = 'digital' | 'analog';
+type ClockStyle = 'digital' | 'analog' | 'mosaic';
 
 interface ClockData {
   showSeconds: boolean;
@@ -28,7 +28,7 @@ function normalizeVerticalAlignment(value: unknown): ClockVerticalAlignment {
 }
 
 function normalizeStyle(value: unknown): ClockStyle {
-  if (value === 'digital' || value === 'analog') return value;
+  if (value === 'digital' || value === 'analog' || value === 'mosaic') return value;
   return 'digital';
 }
 
@@ -62,6 +62,7 @@ export default function ClockOptions({ data, onChange }: WidgetOptionsProps) {
   };
 
   const isAnalog = state.style === 'analog';
+  const isMosaic = state.style === 'mosaic';
 
   // Preview time
   const now = new Date();
@@ -105,6 +106,7 @@ export default function ClockOptions({ data, onChange }: WidgetOptionsProps) {
           options={[
             { value: 'digital', label: 'Digital' },
             { value: 'analog', label: 'Analog' },
+            { value: 'mosaic', label: 'Mosaic' },
           ]}
           onChange={handleChange}
         />
@@ -123,7 +125,7 @@ export default function ClockOptions({ data, onChange }: WidgetOptionsProps) {
           onChange={handleChange}
         />
 
-        {!isAnalog && (
+        {!isAnalog && !isMosaic && (
           <FormSwitch
             label="24-Hour Format"
             name="format24h"
@@ -163,7 +165,40 @@ export default function ClockOptions({ data, onChange }: WidgetOptionsProps) {
         <div
           className={`bg-[var(--ui-item-bg)] rounded-xl p-6 h-32 flex flex-col ${previewAlignmentClass} ${previewVerticalAlignmentClass}`}
         >
-          {isAnalog ? (
+          {isMosaic ? (
+            <div className="flex flex-col items-center">
+              <svg viewBox="0 0 200 200" className="w-24 h-24">
+                <circle cx="100" cy="100" r={90} fill="var(--color-accent)" opacity="0.08" />
+                {/* Simplified dot grid */}
+                {Array.from({ length: 9 }).map((_, i) =>
+                  Array.from({ length: 9 }).map((_, j) => {
+                    const gx = 28 + i * 18;
+                    const gy = 28 + j * 18;
+                    const dist = Math.sqrt((gx - 100) ** 2 + (gy - 100) ** 2);
+                    return dist < 85 ? <circle key={`${i}-${j}`} cx={gx} cy={gy} r={2.5} fill="var(--color-accent)" opacity="0.15" /> : null;
+                  })
+                )}
+                {/* Hour hand pixels */}
+                {Array.from({ length: 3 }).map((_, i) => {
+                  const d = (i + 1) * 12;
+                  const rad = (hourAngle - 90) * Math.PI / 180;
+                  return <rect key={`h${i}`} x={100 + Math.cos(rad) * d - 6} y={100 + Math.sin(rad) * d - 6} width={12} height={12} fill="var(--color-accent)" />;
+                })}
+                {/* Minute hand pixels */}
+                {Array.from({ length: 5 }).map((_, i) => {
+                  const d = (i + 1) * 12;
+                  const rad = (minuteAngle - 90) * Math.PI / 180;
+                  return <rect key={`m${i}`} x={100 + Math.cos(rad) * d - 6} y={100 + Math.sin(rad) * d - 6} width={12} height={12} fill="var(--color-accent)" opacity="0.8" />;
+                })}
+                <rect x={95.5} y={95.5} width={9} height={9} fill="var(--color-accent)" />
+              </svg>
+              {state.showDate && (
+                <div className="text-xs text-[var(--ui-text-muted)] mt-1">
+                  {now.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })}
+                </div>
+              )}
+            </div>
+          ) : isAnalog ? (
             <div className="flex flex-col items-center">
               <svg viewBox="0 0 200 200" className="w-24 h-24">
                 <circle cx="100" cy="100" r="95" fill="none" stroke="var(--color-accent)" strokeWidth="2" opacity="0.3" />

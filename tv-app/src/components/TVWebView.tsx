@@ -13,10 +13,21 @@ import {
   Text,
   Pressable,
   Animated,
+  requireNativeComponent,
+  UIManager,
+  findNodeHandle,
 } from "react-native";
-import { WebView, WebViewMessageEvent } from "react-native-webview";
 import { CONFIG } from "@/utils/config";
 import { useTVRemote } from "@/hooks/useTVRemote";
+
+// Use our custom native tvOS WKWebView
+const NativeTVWebView = requireNativeComponent<{
+  url: string;
+  onLoadStart?: (event: any) => void;
+  onLoadEnd?: (event: any) => void;
+  onLoadError?: (event: any) => void;
+  style?: any;
+}>("TVWebView");
 
 type Props = {
   url: string;
@@ -30,26 +41,26 @@ export type TVWebViewHandle = {
 
 export const TVWebView = forwardRef<TVWebViewHandle, Props>(
   function TVWebView({ url, showIdentify, onOpenSetup }, ref) {
-    const webViewRef = useRef<WebView>(null);
+    const webViewRef = useRef<any>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [hasError, setHasError] = useState(false);
     const [showToolbar, setShowToolbar] = useState(false);
     const [focusedBtn, setFocusedBtn] = useState(0);
     const toolbarOpacity = useRef(new Animated.Value(0)).current;
     const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const tapCount = useRef(0);
-    const tapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    // Force reload by changing the URL key
+    const [reloadKey, setReloadKey] = useState(0);
 
     const BUTTONS = ["reload", "setup", "close"] as const;
 
     useImperativeHandle(ref, () => ({
-      reload: () => webViewRef.current?.reload(),
+      reload: () => setReloadKey((k) => k + 1),
     }));
 
     useEffect(() => {
       if (CONFIG.AUTO_RELOAD_INTERVAL_MS <= 0) return;
       const interval = setInterval(() => {
-        webViewRef.current?.reload();
+        setReloadKey((k) => k + 1);
       }, CONFIG.AUTO_RELOAD_INTERVAL_MS);
       return () => clearInterval(interval);
     }, []);
@@ -57,7 +68,7 @@ export const TVWebView = forwardRef<TVWebViewHandle, Props>(
     const openToolbar = useCallback(() => {
       if (hideTimer.current) clearTimeout(hideTimer.current);
       setShowToolbar(true);
-      setFocusedBtn(1); // Focus on "Setup" by default
+      setFocusedBtn(1);
       Animated.timing(toolbarOpacity, {
         toValue: 1,
         duration: 200,
@@ -85,7 +96,7 @@ export const TVWebView = forwardRef<TVWebViewHandle, Props>(
       (btn: (typeof BUTTONS)[number]) => {
         switch (btn) {
           case "reload":
-            webViewRef.current?.reload();
+            setReloadKey((k) => k + 1);
             dismissToolbar();
             break;
           case "setup":
@@ -100,7 +111,6 @@ export const TVWebView = forwardRef<TVWebViewHandle, Props>(
       [dismissToolbar, onOpenSetup]
     );
 
-    // TV remote / keyboard navigation
     useTVRemote(
       useCallback(
         (action) => {
@@ -120,7 +130,6 @@ export const TVWebView = forwardRef<TVWebViewHandle, Props>(
                 break;
             }
           } else {
-            // When toolbar is hidden: menu or select opens it
             if (action === "menu" || action === "select") {
               openToolbar();
             }
@@ -128,26 +137,6 @@ export const TVWebView = forwardRef<TVWebViewHandle, Props>(
         },
         [showToolbar, focusedBtn, executeButton, dismissToolbar, openToolbar]
       )
-    );
-
-    // Listen for triple-tap from inside the WebView (touch fallback)
-    const handleWebViewMessage = useCallback(
-      (event: WebViewMessageEvent) => {
-        const msg = event.nativeEvent.data;
-        if (msg === "TAP") {
-          tapCount.current += 1;
-          if (tapTimer.current) clearTimeout(tapTimer.current);
-          if (tapCount.current >= 3) {
-            tapCount.current = 0;
-            showToolbar ? dismissToolbar() : openToolbar();
-          } else {
-            tapTimer.current = setTimeout(() => {
-              tapCount.current = 0;
-            }, 800);
-          }
-        }
-      },
-      [showToolbar, openToolbar, dismissToolbar]
     );
 
     const handleLoadStart = useCallback(() => {
@@ -164,46 +153,18 @@ export const TVWebView = forwardRef<TVWebViewHandle, Props>(
       setHasError(true);
     }, []);
 
-    const injectedJS = `
-      (function() {
-        document.body.style.overflow = 'hidden';
-        document.documentElement.style.overflow = 'hidden';
-        document.addEventListener('touchmove', function(e) { e.preventDefault(); }, { passive: false });
-        document.addEventListener('click', function(e) {
-          window.ReactNativeWebView.postMessage('TAP');
-        });
-        document.addEventListener('touchend', function(e) {
-          if (e.changedTouches.length === 1) {
-            window.ReactNativeWebView.postMessage('TAP');
-          }
-        });
-      })();
-      true;
-    `;
-
     return (
       <View style={styles.container}>
-        <WebView
+        <NativeTVWebView
+          key={reloadKey}
           ref={webViewRef}
-          source={{ uri: url }}
+          url={url}
           style={styles.webview}
           onLoadStart={handleLoadStart}
           onLoadEnd={handleLoadEnd}
-          onError={handleError}
-          onHttpError={handleError}
-          onMessage={handleWebViewMessage}
-          injectedJavaScript={injectedJS}
-          javaScriptEnabled={true}
-          domStorageEnabled={true}
-          mediaPlaybackRequiresUserAction={false}
-          allowsInlineMediaPlayback={true}
-          mixedContentMode="compatibility"
-          cacheEnabled={true}
-          cacheMode="LOAD_DEFAULT"
-          focusable={!showToolbar}
+          onLoadError={handleError}
         />
 
-        {/* Full-screen overlay + toolbar */}
         {showToolbar && (
           <Pressable style={styles.toolbarOverlay} onPress={dismissToolbar}>
             <Animated.View

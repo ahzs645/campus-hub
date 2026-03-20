@@ -47,6 +47,16 @@ const DISPLAY_WIDGET_LOADERS: Record<string, DisplayWidgetLoader> = {
   'satellite-view': () => import('@/widgets/satellite-view/SatelliteView'),
   'aurora-forecast': () => import('@/widgets/aurora-forecast/AuroraForecast'),
   'job-board': () => import('@/widgets/job-board/JobBoard'),
+  'exchange-rate': () => import('@/widgets/exchange-rate/ExchangeRate'),
+  kaomoji: () => import('@/widgets/kaomoji/Kaomoji'),
+  'holiday-calendar': () => import('@/widgets/holiday-calendar/HolidayCalendar'),
+  'crypto-tracker': () => import('@/widgets/crypto-tracker/CryptoTracker'),
+  'iss-tracker': () => import('@/widgets/iss-tracker/ISSTracker'),
+  'f1-countdown': () => import('@/widgets/f1-countdown/F1Countdown'),
+  'time-progress': () => import('@/widgets/time-progress/TimeProgress'),
+  flashcard: () => import('@/widgets/flashcard/Flashcard'),
+  'bottle-spin': () => import('@/widgets/bottle-spin/BottleSpin'),
+  'rock-paper-scissors': () => import('@/widgets/rock-paper-scissors/RockPaperScissors'),
 };
 
 export const DISPLAY_WIDGET_COMPONENTS: Record<string, DisplayWidgetComponent> = Object.fromEntries(

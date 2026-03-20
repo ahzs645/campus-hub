@@ -35,6 +35,15 @@ import {
   Wind,
   Users,
   Hourglass,
+  ArrowLeftRight,
+  Smile,
+  PartyPopper,
+  Coins,
+  Satellite,
+  Flag,
+  Languages,
+  Hand,
+  Wine,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { IconName } from '@/lib/icon-names';
@@ -84,6 +93,15 @@ const ICONS: Record<IconName, LucideIcon> = {
   users: Users,
   hourglass: Hourglass,
   cloudOff: CloudOff,
+  arrowLeftRight: ArrowLeftRight,
+  smile: Smile,
+  partyPopper: PartyPopper,
+  coins: Coins,
+  satellite: Satellite,
+  flag: Flag,
+  languages: Languages,
+  hand: Hand,
+  wine: Wine,
 };
 
 export default function AppIcon({
