@@ -26,6 +26,7 @@ interface LibCalSlot {
   start?: string;
   end?: string;
   itemId?: number;
+  className?: string;
 }
 
 interface LibCalGridResponse {
@@ -89,6 +90,9 @@ type WidgetPage = GridPage | CalendarPage | CardsPage;
 
 const DEFAULT_ENDPOINT = 'https://unbc.libcal.com/spaces/availability/grid';
 const SLOT_MINUTES = 30;
+
+const HATCH_BG =
+  'repeating-linear-gradient(-45deg, rgba(255,255,255,0.08), rgba(255,255,255,0.08) 2px, rgba(255,255,255,0.02) 2px, rgba(255,255,255,0.02) 6px)';
 
 const DAY_SHORT_FORMAT = new Intl.DateTimeFormat('en-US', {
   weekday: 'short',
@@ -400,12 +404,12 @@ export default function LibraryAvailability({
       ROOM_MAP.map((room) => [room.id, { ...room }]),
     );
 
-    const buildDayMatrix = (): Map<string, boolean[]> => {
+    const buildDayMatrix = (fill: boolean): Map<string, boolean[]> => {
       const matrix = new Map<string, boolean[]>();
       dayKeys.forEach((key) => {
         matrix.set(
           key,
-          Array.from({ length: slotCount }, () => false),
+          Array.from({ length: slotCount }, () => fill),
         );
       });
       return matrix;
@@ -413,11 +417,15 @@ export default function LibraryAvailability({
 
     const availability = new Map<number, Map<string, boolean[]>>();
     roomById.forEach((_room, roomId) => {
-      availability.set(roomId, buildDayMatrix());
+      availability.set(roomId, buildDayMatrix(false));
     });
 
     const slots = Array.isArray(response?.slots) ? response.slots : [];
 
+    // Each slot in the response is either bookable or booked.
+    // "s-lc-eq-checkout" = booked/taken → unavailable
+    // Anything else = open for booking → available
+    // Slots NOT returned by the API = unbookable → stay false
     slots.forEach((slot) => {
       const start = parseLibCalDateTime(slot.start);
       if (!start) return;
@@ -434,8 +442,11 @@ export default function LibraryAvailability({
       }
 
       if (!availability.has(roomId)) {
-        availability.set(roomId, buildDayMatrix());
+        availability.set(roomId, buildDayMatrix(false));
       }
+
+      // Only mark as available if not booked
+      const isAvailable = slot.className !== 's-lc-eq-checkout';
 
       const roomDays = availability.get(roomId);
       const daySlots = roomDays?.get(dayKey);
@@ -453,9 +464,29 @@ export default function LibraryAvailability({
         slotIndex < Math.min(slotCount, endIndex);
         slotIndex += 1
       ) {
-        daySlots[slotIndex] = true;
+        if (isAvailable) {
+          daySlots[slotIndex] = true;
+        }
       }
     });
+
+    // Mark past slots as unavailable for today (ceil so the in-progress slot counts as past)
+    const todayKey = dayKeys[0];
+    if (todayKey) {
+      const now = new Date();
+      const nowSlotIndex = Math.ceil(
+        (minutesSinceMidnight(now) - openHour * 60) / SLOT_MINUTES,
+      );
+      if (nowSlotIndex > 0) {
+        availability.forEach((roomDays) => {
+          const todaySlots = roomDays.get(todayKey);
+          if (!todaySlots) return;
+          for (let i = 0; i < Math.min(nowSlotIndex, todaySlots.length); i++) {
+            todaySlots[i] = false;
+          }
+        });
+      }
+    }
 
     const rooms = Array.from(roomById.values()).sort(
       (a, b) => roomSortValue(a) - roomSortValue(b),
@@ -464,16 +495,24 @@ export default function LibraryAvailability({
     const metricsByRoomDay = new Map<string, RoomDayMetrics>();
 
     rooms.forEach((room) => {
-      const roomDays = availability.get(room.id) ?? buildDayMatrix();
+      const roomDays = availability.get(room.id) ?? buildDayMatrix(false);
       dayKeys.forEach((dayKey) => {
         const roomDaySlots = roomDays.get(dayKey) ?? Array.from({ length: slotCount }, () => false);
         metricsByRoomDay.set(metricKey(room.id, dayKey), buildMetrics(roomDaySlots));
       });
     });
 
+    // Compute the past-slot cutoff for today (index of first non-past slot)
+    const now = new Date();
+    const pastSlotCutoff = Math.max(
+      0,
+      Math.ceil((minutesSinceMidnight(now) - openHour * 60) / SLOT_MINUTES),
+    );
+
     return {
       rooms,
       metricsByRoomDay,
+      pastSlotCutoff,
     };
   }, [dayMeta, openHour, response, slotCount]);
 
@@ -650,7 +689,7 @@ export default function LibraryAvailability({
             {title}
           </h3>
           <p className="text-xs md:text-sm text-white/65 mt-1">
-            Confirmed openings only. Missing slots are treated as unavailable.
+            Booked slots shown as unavailable. Rooms not in the grid default to fully unavailable.
           </p>
         </div>
         <div className="text-right text-[11px] md:text-xs text-white/60 whitespace-nowrap">
@@ -686,7 +725,8 @@ export default function LibraryAvailability({
             <div className="h-full flex flex-col min-h-0">
               <div className="flex items-center gap-3 mb-2 text-[11px] md:text-xs text-white/70">
                 <span>Green: available</span>
-                <span>Red: unavailable</span>
+                <span>Red: booked</span>
+                <span style={{ background: HATCH_BG, padding: '0 4px', borderRadius: 2 }}>Hatched: past</span>
                 <span>
                   Rooms {activePage.roomStart + 1}-{activePage.roomEnd} of {processed.rooms.length}
                 </span>
@@ -738,16 +778,20 @@ export default function LibraryAvailability({
                         {Array.from({ length: activePage.slotEnd - activePage.slotStart }, (_, idx) => {
                           const slotIndex = activePage.slotStart + idx;
                           const isOpen = metrics.slots[slotIndex] ?? false;
+                          const isPast = activePage.dayIndex === 0 && slotIndex < processed.pastSlotCutoff;
+                          const label = isPast ? 'Past' : isOpen ? 'Available' : 'Booked';
                           return (
                             <div
                               key={`${room.id}-${slotIndex}`}
-                              className="rounded-[2px] border border-white/10"
+                              className="rounded-[2px] border border-white/10 overflow-hidden"
                               style={{
-                                backgroundColor: isOpen
-                                  ? 'rgba(34, 197, 94, 0.65)'
-                                  : 'rgba(239, 68, 68, 0.30)',
+                                background: isPast
+                                  ? HATCH_BG
+                                  : isOpen
+                                    ? 'rgba(34, 197, 94, 0.65)'
+                                    : 'rgba(239, 68, 68, 0.30)',
                               }}
-                              title={`${room.name} • ${formatClock(openHour * 60 + slotIndex * SLOT_MINUTES)} • ${isOpen ? 'Available' : 'Unavailable'}`}
+                              title={`${room.name} • ${formatClock(openHour * 60 + slotIndex * SLOT_MINUTES)} • ${label}`}
                             />
                           );
                         })}
@@ -871,17 +915,22 @@ export default function LibraryAvailability({
                           className="mt-auto grid gap-[1px]"
                           style={{ gridTemplateColumns: `repeat(${slotCount}, minmax(0, 1fr))` }}
                         >
-                          {metrics.slots.map((isOpen, index) => (
+                          {metrics.slots.map((isOpen, index) => {
+                            const isPast = activePage.dayIndex === 0 && index < processed.pastSlotCutoff;
+                            return (
                             <div
                               key={`${room.id}-mini-${index}`}
                               className="h-1 rounded-[1px]"
                               style={{
-                                backgroundColor: isOpen
-                                  ? 'rgba(34, 197, 94, 0.75)'
-                                  : 'rgba(239, 68, 68, 0.35)',
+                                background: isPast
+                                  ? HATCH_BG
+                                  : isOpen
+                                    ? 'rgba(34, 197, 94, 0.75)'
+                                    : 'rgba(239, 68, 68, 0.35)',
                               }}
                             />
-                          ))}
+                            );
+                          })}
                         </div>
                       </div>
                     );

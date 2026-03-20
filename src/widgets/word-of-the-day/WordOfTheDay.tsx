@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { WidgetComponentProps, registerWidget } from '@/lib/widget-registry';
-import { useFitScale } from '@/hooks/useFitScale';
+import { useAdaptiveFitScale } from '@/hooks/useFitScale';
 import WordOfTheDayOptions from './WordOfTheDayOptions';
 
 interface WordOfTheDayConfig {
@@ -105,7 +105,16 @@ export default function WordOfTheDay({ config, theme }: WidgetComponentProps) {
   const [wordIndex, setWordIndex] = useState(() => getWordIndex(pool, refreshMode, cycleInterval));
   const [showDetails, setShowDetails] = useState(false);
 
-  const { containerRef, scale } = useFitScale(320, 280);
+  const {
+    containerRef, scale, designWidth: BASE_W, designHeight: DESIGN_H,
+    containerWidth, containerHeight,
+  } = useAdaptiveFitScale({
+    landscape: { w: 440, h: 200 },
+    portrait: { w: 280, h: 320 },
+  });
+
+  const DESIGN_W = containerWidth > 0 ? Math.max(BASE_W, containerWidth / scale) : BASE_W;
+  const ACTUAL_H = containerHeight > 0 ? Math.max(DESIGN_H, containerHeight / scale) : DESIGN_H;
 
   // Refresh word based on mode
   useEffect(() => {
@@ -137,15 +146,15 @@ export default function WordOfTheDay({ config, theme }: WidgetComponentProps) {
   return (
     <div
       ref={containerRef}
-      className="w-full h-full overflow-hidden flex items-center justify-center"
+      className="w-full h-full overflow-hidden"
       style={{ backgroundColor: '#111113', borderRadius: 22 }}
     >
       <div
         style={{
-          width: 320,
-          height: 280,
+          width: DESIGN_W,
+          height: ACTUAL_H,
           transform: `scale(${scale})`,
-          transformOrigin: 'center center',
+          transformOrigin: 'top left',
         }}
         className="flex flex-col px-6 py-5"
       >
