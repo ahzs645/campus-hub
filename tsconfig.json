@@ -19,7 +19,9 @@
       }
     ],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@campus-hub/shared": ["./packages/shared/src/index.ts"],
+      "@campus-hub/shared/*": ["./packages/shared/src/*"]
     }
   },
   "include": [

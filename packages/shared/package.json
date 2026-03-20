@@ -1,0 +1,15 @@
+{
+  "name": "@campus-hub/shared",
+  "version": "0.1.0",
+  "private": true,
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "peerDependencies": {
+    "react": ">=18",
+    "react-native": ">=0.72"
+  },
+  "dependencies": {
+    "react-native-svg": "^15.11.2",
+    "lucide-react-native": "^0.475.0"
+  }
+}

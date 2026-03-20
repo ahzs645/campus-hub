@@ -4,14 +4,12 @@ import { useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   decodeConfig,
-  DEFAULT_CONFIG,
   normalizeConfig,
-  type DisplayConfig,
-  type WidgetConfig,
 } from '@/lib/config';
-import { buildCacheKey, fetchJsonWithCache } from '@/lib/data-cache';
-import { preloadDisplayWidgetComponent } from '@/lib/display-widget-components';
-import WidgetRenderer from '@/components/WidgetRenderer';
+import { DEFAULT_CONFIG, type DisplayConfig, buildCacheKey, fetchJsonWithCache, DisplayGrid } from '@campus-hub/shared';
+
+// Import shared widgets to trigger registration
+import '@campus-hub/shared';
 
 interface PlaylistItem {
   id?: string;
@@ -50,20 +48,13 @@ const resolveUrl = (url: string): string => {
 
 const parseConfigJsonParam = (value: string): DisplayConfig | null => {
   const candidates = [value];
-
   try {
     const decoded = decodeURIComponent(value);
-    if (decoded !== value) {
-      candidates.push(decoded);
-    }
+    if (decoded !== value) candidates.push(decoded);
   } catch {}
-
   for (const candidate of candidates) {
-    try {
-      return normalizeConfig(JSON.parse(candidate) as DisplayConfig);
-    } catch {}
+    try { return (normalizeConfig as any)(JSON.parse(candidate) as DisplayConfig); } catch {}
   }
-
   return null;
 };
 
@@ -75,10 +66,26 @@ function DisplayContent() {
   const [playlist, setPlaylist] = useState<Playlist | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [dimensions, setDimensions] = useState({ width: 1920, height: 1080 });
 
+  // Measure viewport
+  useEffect(() => {
+    const update = () => {
+      const vv = window.visualViewport;
+      const vw = vv ? vv.width * vv.scale : window.innerWidth;
+      const vh = vv ? vv.height * vv.scale : window.innerHeight;
+      setDimensions({ width: vw, height: vh });
+    };
+    update();
+    const vv = window.visualViewport;
+    const target = vv ?? window;
+    target.addEventListener('resize', update);
+    return () => target.removeEventListener('resize', update);
+  }, []);
+
+  // Resolve config from URL params
   useEffect(() => {
     let isMounted = true;
-
     const resolveConfig = async () => {
       setLoading(true);
       let resolvedConfig: DisplayConfig | null = null;
@@ -94,43 +101,32 @@ function DisplayContent() {
         const screenMapUrl = resolveUrl(screenUrlParam || '/screens.json');
         try {
           const { data } = await fetchJsonWithCache<ScreenMap>(screenMapUrl, {
-            cacheKey: buildCacheKey('screen-map', screenMapUrl),
-            ttlMs: 5 * 60 * 1000,
+            cacheKey: buildCacheKey('screen-map', screenMapUrl), ttlMs: 5 * 60 * 1000,
           });
           const screenEntry = data?.screens?.[screenId];
           if (screenEntry?.playlistUrl) playlistUrl = screenEntry.playlistUrl;
           if (screenEntry?.configUrl) configUrl = screenEntry.configUrl;
-        } catch (error) {
-          console.error('Failed to load screen map:', error);
-        }
+        } catch (error) { console.error('Failed to load screen map:', error); }
       }
 
       if (playlistUrl) {
         const resolvedUrl = resolveUrl(playlistUrl);
         try {
           const { data } = await fetchJsonWithCache<Playlist>(resolvedUrl, {
-            cacheKey: buildCacheKey('playlist', resolvedUrl),
-            ttlMs: 5 * 60 * 1000,
+            cacheKey: buildCacheKey('playlist', resolvedUrl), ttlMs: 5 * 60 * 1000,
           });
-          if (data?.items?.length) {
-            resolvedPlaylist = data;
-          }
-        } catch (error) {
-          console.error('Failed to load playlist:', error);
-        }
+          if (data?.items?.length) resolvedPlaylist = data;
+        } catch (error) { console.error('Failed to load playlist:', error); }
       }
 
       if (!resolvedPlaylist && configUrl) {
         const resolvedUrl = resolveUrl(configUrl);
         try {
           const { data } = await fetchJsonWithCache<DisplayConfig>(resolvedUrl, {
-            cacheKey: buildCacheKey('config', resolvedUrl),
-            ttlMs: 5 * 60 * 1000,
+            cacheKey: buildCacheKey('config', resolvedUrl), ttlMs: 5 * 60 * 1000,
           });
-          resolvedConfig = normalizeConfig(data);
-        } catch (error) {
-          console.error('Failed to load config URL:', error);
-        }
+          resolvedConfig = (normalizeConfig as any)(data);
+        } catch (error) { console.error('Failed to load config URL:', error); }
       }
 
       if (!resolvedPlaylist && !resolvedConfig) {
@@ -143,17 +139,10 @@ function DisplayContent() {
 
       if (!resolvedPlaylist && !resolvedConfig) {
         const configJsonParam = searchParams.get('configJson');
-        if (configJsonParam) {
-          resolvedConfig = parseConfigJsonParam(configJsonParam);
-          if (!resolvedConfig) {
-            console.error('Failed to parse configJson');
-          }
-        }
+        if (configJsonParam) resolvedConfig = parseConfigJsonParam(configJsonParam);
       }
 
-      if (!resolvedPlaylist && !resolvedConfig) {
-        resolvedConfig = DEFAULT_CONFIG;
-      }
+      if (!resolvedPlaylist && !resolvedConfig) resolvedConfig = DEFAULT_CONFIG;
 
       if (!isMounted) return;
       setPlaylist(resolvedPlaylist);
@@ -161,45 +150,36 @@ function DisplayContent() {
       setActiveConfig(resolvedConfig ?? DEFAULT_CONFIG);
       setLoading(false);
     };
-
     resolveConfig();
-
-    return () => {
-      isMounted = false;
-    };
+    return () => { isMounted = false; };
   }, [paramsKey]);
 
+  // Playlist rotation
   useEffect(() => {
     if (!playlist || playlist.items.length === 0) return;
-
     let isMounted = true;
     let timeout: ReturnType<typeof setTimeout> | null = null;
 
     const loadPlaylistItem = async () => {
       const item = playlist.items[currentIndex];
       if (!item) return;
-
       if (item.config) {
-        setActiveConfig(normalizeConfig(item.config));
+        setActiveConfig((normalizeConfig as any)(item.config));
       } else if (item.configUrl) {
         const resolvedUrl = resolveUrl(item.configUrl);
         try {
           const { data } = await fetchJsonWithCache<DisplayConfig>(resolvedUrl, {
-            cacheKey: buildCacheKey('playlist-config', resolvedUrl),
-            ttlMs: 5 * 60 * 1000,
+            cacheKey: buildCacheKey('playlist-config', resolvedUrl), ttlMs: 5 * 60 * 1000,
           });
-          if (isMounted) setActiveConfig(normalizeConfig(data));
-        } catch (error) {
-          console.error('Failed to load playlist config:', error);
-        }
+          if (isMounted) setActiveConfig((normalizeConfig as any)(data));
+        } catch (error) { console.error('Failed to load playlist config:', error); }
       }
-
       const duration = Math.max(5, item.durationSeconds ?? 30);
       const isLast = currentIndex >= playlist.items.length - 1;
       const shouldLoop = playlist.loop !== false;
       if (shouldLoop || !isLast) {
         timeout = setTimeout(() => {
-          setCurrentIndex((prev) => {
+          setCurrentIndex(prev => {
             const next = prev + 1;
             if (next >= playlist.items.length) return shouldLoop ? 0 : prev;
             return next;
@@ -207,162 +187,43 @@ function DisplayContent() {
         }, duration * 1000);
       }
     };
-
     loadPlaylistItem();
-
-    return () => {
-      isMounted = false;
-      if (timeout) clearTimeout(timeout);
-    };
+    return () => { isMounted = false; if (timeout) clearTimeout(timeout); };
   }, [playlist, currentIndex]);
-
-  const config: DisplayConfig = activeConfig;
-
-  const gridRows = config.gridRows ?? 8;
-  const gridCols = config.gridCols ?? 12;
-  const layout: WidgetConfig[] = useMemo(() => {
-    if (config.tickerEnabled && !config.layout.some((w) => w.type === 'news-ticker')) {
-      const tickerWidget: WidgetConfig = {
-        id: 'default-ticker',
-        type: 'news-ticker',
-        x: 0,
-        y: gridRows - 1,
-        w: gridCols,
-        h: 1,
-      };
-      return [...config.layout, tickerWidget];
-    }
-    return config.layout;
-  }, [config, gridRows, gridCols]);
-
-  // Fixed reference resolution — the layout is rendered at this size and then
-  // uniformly scaled (via CSS transform) to fill the actual viewport.
-  // This ensures pixel-perfect consistency across all screen sizes.
-  const REF_HEIGHT = 1080;
-  const configAspectRatio = config.aspectRatio ?? 16 / 9;
-  const REF_WIDTH = Math.round(REF_HEIGHT * configAspectRatio);
-
-  const [scale, setScale] = useState(1);
-
-  const updateScale = useCallback(() => {
-    // Use visualViewport.scale to compensate for pinch-zoom so the layout
-    // stays based on the *layout* viewport, not the zoomed visual viewport.
-    // window.innerWidth/innerHeight shrink when the user pinch-zooms, which
-    // would otherwise cause a feedback loop (scale recalc → layout shift →
-    // another resize event → crash).
-    const vv = window.visualViewport;
-    const vw = vv ? vv.width * vv.scale : window.innerWidth;
-    const vh = vv ? vv.height * vv.scale : window.innerHeight;
-    // Scale to fit: pick the smaller ratio so nothing overflows
-    setScale(Math.min(vw / REF_WIDTH, vh / REF_HEIGHT));
-  }, [REF_WIDTH]);
-
-  useEffect(() => {
-    updateScale();
-
-    // Listen on visualViewport when available — it fires for zoom changes
-    // and provides accurate dimensions. Fall back to window resize.
-    const vv = window.visualViewport;
-    const target = vv ?? window;
-    target.addEventListener('resize', updateScale);
-    return () => target.removeEventListener('resize', updateScale);
-  }, [updateScale]);
-
-  // Grid margin matches the editor formula: height * 0.0075
-  const gridMargin = Math.max(2, Math.round(REF_HEIGHT * 0.0075));
-
-  useEffect(() => {
-    layout.forEach((widget) => preloadDisplayWidgetComponent(widget.type));
-  }, [layout]);
 
   return (
     <div
-      className="w-full h-screen overflow-hidden relative"
-      style={{ backgroundColor: config.theme.background, touchAction: 'none' }}
+      style={{
+        width: '100vw',
+        height: '100vh',
+        overflow: 'hidden',
+        backgroundColor: activeConfig.theme.background,
+        touchAction: 'none',
+      }}
     >
-      {/* Scaled container — rendered at fixed reference resolution, then scaled to fit viewport */}
-      <div
-        style={{
-          position: 'absolute',
-          top: '50%',
-          left: '50%',
-          width: REF_WIDTH,
-          height: REF_HEIGHT,
-          transform: `translate(-50%, -50%) scale(${scale})`,
-          transformOrigin: 'center center',
-          backgroundColor: config.theme.background,
-          '--background': config.theme.background,
-          '--foreground': '#ffffff',
-          '--color-primary': config.theme.primary,
-          '--color-accent': config.theme.accent,
-        } as React.CSSProperties}
-      >
-        <div className="w-full h-full flex flex-col text-white overflow-hidden relative">
-
-          {loading && (
-            <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-              <div className="text-white/70 text-lg">Loading display…</div>
-            </div>
-          )}
-
-          {/* Full-page Coming Soon overlay */}
-          {config.comingSoon && !loading && (
-            <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-              <span
-                className="text-3xl font-bold tracking-widest uppercase px-8 py-4 rounded-2xl backdrop-blur-sm"
-                style={{ color: config.theme.accent, backgroundColor: `${config.theme.primary}80` }}
-              >
-                Coming Soon
-              </span>
-            </div>
-          )}
-
-          {/* CSS Grid Layout — fixed px spacing matches the editor exactly */}
-          <div
-            className={`flex-1 min-h-0${config.comingSoon ? ' blur-sm grayscale pointer-events-none select-none' : ''}`}
-            style={{
-              display: 'grid',
-              gridTemplateColumns: `repeat(${gridCols}, 1fr)`,
-              gridTemplateRows: `repeat(${gridRows}, 1fr)`,
-              gap: `${gridMargin * 2}px`,
-              padding: `${gridMargin}px`,
-            }}
-          >
-            {layout.map((widget) => (
-              <div
-                key={widget.id}
-                className="min-w-0 min-h-0 overflow-hidden rounded-xl"
-                style={{
-                  gridColumn: `${widget.x + 1} / span ${widget.w}`,
-                  gridRow: `${widget.y + 1} / span ${widget.h}`,
-                  backgroundColor:
-                    widget.type === 'events-list' || widget.type === 'clock'
-                      ? `${config.theme.primary}40`
-                      : undefined,
-                }}
-              >
-                <WidgetRenderer widget={widget} theme={config.theme} corsProxy={config.corsProxy} />
-              </div>
-            ))}
-
-            {/* Empty state */}
-            {layout.length === 0 && !loading && (
-              <div
-                className="flex items-center justify-center text-white/30"
-                style={{
-                  gridColumn: '1 / -1',
-                  gridRow: '1 / -1',
-                }}
-              >
-                <div className="text-center">
-                  <p className="text-2xl mb-2">No widgets configured</p>
-                  <p className="text-lg">Use the configurator to set up your display</p>
-                </div>
-              </div>
-            )}
-          </div>
+      {loading && (
+        <div style={{ position: 'absolute', inset: 0, zIndex: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.4)' }}>
+          <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: 18 }}>Loading display…</span>
         </div>
-      </div>
+      )}
+
+      {activeConfig.comingSoon && !loading && (
+        <div style={{ position: 'absolute', inset: 0, zIndex: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <span style={{
+            fontSize: 30, fontWeight: 700, letterSpacing: 4, textTransform: 'uppercase',
+            color: activeConfig.theme.accent, backgroundColor: `${activeConfig.theme.primary}80`,
+            padding: '16px 32px', borderRadius: 16,
+          }}>
+            Coming Soon
+          </span>
+        </div>
+      )}
+
+      <DisplayGrid
+        config={activeConfig}
+        width={dimensions.width}
+        height={dimensions.height}
+      />
     </div>
   );
 }
@@ -371,8 +232,8 @@ export default function DisplayPage() {
   return (
     <Suspense
       fallback={
-        <div className="w-full h-screen bg-[#022b21] flex items-center justify-center">
-          <div className="text-white/50 text-xl">Loading display...</div>
+        <div style={{ width: '100vw', height: '100vh', backgroundColor: '#022b21', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: 20 }}>Loading display...</span>
         </div>
       }
     >

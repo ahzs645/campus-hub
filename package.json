@@ -2,6 +2,9 @@
   "name": "campus-hub",
   "version": "0.1.0",
   "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
     "dev": "next dev",
     "build": "next build && npm run build:docs",
@@ -12,15 +15,22 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@campus-hub/shared": "*",
     "@firstform/json-url": "^4.1.0",
+    "@react-native/typescript-config": "^0.84.1",
     "gridstack": "^12.4.2",
     "gtfs-realtime-bindings": "^1.1.1",
     "lottie-web": "^5.13.0",
     "lucide-react": "^0.542.0",
+    "lucide-react-native": "^0.475.0",
     "next": "16.1.6",
     "qrcode": "^1.5.4",
     "react": "19.2.3",
     "react-dom": "19.2.3",
+    "react-native": "^0.76.9",
+    "react-native-svg": "^15.11.2",
+    "react-native-svg-web": "^1.0.9",
+    "react-native-web": "^0.19.13",
     "react-pixel-display": "^1.0.0"
   },
   "devDependencies": {
