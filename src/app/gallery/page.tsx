@@ -3,68 +3,13 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { getAllWidgets, type WidgetDefinition } from '@/lib/widget-registry';
+import { getWidgetTags, ALL_TAGS } from '@/lib/widget-tags';
 import AppIcon from '@/components/AppIcon';
 import { MODES as GLYPH_MODES } from '@/widgets/nothing-glyph/NothingGlyph';
 
 
 // Import all widgets to trigger registration
 import '@/widgets/index';
-
-// Tag assignments for each widget type
-const WIDGET_TAGS: Record<string, string[]> = {
-  'clock':                ['Time'],
-  'countdown':            ['Time'],
-  'time-progress':        ['Time'],
-  'holiday-calendar':     ['Time', 'Fun'],
-  'f1-countdown':         ['Time', 'Sports'],
-  'weather':              ['Environment'],
-  'air-quality':          ['Environment'],
-  'uv-index':             ['Environment'],
-  'fire-hazard':          ['Environment'],
-  'aurora-forecast':      ['Environment'],
-  'drought-level':        ['Environment'],
-  'groundwater-level':    ['Environment'],
-  'satellite-view':       ['Environment'],
-  'cafeteria-menu':       ['Campus'],
-  'club-spotlight':       ['Campus'],
-  'confessions':          ['Campus'],
-  'group-fitness':        ['Campus', 'Sports'],
-  'library-availability': ['Campus'],
-  'job-board':            ['Campus'],
-  'events-list':          ['Campus'],
-  'climbing-gym':         ['Campus', 'Sports'],
-  'bus-connection':       ['Transit'],
-  'news-ticker':          ['Info'],
-  'exchange-rate':        ['Info'],
-  'crypto-tracker':       ['Info'],
-  'iss-tracker':          ['Info'],
-  'rss-reader':           ['Info'],
-  'poster-carousel':      ['Media'],
-  'poster-feed':          ['Media'],
-  'slideshow':            ['Media'],
-  'image':                ['Media'],
-  'media-player':         ['Media'],
-  'youtube':              ['Media'],
-  'web':                  ['Media'],
-  'rich-text':            ['Media'],
-  'nothing-glyph':        ['Fun'],
-  'bottle-spin':          ['Fun'],
-  'rock-paper-scissors':  ['Fun'],
-  'kaomoji':              ['Fun'],
-  'coin-dice':            ['Fun'],
-  'word-of-the-day':      ['Fun'],
-  'flashcard':            ['Fun'],
-  'qrcode':               ['Utility'],
-  'widget-stack':         ['Utility'],
-  'google-calendar':      ['Campus', 'Time'],
-};
-
-function getWidgetTags(type: string): string[] {
-  return WIDGET_TAGS[type] ?? ['Other'];
-}
-
-// All unique tags in display order
-const ALL_TAGS = ['Campus', 'Environment', 'Time', 'Info', 'Media', 'Transit', 'Sports', 'Fun', 'Utility'];
 
 type SortMode = 'name' | 'tag' | 'size';
 

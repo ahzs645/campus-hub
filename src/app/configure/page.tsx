@@ -22,6 +22,7 @@ import {
 } from '@/lib/dashboard-history';
 import { DEMO_PRESETS } from '@/lib/presets';
 import { getAllWidgets, getWidget } from '@/widgets';
+import { getWidgetTags, ALL_TAGS } from '@/lib/widget-tags';
 import AppIcon from '@/components/AppIcon';
 import EditableWidget from '@/components/EditableWidget';
 import WidgetEditDialog from '@/components/WidgetEditDialog';
@@ -228,6 +229,8 @@ export default function ConfigurePage() {
   const [gridCols, setGridCols] = useState(DEFAULT_CONFIG.gridCols ?? DEFAULT_GRID_COLS);
   const [sidebarTab, setSidebarTab] = useState<'widgets' | 'settings' | 'presets'>('widgets');
   const [showWidgetLibrary, setShowWidgetLibrary] = useState(false);
+  const [libSearch, setLibSearch] = useState('');
+  const [libTag, setLibTag] = useState<string | null>(null);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [mobileZoom, setMobileZoom] = useState(MOBILE_ZOOM_MIN);
   const containerRef = useRef<HTMLDivElement>(null);

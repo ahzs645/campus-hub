@@ -173,15 +173,16 @@ export default function GroupFitness({
   const visibleRows = section?.rows ?? [];
   const lastModified = formatLastModified(schedule?.lastModified);
 
-  const { containerRef, scale: baseScale, designWidth: baseDesignWidth, containerWidth, containerHeight } = useAdaptiveFitScale({
+  const { containerRef, scale: baseScale, designWidth: baseDesignWidth, designHeight: baseDesignHeight, containerWidth, containerHeight } = useAdaptiveFitScale({
     landscape: { w: 520, h: 320 },
     portrait: { w: 340, h: 520 },
   });
 
-  // Stretch design height to fill the full container so no empty space remains.
-  const scale = containerWidth > 0 ? containerWidth / baseDesignWidth : baseScale;
-  const designWidth = baseDesignWidth;
-  const designHeight = containerHeight > 0 ? containerHeight / scale : 320;
+  // Use the standard fit scale but expand design dimensions to fill the
+  // entire container so there's no empty space on either axis.
+  const scale = baseScale;
+  const designWidth = containerWidth > 0 ? containerWidth / scale : baseDesignWidth;
+  const designHeight = containerHeight > 0 ? containerHeight / scale : baseDesignHeight;
 
   const rowColumns =
     viewMode === 'class'
