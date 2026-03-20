@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
-import { StatusBar, Platform } from "react-native";
+import { StatusBar } from "react-native";
 import NetInfo from "@react-native-community/netinfo";
 import { TVWebView } from "@/components/TVWebView";
 import { SetupScreen } from "@/screens/SetupScreen";
@@ -20,7 +20,6 @@ export default function App() {
   const [showIdentify, setShowIdentify] = useState(false);
   const serverRef = useRef<{ stop: () => void } | null>(null);
 
-  // Start the config server on mount
   useEffect(() => {
     StatusBar.setHidden(true);
 
@@ -28,7 +27,6 @@ export default function App() {
 
     const handleConfigChange = (config: TVConfig) => {
       if (config.configJson) {
-        // Build display URL with inline config
         const encoded = encodeURIComponent(config.configJson);
         setDisplayUrl(
           `${CONFIG.CAMPUS_HUB_URL}/display/?configJson=${encoded}`
@@ -36,7 +34,6 @@ export default function App() {
       } else if (config.url) {
         setDisplayUrl(config.url);
       }
-      // Auto-switch back to display mode after config change
       setMode("display");
     };
 
@@ -64,7 +61,6 @@ export default function App() {
     );
     serverRef.current = server;
 
-    // Get local IP for QR code
     NetInfo.fetch().then((state) => {
       const ip =
         state.type === "wifi"
@@ -73,7 +69,6 @@ export default function App() {
       if (ip) {
         setServerUrl(`http://${ip}:${SERVER_PORT}`);
       } else {
-        // Fallback: try to get any IP
         setServerUrl(`http://localhost:${SERVER_PORT}`);
       }
     });
@@ -83,7 +78,6 @@ export default function App() {
     };
   }, []);
 
-  // TV remote: long-press select → setup mode, menu → back to display
   useTVRemote(
     useCallback(
       (action) => {

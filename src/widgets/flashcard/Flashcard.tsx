@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { WidgetComponentProps, registerWidget } from '@/lib/widget-registry';
 import { useFitScale } from '@/hooks/useFitScale';
 import FlashcardOptions from './FlashcardOptions';
@@ -162,11 +162,6 @@ function getDayOfYear(): number {
   return Math.floor(diff / (1000 * 60 * 60 * 24));
 }
 
-function seededRandom(seed: number): number {
-  const x = Math.sin(seed * 9301 + 49297) * 49297;
-  return x - Math.floor(x);
-}
-
 export default function Flashcard({ config }: WidgetComponentProps) {
   const cfg = config as FlashcardConfig | undefined;
   const language = cfg?.language ?? 'spanish';
@@ -188,7 +183,6 @@ export default function Flashcard({ config }: WidgetComponentProps) {
 
   const { containerRef, scale } = useFitScale(200, 200);
 
-  // Daily mode: pick word based on day
   useEffect(() => {
     if (mode === 'daily') {
       const dayIndex = getDayOfYear() % words.length;
@@ -196,7 +190,6 @@ export default function Flashcard({ config }: WidgetComponentProps) {
     }
   }, [mode, words.length]);
 
-  // Flip timer
   useEffect(() => {
     const flipTimer = setInterval(() => {
       setIsFlipped((prev) => !prev);
@@ -205,7 +198,6 @@ export default function Flashcard({ config }: WidgetComponentProps) {
     return () => clearInterval(flipTimer);
   }, [flipInterval]);
 
-  // Cycle timer (only in cycle mode)
   useEffect(() => {
     if (mode !== 'cycle') return;
 
@@ -219,7 +211,7 @@ export default function Flashcard({ config }: WidgetComponentProps) {
           }
           return next;
         });
-      }, 400); // small delay after flip-back before changing word
+      }, 400);
     }, cycleInterval * 1000);
 
     return () => clearInterval(cycleTimer);
@@ -229,7 +221,7 @@ export default function Flashcard({ config }: WidgetComponentProps) {
     <div
       ref={containerRef}
       className="w-full h-full overflow-hidden flex items-center justify-center"
-      style={{ backgroundColor: '#1a1a1a' }}
+      style={{ backgroundColor: '#1B1B1D', borderRadius: 22 }}
     >
       <div
         style={{
@@ -248,8 +240,15 @@ export default function Flashcard({ config }: WidgetComponentProps) {
 
         {/* Language label */}
         <div
-          className="absolute top-2 left-0 right-0 text-center text-[10px] font-semibold uppercase tracking-widest"
-          style={{ color: '#FFD700' }}
+          className="absolute top-2 left-0 right-0 text-center"
+          style={{
+            color: '#D81921',
+            fontFamily: 'monospace',
+            fontSize: '0.6rem',
+            fontWeight: 700,
+            textTransform: 'uppercase',
+            letterSpacing: '0.2em',
+          }}
         >
           {LANGUAGE_LABELS[language] ?? language}
         </div>
@@ -268,48 +267,78 @@ export default function Flashcard({ config }: WidgetComponentProps) {
           >
             {/* Front - foreign word */}
             <div
-              className="absolute inset-0 flex flex-col items-center justify-center rounded-xl px-3"
+              className="absolute inset-0 flex flex-col items-center justify-center px-3"
               style={{
                 backfaceVisibility: 'hidden',
-                backgroundColor: '#252525',
-                border: '1px solid #333',
+                backgroundColor: '#2A2A2D',
+                borderRadius: 16,
+                border: '1px solid #3A3A3D',
               }}
             >
               <span
-                className="text-xl font-bold text-white text-center leading-tight"
+                className="text-xl font-bold text-center leading-tight"
+                style={{ color: '#FDFBFF' }}
               >
                 {currentWord.foreign}
               </span>
               <div className="w-10 h-px my-2" style={{ backgroundColor: '#FFD700' }} />
-              <span className="text-[10px] uppercase tracking-wider text-white/40">
-                Tap to reveal
+              <span
+                style={{
+                  color: '#5E5E62',
+                  fontFamily: 'monospace',
+                  fontSize: '0.55rem',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.15em',
+                }}
+              >
+                TAP TO REVEAL
               </span>
             </div>
 
             {/* Back - english translation */}
             <div
-              className="absolute inset-0 flex flex-col items-center justify-center rounded-xl px-3"
+              className="absolute inset-0 flex flex-col items-center justify-center px-3"
               style={{
                 backfaceVisibility: 'hidden',
-                backgroundColor: '#252525',
+                backgroundColor: '#2A2A2D',
+                borderRadius: 16,
                 border: '1px solid #FFD700',
                 transform: 'rotateY(180deg)',
               }}
             >
-              <span className="text-lg font-bold text-center leading-tight" style={{ color: '#FFD700' }}>
+              <span
+                className="text-lg font-bold text-center leading-tight"
+                style={{ color: '#FFD700' }}
+              >
                 {currentWord.english}
               </span>
-              <div className="w-10 h-px my-2" style={{ backgroundColor: '#555' }} />
-              <span className="text-[10px] uppercase tracking-wider text-white/40">
-                Translation
+              <div className="w-10 h-px my-2" style={{ backgroundColor: '#3A3A3D' }} />
+              <span
+                style={{
+                  color: '#5E5E62',
+                  fontFamily: 'monospace',
+                  fontSize: '0.55rem',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.15em',
+                }}
+              >
+                TRANSLATION
               </span>
             </div>
           </div>
         </div>
 
         {/* Mode indicator */}
-        <div className="absolute bottom-2 left-0 right-0 text-center text-[9px] text-white/25">
-          {mode === 'daily' ? 'Word of the Day' : `Card ${(cardIndex % words.length) + 1}/${words.length}`}
+        <div
+          className="absolute bottom-2 left-0 right-0 text-center"
+          style={{
+            color: '#5E5E62',
+            fontFamily: 'monospace',
+            fontSize: '0.55rem',
+            letterSpacing: '0.1em',
+          }}
+        >
+          {mode === 'daily' ? 'WORD OF THE DAY' : `${String(((cardIndex % words.length) + 1)).padStart(2, '0')}/${String(words.length).padStart(2, '0')}`}
         </div>
       </div>
     </div>

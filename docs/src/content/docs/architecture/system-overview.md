@@ -142,3 +142,33 @@ No Node.js server is needed at runtime. The entire site is served as static file
 - **Real-time data** — weather, events, and news update in the browser without redeploying.
 - **No server costs** — the CORS proxy is the only infrastructure, and it's stateless.
 - **Widget independence** — each widget manages its own data lifecycle.
+
+### Why not a dedicated tvOS app?
+
+Campus Hub is intentionally documented and supported as a **web-first signage platform**, not as a native Apple TV product.
+
+The main reasons are practical:
+
+- **The browser is already the product surface** — the configurator, URL-based sharing, and display runtime all assume a static web deployment that can open on any screen with a browser.
+- **The widget catalog is currently web-native** — many display widgets rely on browser capabilities such as CSS Grid, iframe embeds, HTML media elements, SVG/CSS animation, and DOM measurement APIs. Rebuilding those as shared native components would either reduce widget capabilities or require parallel implementations.
+- **A native tvOS app adds a second platform to maintain** — in addition to the web app, it introduces Xcode, CocoaPods, native signing, simulator/device testing, release packaging, and platform-specific debugging.
+- **Parity would be expensive** — keeping web and tvOS rendering identical would force the widget system toward React Native constraints, which would slow down web feature development and make some existing widgets harder to support.
+- **The web path is more portable** — a browser-based display can run on laptops, mini PCs, kiosks, smart displays, Android TV browsers, and other managed devices without creating and distributing separate native apps.
+
+There may still be experimental native TV work in the repository, but it is not the primary deployment model. The recommended approach is:
+
+1. Host Campus Hub as a static web app.
+2. Open the generated `/display` URL on the target screen or device.
+3. Treat native TV shells, if they exist, as optional experiments rather than the main supported architecture.
+
+### Why Android TV / Google TV is still viable
+
+Android TV and Google TV remain practical targets because they align more naturally with Campus Hub's web-first deployment model.
+
+- **They work well with browser- or WebView-based delivery** — if the device or management stack can pin a browser, kiosk browser, or lightweight shell to a single URL, Campus Hub can usually run without redesigning the widget system around native UI constraints.
+- **They are better suited to lightweight wrapper apps** — when a dedicated shell is needed, Android is generally a better fit for a minimal "open this display URL on boot" container than a full parallel native product strategy.
+- **Device management is usually more flexible** — Android-based signage deployments commonly support kiosk launchers, single-app lock-down, remote provisioning, and MDM-style management flows that fit unattended display hardware.
+- **Hardware choice is broader and cheaper** — there are more low-cost sticks, boxes, panels, and embedded devices in the Android TV / Google TV ecosystem, which makes fleet rollout easier for signage use cases.
+- **Offline or bundled deployments are more achievable** — if a deployment needs a packaged local copy of the static site instead of a hosted URL, Android is a more natural place to support that without changing the overall architecture.
+
+In other words: Campus Hub is not documented as a native TV app product, but Android TV / Google TV can still be a good deployment target when used as a managed runtime for the web display.

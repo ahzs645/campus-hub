@@ -82,7 +82,7 @@ function formatSessionDate(date: string, time?: string): string {
   return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
 }
 
-export default function F1Countdown({ config, theme }: WidgetComponentProps) {
+export default function F1Countdown({ config }: WidgetComponentProps) {
   const cfg = config as F1CountdownConfig | undefined;
   const showSessions = cfg?.showSessions ?? true;
 
@@ -90,8 +90,8 @@ export default function F1Countdown({ config, theme }: WidgetComponentProps) {
   const [remaining, setRemaining] = useState<TimeRemaining>({ days: 0, hours: 0, minutes: 0, seconds: 0, total: 0 });
   const [error, setError] = useState<string | null>(null);
 
-  const DESIGN_W = 300;
-  const DESIGN_H = 180;
+  const DESIGN_W = 340;
+  const DESIGN_H = 200;
   const { containerRef, scale } = useFitScale(DESIGN_W, DESIGN_H);
 
   const fetchSchedule = useCallback(async () => {
@@ -109,14 +109,12 @@ export default function F1Countdown({ config, theme }: WidgetComponentProps) {
     }
   }, []);
 
-  // Fetch on mount and every hour
   useEffect(() => {
     fetchSchedule();
     const interval = setInterval(fetchSchedule, 60 * 60 * 1000);
     return () => clearInterval(interval);
   }, [fetchSchedule]);
 
-  // Update countdown every second
   useEffect(() => {
     if (!nextRace) return;
     const target = parseRaceDate(nextRace.date, nextRace.time);
@@ -127,6 +125,7 @@ export default function F1Countdown({ config, theme }: WidgetComponentProps) {
   }, [nextRace]);
 
   const country = nextRace?.Circuit?.Location?.country ?? '';
+  const locality = nextRace?.Circuit?.Location?.locality ?? '';
   const flag = FLAG_EMOJI[country] ?? '';
 
   const sessions: { label: string; date: string; time?: string }[] = [];
@@ -141,7 +140,7 @@ export default function F1Countdown({ config, theme }: WidgetComponentProps) {
     <div
       ref={containerRef}
       className="w-full h-full overflow-hidden"
-      style={{ backgroundColor: '#111' }}
+      style={{ backgroundColor: '#1B1B1D' }}
     >
       <div
         style={{
@@ -149,74 +148,95 @@ export default function F1Countdown({ config, theme }: WidgetComponentProps) {
           height: DESIGN_H,
           transform: `scale(${scale})`,
           transformOrigin: 'top left',
+          padding: 16,
+          borderRadius: 22,
         }}
-        className="flex flex-col justify-center px-5 py-3"
+        className="flex items-end"
       >
         {error && (
-          <div className="text-red-400 text-xs text-center">{error}</div>
+          <div style={{ color: '#ABABAF', fontSize: 11, textAlign: 'center', width: '100%' }}>{error}</div>
         )}
 
         {!nextRace && !error && (
-          <div className="text-white/50 text-sm text-center">Loading F1 schedule...</div>
+          <div style={{ color: '#5E5E62', fontSize: 12, textAlign: 'center', width: '100%' }}>Loading F1 schedule...</div>
         )}
 
         {nextRace && (
           <>
-            {/* Race name & circuit */}
-            <div className="mb-2">
-              <div className="text-[10px] uppercase tracking-widest text-white/40 font-medium mb-0.5">
-                Next Race
+            {/* Left column */}
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {/* Header: flag + race name */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                {flag && <span style={{ fontSize: 32, lineHeight: 1 }}>{flag}</span>}
+                <span
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 500,
+                    color: '#FDFBFF',
+                    flex: 1,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {nextRace.raceName}
+                </span>
               </div>
-              <div className="text-sm font-semibold text-white leading-tight truncate">
-                {flag && <span className="mr-1">{flag}</span>}
-                {nextRace.raceName}
+
+              {/* Location */}
+              <div style={{ fontSize: 11, color: '#ABABAF', marginBottom: 4 }}>
+                {locality}{country ? `, ${country}` : ''}
               </div>
-              <div className="text-[10px] text-white/50 truncate">
-                {nextRace.Circuit.circuitName}
+
+              {/* Large countdown number */}
+              <div>
+                <span
+                  className="font-mono"
+                  style={{
+                    fontSize: 80,
+                    lineHeight: '80px',
+                    fontWeight: 400,
+                    color: '#FDFBFF',
+                    letterSpacing: '-2px',
+                  }}
+                >
+                  {String(remaining.days).padStart(2, '0')}
+                </span>
+              </div>
+
+              {/* Label */}
+              <div
+                style={{
+                  fontSize: 11,
+                  color: '#ABABAF',
+                  fontWeight: 500,
+                  letterSpacing: '1.1px',
+                  textTransform: 'uppercase',
+                }}
+              >
+                DAYS UNTIL RACE
               </div>
             </div>
 
-            {/* Countdown */}
-            <div className="flex items-baseline gap-1.5 mb-2">
-              <span
-                className="text-3xl font-bold font-mono tabular-nums leading-none"
-                style={{ color: theme.accent }}
-              >
-                {remaining.days}
-              </span>
-              <span className="text-[10px] uppercase tracking-wider text-white/50 mr-2">
-                {remaining.days === 1 ? 'day' : 'days'}
-              </span>
-              <span
-                className="text-lg font-bold font-mono tabular-nums leading-none"
-                style={{ color: theme.accent }}
-              >
-                {String(remaining.hours).padStart(2, '0')}
-              </span>
-              <span className="text-[10px] text-white/40">h</span>
-              <span
-                className="text-lg font-bold font-mono tabular-nums leading-none"
-                style={{ color: theme.accent }}
-              >
-                {String(remaining.minutes).padStart(2, '0')}
-              </span>
-              <span className="text-[10px] text-white/40">m</span>
-              <span
-                className="text-lg font-bold font-mono tabular-nums leading-none"
-                style={{ color: theme.accent }}
-              >
-                {String(remaining.seconds).padStart(2, '0')}
-              </span>
-              <span className="text-[10px] text-white/40">s</span>
-            </div>
-
-            {/* Sessions */}
+            {/* Right column - Sessions */}
             {showSessions && sessions.length > 0 && (
-              <div className="flex gap-3 flex-wrap">
+              <div style={{ width: 120, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <div
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 500,
+                    color: '#ABABAF',
+                    letterSpacing: '1.1px',
+                    textTransform: 'uppercase',
+                    marginBottom: 2,
+                  }}
+                >
+                  Sessions
+                </div>
                 {sessions.map((s) => (
-                  <div key={s.label} className="text-[9px] text-white/40">
-                    <span className="font-medium text-white/60">{s.label}</span>{' '}
-                    {formatSessionDate(s.date, s.time)}
+                  <div key={s.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                    <span style={{ fontSize: 11, color: '#FDFBFF', fontWeight: 500 }}>{s.label}</span>
+                    <span style={{ fontSize: 10, color: '#ABABAF' }}>{formatSessionDate(s.date, s.time)}</span>
                   </div>
                 ))}
               </div>

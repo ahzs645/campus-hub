@@ -6,16 +6,25 @@ import { useFitScale } from '@/hooks/useFitScale';
 import RockPaperScissorsOptions from './RockPaperScissorsOptions';
 
 interface RPSConfig {
-  playInterval?: number; // seconds between auto-plays, default 15
+  playInterval?: number;
 }
 
 const CHOICES = [
-  { emoji: '✊', name: 'Rock' },
-  { emoji: '✋', name: 'Paper' },
-  { emoji: '✌️', name: 'Scissors' },
+  {
+    name: 'Rock',
+    image: 'https://res.cloudinary.com/htoohtoo/image/upload/v1771522193/Rock_ht4tte.png',
+  },
+  {
+    name: 'Paper',
+    image: 'https://res.cloudinary.com/htoohtoo/image/upload/v1771522205/Paper_vuuq09.png',
+  },
+  {
+    name: 'Scissors',
+    image: 'https://res.cloudinary.com/htoohtoo/image/upload/v1771522224/Scissor_hsexon.png',
+  },
 ] as const;
 
-export default function RockPaperScissors({ config, theme }: WidgetComponentProps) {
+export default function RockPaperScissors({ config }: WidgetComponentProps) {
   const cfg = config as RPSConfig | undefined;
   const playInterval = cfg?.playInterval ?? 15;
 
@@ -47,15 +56,14 @@ export default function RockPaperScissors({ config, theme }: WidgetComponentProp
 
       if (count >= 6) {
         if (cycleRef.current) clearInterval(cycleRef.current);
-        // Land on final random result
         setCurrentIndex(Math.floor(Math.random() * 3));
         setIsCycling(false);
       }
-    }, 300);
+    }, 400);
   }, []);
 
   useEffect(() => {
-    doPlay(); // initial play
+    doPlay();
     playIntervalRef.current = setInterval(doPlay, playInterval * 1000);
     return clearTimers;
   }, [playInterval, doPlay, clearTimers]);
@@ -66,7 +74,7 @@ export default function RockPaperScissors({ config, theme }: WidgetComponentProp
     <div
       ref={containerRef}
       className="w-full h-full overflow-hidden flex items-center justify-center"
-      style={{ backgroundColor: `${theme.primary}20` }}
+      style={{ backgroundColor: '#1B1B1D', borderRadius: 22, padding: 16 }}
     >
       <style>{`
         @keyframes rpsShake {
@@ -82,20 +90,37 @@ export default function RockPaperScissors({ config, theme }: WidgetComponentProp
           transform: `scale(${scale})`,
           transformOrigin: 'center center',
         }}
-        className="flex flex-col items-center justify-center gap-2"
+        className="flex flex-col items-center justify-center gap-3"
       >
         <div
           style={{
-            fontSize: '5rem',
-            lineHeight: 1,
-            animation: isCycling ? 'rpsShake 300ms ease-in-out infinite' : 'none',
+            width: 90,
+            height: 90,
+            animation: isCycling ? 'rpsShake 400ms ease-in-out infinite' : 'none',
           }}
         >
-          {choice.emoji}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={choice.image}
+            alt={choice.name}
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'contain',
+              filter: 'invert(1) brightness(0.9)',
+            }}
+            draggable={false}
+          />
         </div>
         <div
-          className="text-sm font-bold uppercase tracking-wider"
-          style={{ color: theme.accent }}
+          style={{
+            color: '#D81921',
+            fontFamily: 'monospace',
+            fontSize: '0.7rem',
+            fontWeight: 700,
+            textTransform: 'uppercase',
+            letterSpacing: '0.2em',
+          }}
         >
           {choice.name}
         </div>

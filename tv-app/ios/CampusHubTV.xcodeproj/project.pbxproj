@@ -7,21 +7,19 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		13B07FBC1A68108700A75B9A /* AppDelegate.mm in Sources */ = {isa = PBXBuildFile; fileRef = 13B07FB01A68108700A75B9A /* AppDelegate.mm */; };
 		13B07FBF1A68108700A75B9A /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB11A68108700A75B9A /* LaunchScreen.storyboard */; };
-		13B07FC11A68108700A75B9A /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 13B07FB71A68108700A75B9A /* main.m */; };
 		3D92A8C5EB087B271F83E098 /* libPods-CampusHubTV.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 03574AEB2C76082F509EFF86 /* libPods-CampusHubTV.a */; };
 		7A4D352A1CD3A3F500BBF3BA /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 7A4D35291CD3A3F500BBF3BA /* PrivacyInfo.xcprivacy */; };
+		EDD560003B8749DA109210CE /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7751CB2F0A36DBBE9A2F140E /* AppDelegate.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		03574AEB2C76082F509EFF86 /* libPods-CampusHubTV.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-CampusHubTV.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07F961A680F5B00A75B9A /* CampusHubTV.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CampusHubTV.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		13B07FAF1A68108700A75B9A /* AppDelegate.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = AppDelegate.h; path = CampusHubTV/AppDelegate.h; sourceTree = "<group>"; };
-		13B07FB01A68108700A75B9A /* AppDelegate.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; name = AppDelegate.mm; path = CampusHubTV/AppDelegate.mm; sourceTree = "<group>"; };
 		13B07FB11A68108700A75B9A /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = CampusHubTV/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = CampusHubTV/Info.plist; sourceTree = "<group>"; };
-		13B07FB71A68108700A75B9A /* main.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = main.m; path = CampusHubTV/main.m; sourceTree = "<group>"; };
+		25C61308B89CE5A6B565B9B9 /* CampusHubTV-Bridging-Header.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = "CampusHubTV-Bridging-Header.h"; path = "CampusHubTV/CampusHubTV-Bridging-Header.h"; sourceTree = "<group>"; };
+		7751CB2F0A36DBBE9A2F140E /* AppDelegate.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = CampusHubTV/AppDelegate.swift; sourceTree = "<group>"; };
 		7A4D35291CD3A3F500BBF3BA /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xml; name = PrivacyInfo.xcprivacy; path = CampusHubTV/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		894F7A82240BBCAE4DB1E072 /* Pods-CampusHubTV.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-CampusHubTV.release.xcconfig"; path = "Target Support Files/Pods-CampusHubTV/Pods-CampusHubTV.release.xcconfig"; sourceTree = "<group>"; };
 		DE1D8EB8FF871CF24A909758 /* Pods-CampusHubTV.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-CampusHubTV.debug.xcconfig"; path = "Target Support Files/Pods-CampusHubTV/Pods-CampusHubTV.debug.xcconfig"; sourceTree = "<group>"; };
@@ -42,12 +40,11 @@
 		13B07FAE1A68108700A75B9A /* CampusHubTV */ = {
 			isa = PBXGroup;
 			children = (
-				13B07FAF1A68108700A75B9A /* AppDelegate.h */,
-				13B07FB01A68108700A75B9A /* AppDelegate.mm */,
 				13B07FB11A68108700A75B9A /* LaunchScreen.storyboard */,
 				13B07FB61A68108700A75B9A /* Info.plist */,
-				13B07FB71A68108700A75B9A /* main.m */,
 				7A4D35291CD3A3F500BBF3BA /* PrivacyInfo.xcprivacy */,
+				7751CB2F0A36DBBE9A2F140E /* AppDelegate.swift */,
+				25C61308B89CE5A6B565B9B9 /* CampusHubTV-Bridging-Header.h */,
 			);
 			name = CampusHubTV;
 			sourceTree = "<group>";
@@ -246,8 +243,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				13B07FBC1A68108700A75B9A /* AppDelegate.mm in Sources */,
-				13B07FC11A68108700A75B9A /* main.m in Sources */,
+				EDD560003B8749DA109210CE /* AppDelegate.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -277,6 +273,7 @@
 				PRODUCT_NAME = CampusHubTV;
 				SDKROOT = appletvos;
 				SUPPORTED_PLATFORMS = "appletvsimulator appletvos";
+				SWIFT_OBJC_BRIDGING_HEADER = "CampusHubTV/CampusHubTV-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 3;
@@ -306,6 +303,7 @@
 				PRODUCT_NAME = CampusHubTV;
 				SDKROOT = appletvos;
 				SUPPORTED_PLATFORMS = "appletvsimulator appletvos";
+				SWIFT_OBJC_BRIDGING_HEADER = "CampusHubTV/CampusHubTV-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 3;
 				TVOS_DEPLOYMENT_TARGET = 16.0;
@@ -369,6 +367,7 @@
 				OTHER_CFLAGS = (
 					"$(inherited)",
 					"-DRN_FABRIC_ENABLED",
+					"-DRCT_REMOVE_LEGACY_ARCH=1",
 				);
 				OTHER_CPLUSPLUSFLAGS = (
 					"$(inherited)",
@@ -377,6 +376,7 @@
 					"-DFOLLY_USE_LIBCPP=1",
 					"-DFOLLY_CFG_NO_COROUTINES=1",
 					"-DFOLLY_HAVE_CLOCK_GETTIME=1",
+					"-DRCT_REMOVE_LEGACY_ARCH=1",
 				);
 				OTHER_LDFLAGS = (
 					"$(inherited)",
@@ -386,6 +386,7 @@
 				SDKROOT = appletvos;
 				SUPPORTED_PLATFORMS = "appletvsimulator appletvos";
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) DEBUG";
+				SWIFT_ENABLE_EXPLICIT_MODULES = NO;
 				TARGETED_DEVICE_FAMILY = 3;
 				TVOS_DEPLOYMENT_TARGET = 16.0;
 				USE_HERMES = true;
@@ -441,6 +442,7 @@
 				OTHER_CFLAGS = (
 					"$(inherited)",
 					"-DRN_FABRIC_ENABLED",
+					"-DRCT_REMOVE_LEGACY_ARCH=1",
 				);
 				OTHER_CPLUSPLUSFLAGS = (
 					"$(inherited)",
@@ -449,6 +451,7 @@
 					"-DFOLLY_USE_LIBCPP=1",
 					"-DFOLLY_CFG_NO_COROUTINES=1",
 					"-DFOLLY_HAVE_CLOCK_GETTIME=1",
+					"-DRCT_REMOVE_LEGACY_ARCH=1",
 				);
 				OTHER_LDFLAGS = (
 					"$(inherited)",
@@ -457,6 +460,7 @@
 				REACT_NATIVE_PATH = "${PODS_ROOT}/../../node_modules/react-native";
 				SDKROOT = appletvos;
 				SUPPORTED_PLATFORMS = "appletvsimulator appletvos";
+				SWIFT_ENABLE_EXPLICIT_MODULES = NO;
 				TARGETED_DEVICE_FAMILY = 3;
 				TVOS_DEPLOYMENT_TARGET = 16.0;
 				USE_HERMES = true;

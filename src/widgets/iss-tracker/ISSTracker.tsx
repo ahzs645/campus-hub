@@ -6,8 +6,8 @@ import { useFitScale } from '@/hooks/useFitScale';
 import ISSTrackerOptions from './ISSTrackerOptions';
 
 interface ISSTrackerConfig {
-  refreshInterval?: number; // minutes, default 1
-  showMap?: boolean; // default true
+  refreshInterval?: number;
+  showMap?: boolean;
 }
 
 interface ISSPosition {
@@ -17,28 +17,19 @@ interface ISSPosition {
   timestamp: number;
 }
 
-// Simplified continent outlines as SVG path data (equirectangular projection, viewBox 0 0 360 180)
-const CONTINENT_PATHS = [
-  // North America
-  'M 30 25 L 60 20 L 80 25 L 85 40 L 75 50 L 65 55 L 55 65 L 40 55 L 25 50 L 20 35 Z',
-  // South America
-  'M 55 70 L 70 65 L 80 75 L 78 95 L 72 115 L 60 130 L 52 120 L 48 100 L 50 80 Z',
-  // Europe
-  'M 155 20 L 175 18 L 185 25 L 180 35 L 170 40 L 160 38 L 150 30 Z',
-  // Africa
-  'M 155 45 L 175 42 L 185 55 L 190 75 L 185 95 L 175 110 L 160 105 L 150 90 L 145 70 L 148 55 Z',
-  // Asia
-  'M 185 15 L 220 10 L 260 15 L 280 25 L 290 40 L 275 50 L 260 55 L 240 50 L 220 45 L 200 40 L 185 35 Z',
-  // Australia
-  'M 260 90 L 285 85 L 295 95 L 290 110 L 275 115 L 260 108 L 255 98 Z',
-  // Indonesia/SE Asia islands
-  'M 250 60 L 265 58 L 280 62 L 290 68 L 280 72 L 265 70 L 252 65 Z',
-];
-
+const EARTH_SIZE = 90;
 const DESIGN_W = 240;
 const DESIGN_H = 200;
 
-export default function ISSTracker({ config, theme }: WidgetComponentProps) {
+// Compute the sun longitude offset based on UTC hour for day/night overlay
+function getSunLongitude(): number {
+  const now = new Date();
+  const hours = now.getUTCHours() + now.getUTCMinutes() / 60;
+  // At 12:00 UTC the sun is at longitude 0; it moves 15 deg/hour westward
+  return -(hours - 12) * 15;
+}
+
+export default function ISSTracker({ config }: WidgetComponentProps) {
   const cfg = config as ISSTrackerConfig | undefined;
   const refreshInterval = cfg?.refreshInterval ?? 1;
   const showMap = cfg?.showMap ?? true;
@@ -75,11 +66,9 @@ export default function ISSTracker({ config, theme }: WidgetComponentProps) {
 
   const { containerRef, scale } = useFitScale(DESIGN_W, DESIGN_H);
 
-  // Project lat/lon to SVG coordinates (equirectangular)
-  const mapW = 220;
-  const mapH = 120;
-  const projectX = (lon: number) => ((lon + 180) / 360) * mapW;
-  const projectY = (lat: number) => ((90 - lat) / 180) * mapH;
+  // Equirectangular projection onto the circular earth image
+  const projectX = (lon: number) => ((lon + 180) / 360) * EARTH_SIZE;
+  const projectY = (lat: number) => ((90 - lat) / 180) * EARTH_SIZE;
 
   const formatCoord = (lat: number, lon: number) => {
     const latDir = lat >= 0 ? 'N' : 'S';
@@ -87,12 +76,23 @@ export default function ISSTracker({ config, theme }: WidgetComponentProps) {
     return `${Math.abs(lat).toFixed(1)}° ${latDir}, ${Math.abs(lon).toFixed(1)}° ${lonDir}`;
   };
 
+  // Sun position for radial gradient center (mapped to earth circle)
+  const sunLon = getSunLongitude();
+  const sunCx = ((sunLon + 180) / 360) * 100; // percentage
+  const sunCy = 50; // equator
+
   return (
     <div
       ref={containerRef}
       className="w-full h-full overflow-hidden"
-      style={{ backgroundColor: '#0a1628' }}
+      style={{ backgroundColor: '#1B1B1D', borderRadius: 22 }}
     >
+      <style>{`
+        @keyframes iss-pulse {
+          0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+          50% { transform: translate(-50%, -50%) scale(2.2); opacity: 0; }
+        }
+      `}</style>
       <div
         style={{
           width: DESIGN_W,
@@ -100,103 +100,139 @@ export default function ISSTracker({ config, theme }: WidgetComponentProps) {
           transform: `scale(${scale})`,
           transformOrigin: 'top left',
         }}
-        className="flex flex-col p-3"
+        className="flex flex-col items-center justify-between py-4"
       >
-        {/* Header */}
-        <div className="flex items-center gap-1.5 mb-2">
-          <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-          <span className="text-xs font-semibold text-white/80 tracking-wide uppercase">
-            ISS Tracker
-          </span>
-        </div>
-
         {loading && !position && (
           <div className="flex-1 flex items-center justify-center">
-            <span className="text-xs text-white/50">Loading ISS position...</span>
+            <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, color: '#8E8E93' }}>
+              Loading ISS position...
+            </span>
           </div>
         )}
 
         {error && !position && (
           <div className="flex-1 flex items-center justify-center">
-            <span className="text-xs text-red-400">{error}</span>
+            <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, color: '#D81921' }}>
+              {error}
+            </span>
           </div>
         )}
 
         {position && (
           <>
-            {/* Map */}
+            {/* Earth globe */}
             {showMap && (
-              <svg
-                viewBox={`0 0 ${mapW} ${mapH}`}
-                className="w-full rounded"
-                style={{ height: 120, backgroundColor: '#0a1628' }}
+              <div
+                style={{
+                  width: EARTH_SIZE,
+                  height: EARTH_SIZE,
+                  borderRadius: EARTH_SIZE / 2,
+                  border: '2px solid #5E5E62',
+                  overflow: 'hidden',
+                  position: 'relative',
+                  boxShadow: '0 0 20px rgba(0, 150, 255, 0.4)',
+                  flexShrink: 0,
+                }}
               >
-                {/* Grid lines */}
-                {/* Longitude lines every 30 degrees */}
-                {Array.from({ length: 13 }, (_, i) => i * 30).map((lon) => (
-                  <line
-                    key={`lon-${lon}`}
-                    x1={(lon / 360) * mapW}
-                    y1={0}
-                    x2={(lon / 360) * mapW}
-                    y2={mapH}
-                    stroke="#1a3050"
-                    strokeWidth={0.5}
-                    strokeDasharray="2,2"
-                  />
-                ))}
-                {/* Latitude lines every 30 degrees */}
-                {Array.from({ length: 7 }, (_, i) => i * 30).map((lat) => (
-                  <line
-                    key={`lat-${lat}`}
-                    x1={0}
-                    y1={(lat / 180) * mapH}
-                    x2={mapW}
-                    y2={(lat / 180) * mapH}
-                    stroke="#1a3050"
-                    strokeWidth={0.5}
-                    strokeDasharray="2,2"
-                  />
-                ))}
-
-                {/* Continent outlines */}
-                {CONTINENT_PATHS.map((d, i) => (
-                  <path
-                    key={i}
-                    d={d}
-                    fill="#1a3050"
-                    stroke="#2a4060"
-                    strokeWidth={0.5}
-                    transform={`scale(${mapW / 360}, ${mapH / 180})`}
-                  />
-                ))}
-
-                {/* ISS marker - pulsing red dot */}
-                <circle
-                  cx={projectX(position.longitude)}
-                  cy={projectY(position.latitude)}
-                  r={5}
-                  fill="rgba(239, 68, 68, 0.3)"
-                  className="animate-ping"
-                  style={{ transformOrigin: `${projectX(position.longitude)}px ${projectY(position.latitude)}px` }}
+                {/* NASA Earth map */}
+                <img
+                  src="https://eoimages.gsfc.nasa.gov/images/imagerecords/57000/57730/land_ocean_ice_2048.png"
+                  alt="Earth"
+                  style={{
+                    width: EARTH_SIZE,
+                    height: EARTH_SIZE,
+                    objectFit: 'cover',
+                    display: 'block',
+                  }}
+                  draggable={false}
                 />
-                <circle
-                  cx={projectX(position.longitude)}
-                  cy={projectY(position.latitude)}
-                  r={3}
-                  fill="#ef4444"
-                  stroke="#fff"
-                  strokeWidth={0.5}
+
+                {/* Day/night radial gradient overlay */}
+                <svg
+                  width={EARTH_SIZE}
+                  height={EARTH_SIZE}
+                  viewBox={`0 0 ${EARTH_SIZE} ${EARTH_SIZE}`}
+                  style={{ position: 'absolute', top: 0, left: 0 }}
+                >
+                  <defs>
+                    <radialGradient
+                      id="daynight"
+                      cx={`${sunCx}%`}
+                      cy={`${sunCy}%`}
+                      r="50%"
+                    >
+                      <stop offset="0%" stopColor="transparent" />
+                      <stop offset="50%" stopColor="transparent" />
+                      <stop offset="100%" stopColor="rgba(0,0,0,0.65)" />
+                    </radialGradient>
+                  </defs>
+                  <rect
+                    width={EARTH_SIZE}
+                    height={EARTH_SIZE}
+                    fill="url(#daynight)"
+                  />
+                </svg>
+
+                {/* ISS red dot marker */}
+                <div
+                  style={{
+                    position: 'absolute',
+                    left: projectX(position.longitude),
+                    top: projectY(position.latitude),
+                    width: 8,
+                    height: 8,
+                    borderRadius: 4,
+                    backgroundColor: '#D81921',
+                    border: '1px solid #FFFFFF',
+                    transform: 'translate(-50%, -50%)',
+                    zIndex: 2,
+                  }}
                 />
-              </svg>
+                {/* Pulse ring */}
+                <div
+                  style={{
+                    position: 'absolute',
+                    left: projectX(position.longitude),
+                    top: projectY(position.latitude),
+                    width: 8,
+                    height: 8,
+                    borderRadius: 4,
+                    backgroundColor: '#D81921',
+                    opacity: 0.6,
+                    zIndex: 1,
+                    animation: 'iss-pulse 2s ease-out infinite',
+                  }}
+                />
+              </div>
             )}
 
             {/* Footer */}
-            <div className="mt-auto pt-2 flex items-center justify-between">
-              <span className="text-[10px] text-white/60 font-mono">
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 2,
+                marginTop: 'auto',
+              }}
+            >
+              <span
+                style={{
+                  fontFamily: 'Inter, sans-serif',
+                  fontSize: 12,
+                  color: '#E0E0E0',
+                  letterSpacing: 0.2,
+                }}
+              >
                 {formatCoord(position.latitude, position.longitude)}
               </span>
-              <span className="text-[10px] text-white/40">
+              <span
+                style={{
+                  fontFamily: 'Inter, sans-serif',
+                  fontSize: 10,
+                  color: '#8E8E93',
+                }}
+              >
                 {Math.round(position.velocity).toLocaleString()} km/h
               </span>
             </div>

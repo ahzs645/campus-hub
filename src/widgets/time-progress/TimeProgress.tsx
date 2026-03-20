@@ -10,10 +10,16 @@ interface TimeProgressConfig {
   showLabels?: boolean;
 }
 
-interface ProgressItem {
+interface ProgressRow {
   label: string;
   progress: number; // 0-1
 }
+
+const DAYS = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
+const MONTHS = [
+  'JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE',
+  'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER',
+];
 
 function getISOWeekNumber(date: Date): number {
   const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
@@ -37,11 +43,11 @@ function getDayOfYear(date: Date): number {
   return Math.floor(diff / 86400000);
 }
 
-function calculateProgress(now: Date): ProgressItem[] {
+function calculateProgress(now: Date): ProgressRow[] {
   const hours = now.getHours() + now.getMinutes() / 60 + now.getSeconds() / 3600;
   const dayProgress = hours / 24;
 
-  const dayOfWeek = now.getDay() === 0 ? 7 : now.getDay(); // ISO: Mon=1, Sun=7
+  const dayOfWeek = now.getDay() === 0 ? 7 : now.getDay();
   const weekProgress = (dayOfWeek - 1 + hours / 24) / 7;
 
   const dayOfMonth = now.getDate();
@@ -53,61 +59,67 @@ function calculateProgress(now: Date): ProgressItem[] {
   const yearProgress = (dayOfYear - 1 + hours / 24) / daysInYear;
 
   return [
-    { label: 'DAY', progress: Math.min(1, Math.max(0, dayProgress)) },
-    { label: 'WEEK', progress: Math.min(1, Math.max(0, weekProgress)) },
-    { label: 'MONTH', progress: Math.min(1, Math.max(0, monthProgress)) },
-    { label: 'YEAR', progress: Math.min(1, Math.max(0, yearProgress)) },
+    { label: DAYS[now.getDay()], progress: Math.min(1, Math.max(0, dayProgress)) },
+    { label: `WEEK ${getISOWeekNumber(now)}`, progress: Math.min(1, Math.max(0, weekProgress)) },
+    { label: MONTHS[now.getMonth()], progress: Math.min(1, Math.max(0, monthProgress)) },
+    { label: `${now.getFullYear()}`, progress: Math.min(1, Math.max(0, yearProgress)) },
   ];
 }
 
-const DOT_COUNT = 20;
+const DOT_COUNT = 40;
+const DOTS_PER_ROW = 20;
+const DANGER_THRESHOLD = 36; // index >= 36 gets red when filled
 
-function DotsRow({
-  item,
-  accent,
-  primary,
-  showLabel,
-}: {
-  item: ProgressItem;
-  accent: string;
-  primary: string;
-  showLabel: boolean;
-}) {
-  const filledCount = Math.round(item.progress * DOT_COUNT);
+const COLOR_BG = '#1B1B1D';
+const COLOR_PRIMARY = '#FDFBFF';
+const COLOR_UNFILLED = '#5E5E62';
+const COLOR_DANGER = '#D81921';
+
+function FiniteDotGrid({ progress }: { progress: number }) {
+  const filledCount = Math.round(progress * DOT_COUNT);
+
+  return (
+    <div className="flex-1 flex flex-col gap-[2px] mx-[8px] justify-center">
+      {[0, 1].map((row) => (
+        <div key={row} className="flex gap-[2px]">
+          {Array.from({ length: DOTS_PER_ROW }, (_, col) => {
+            const idx = row * DOTS_PER_ROW + col;
+            const isFilled = idx < filledCount;
+            let color: string;
+            if (isFilled) {
+              color = idx >= DANGER_THRESHOLD ? COLOR_DANGER : COLOR_PRIMARY;
+            } else {
+              color = COLOR_UNFILLED;
+            }
+            return (
+              <div
+                key={idx}
+                className="w-[4px] h-[4px] rounded-sm"
+                style={{ backgroundColor: color }}
+              />
+            );
+          })}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function FiniteDotsRow({ item }: { item: ProgressRow }) {
   const pct = Math.round(item.progress * 100);
 
   return (
-    <div className="flex items-center gap-2 w-full">
-      {showLabel && (
-        <span
-          className="text-[10px] font-bold tracking-widest w-[42px] shrink-0"
-          style={{ color: accent }}
-        >
-          {item.label}
-        </span>
-      )}
-      <div className="flex gap-[3px] flex-1 items-center">
-        {Array.from({ length: DOT_COUNT }, (_, i) => {
-          const isFilled = i < filledCount;
-          const isLast = isFilled && i === filledCount - 1;
-          return (
-            <div
-              key={i}
-              className="w-[6px] h-[6px] rounded-full transition-colors duration-300"
-              style={{
-                backgroundColor: isFilled
-                  ? isLast
-                    ? primary
-                    : accent
-                  : `${accent}26`, // 15% opacity
-              }}
-            />
-          );
-        })}
-      </div>
+    <div className="flex items-center flex-1 w-full">
       <span
-        className="text-[10px] font-mono tabular-nums w-[30px] text-right shrink-0"
-        style={{ color: accent }}
+        className="font-mono uppercase tracking-wider text-[16px] leading-none shrink-0"
+        style={{ color: COLOR_PRIMARY, width: '30%' }}
+      >
+        {item.label}
+      </span>
+      <FiniteDotGrid progress={item.progress} />
+      <span
+        className="font-mono uppercase tracking-wider text-[16px] leading-none text-right shrink-0"
+        style={{ color: COLOR_PRIMARY, width: '15%' }}
       >
         {pct}%
       </span>
@@ -115,42 +127,32 @@ function DotsRow({
   );
 }
 
-function BarsRow({
-  item,
-  accent,
-  showLabel,
-}: {
-  item: ProgressItem;
-  accent: string;
-  showLabel: boolean;
-}) {
+function BarsRow({ item }: { item: ProgressRow }) {
   const pct = Math.round(item.progress * 100);
 
   return (
-    <div className="flex items-center gap-2 w-full">
-      {showLabel && (
-        <span
-          className="text-[10px] font-bold tracking-widest w-[42px] shrink-0"
-          style={{ color: accent }}
-        >
-          {item.label}
-        </span>
-      )}
+    <div className="flex items-center gap-2 flex-1 w-full">
+      <span
+        className="font-mono uppercase tracking-wider text-[16px] leading-none shrink-0"
+        style={{ color: COLOR_PRIMARY, width: '30%' }}
+      >
+        {item.label}
+      </span>
       <div
-        className="flex-1 h-[8px] rounded-full overflow-hidden"
-        style={{ backgroundColor: `${accent}26` }}
+        className="flex-1 h-[8px] rounded-full overflow-hidden mx-[8px]"
+        style={{ backgroundColor: COLOR_UNFILLED }}
       >
         <div
           className="h-full rounded-full transition-all duration-500"
           style={{
             width: `${pct}%`,
-            backgroundColor: accent,
+            backgroundColor: pct >= 90 ? COLOR_DANGER : COLOR_PRIMARY,
           }}
         />
       </div>
       <span
-        className="text-[10px] font-mono tabular-nums w-[30px] text-right shrink-0"
-        style={{ color: accent }}
+        className="font-mono uppercase tracking-wider text-[16px] leading-none text-right shrink-0"
+        style={{ color: COLOR_PRIMARY, width: '15%' }}
       >
         {pct}%
       </span>
@@ -158,10 +160,9 @@ function BarsRow({
   );
 }
 
-export default function TimeProgress({ config, theme }: WidgetComponentProps) {
+export default function TimeProgress({ config }: WidgetComponentProps) {
   const cfg = config as TimeProgressConfig | undefined;
   const displayMode = cfg?.displayMode ?? 'dots';
-  const showLabels = cfg?.showLabels ?? true;
 
   const [now, setNow] = useState(() => new Date());
 
@@ -172,39 +173,35 @@ export default function TimeProgress({ config, theme }: WidgetComponentProps) {
 
   const items = useMemo(() => calculateProgress(now), [now]);
 
-  const { containerRef, scale } = useFitScale(300, 160);
+  const { containerRef, scale } = useFitScale(400, 140);
 
   return (
     <div
       ref={containerRef}
       className="w-full h-full overflow-hidden"
-      style={{ backgroundColor: `${theme.primary}20` }}
+      style={{
+        backgroundColor: COLOR_BG,
+        borderRadius: 22,
+      }}
     >
       <div
         style={{
-          width: 300,
-          height: 160,
+          width: 400,
+          height: 140,
           transform: `scale(${scale})`,
           transformOrigin: 'top left',
+          paddingTop: 14.4,
+          paddingBottom: 14.4,
+          paddingLeft: 18,
+          paddingRight: 18,
         }}
-        className="flex flex-col justify-center gap-3 px-4 py-3"
+        className="flex flex-col gap-[6px]"
       >
         {items.map((item) =>
           displayMode === 'dots' ? (
-            <DotsRow
-              key={item.label}
-              item={item}
-              accent={theme.accent}
-              primary={theme.primary}
-              showLabel={showLabels}
-            />
+            <FiniteDotsRow key={item.label} item={item} />
           ) : (
-            <BarsRow
-              key={item.label}
-              item={item}
-              accent={theme.accent}
-              showLabel={showLabels}
-            />
+            <BarsRow key={item.label} item={item} />
           )
         )}
       </div>

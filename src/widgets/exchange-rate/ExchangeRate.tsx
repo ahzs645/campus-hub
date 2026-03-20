@@ -12,11 +12,11 @@ interface ExchangeRateConfig {
   amount?: number;
 }
 
-const DESIGN_W = 280;
-const DESIGN_H = 120;
+const DESIGN_W = 340;
+const DESIGN_H = 150;
 const REFRESH_INTERVAL_MS = 60 * 60 * 1000; // 60 minutes
 
-export default function ExchangeRate({ config, theme }: WidgetComponentProps) {
+export default function ExchangeRate({ config }: WidgetComponentProps) {
   const cfg = config as ExchangeRateConfig | undefined;
   const baseCurrency = cfg?.baseCurrency ?? 'USD';
   const currencies = cfg?.currencies ?? ['EUR', 'GBP', 'JPY', 'INR'];
@@ -56,10 +56,8 @@ export default function ExchangeRate({ config, theme }: WidgetComponentProps) {
     if (currencies.length <= 1) return;
 
     const timer = setInterval(() => {
-      // Fade out
       setVisible(false);
 
-      // After fade-out, switch currency and fade in
       setTimeout(() => {
         setCurrentIndex((prev) => (prev + 1) % currencies.length);
         setVisible(true);
@@ -89,85 +87,209 @@ export default function ExchangeRate({ config, theme }: WidgetComponentProps) {
           height: DESIGN_H,
           transform: `scale(${scale})`,
           transformOrigin: 'center center',
+          backgroundColor: '#1B1B1D',
+          borderRadius: 22,
+          padding: 12,
         }}
-        className="flex flex-col items-center justify-center rounded-xl px-4"
+        className="flex flex-col"
         role="region"
         aria-label="Exchange rate display"
       >
+        {/* Header: red dot + EXCHANGE */}
+        <div className="flex items-center gap-1.5 mb-2">
+          <div
+            style={{
+              width: 5,
+              height: 5,
+              borderRadius: '50%',
+              backgroundColor: '#D81921',
+              flexShrink: 0,
+            }}
+          />
+          <span
+            style={{
+              color: '#ABABAF',
+              fontSize: 9,
+              fontWeight: 600,
+              letterSpacing: 2,
+              textTransform: 'uppercase',
+              lineHeight: 1,
+            }}
+          >
+            EXCHANGE
+          </span>
+        </div>
+
         {error && !rates ? (
-          <div className="text-sm opacity-60" style={{ color: theme.accent }}>
+          <div
+            className="flex-1 flex items-center justify-center"
+            style={{ color: '#D81921', fontSize: 11 }}
+          >
             Unable to load rates
           </div>
         ) : !rates ? (
           <div
-            className="h-8 w-40 rounded animate-pulse"
-            style={{ backgroundColor: `${theme.accent}20` }}
+            className="flex-1 rounded-2xl animate-pulse"
+            style={{ backgroundColor: '#2A2A2E' }}
           />
         ) : (
-          <>
-            {/* Rate display with transition */}
-            <div
-              className="flex items-baseline gap-3 transition-all duration-300 ease-in-out"
-              style={{
-                opacity: visible ? 1 : 0,
-                transform: visible ? 'scale(1)' : 'scale(0.95)',
-              }}
-            >
-              {/* Base amount */}
-              <div className="flex items-baseline gap-1.5">
+          <div
+            className="flex-1 flex items-stretch gap-2 transition-all duration-300 ease-in-out"
+            style={{
+              opacity: visible ? 1 : 0,
+              transform: visible ? 'translateY(0)' : 'translateY(4px)',
+            }}
+          >
+            {/* Left: FROM amount + currency pill */}
+            <div className="flex-1 flex flex-col justify-center gap-1.5">
+              {/* Currency pill */}
+              <div
+                style={{
+                  backgroundColor: '#0A0A0A',
+                  borderRadius: 20,
+                  padding: '3px 10px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  alignSelf: 'flex-start',
+                  gap: 6,
+                }}
+              >
                 <span
-                  className="text-3xl font-mono font-bold tracking-tight tabular-nums"
-                  style={{ color: theme.accent }}
+                  style={{
+                    fontSize: 9,
+                    color: '#5E5E62',
+                    fontWeight: 600,
+                    letterSpacing: 1,
+                    textTransform: 'uppercase',
+                  }}
                 >
-                  {amount}
+                  FROM
                 </span>
                 <span
-                  className="text-sm font-semibold uppercase tracking-wider opacity-70"
-                  style={{ color: theme.accent }}
+                  style={{
+                    backgroundColor: '#1A1A1A',
+                    borderRadius: 12,
+                    padding: '2px 8px',
+                    fontSize: 10,
+                    fontWeight: 700,
+                    color: '#FDFBFF',
+                    letterSpacing: 1,
+                  }}
                 >
                   {baseCurrency}
                 </span>
               </div>
 
-              {/* Arrow */}
-              <span className="text-lg opacity-40" style={{ color: theme.accent }}>
-                →
+              {/* Large amount */}
+              <span
+                className="font-mono"
+                style={{
+                  fontSize: 36,
+                  fontWeight: 700,
+                  color: '#FDFBFF',
+                  lineHeight: 1,
+                  letterSpacing: -1,
+                }}
+              >
+                {amount}
+              </span>
+            </div>
+
+            {/* Right: White result card */}
+            <div
+              style={{
+                backgroundColor: '#FDFBFF',
+                borderRadius: 16,
+                padding: '10px 14px',
+                minWidth: 130,
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center',
+                gap: 4,
+              }}
+            >
+              {/* TOTAL label */}
+              <span
+                style={{
+                  fontSize: 9,
+                  fontWeight: 600,
+                  color: '#5E5E62',
+                  letterSpacing: 2,
+                  textTransform: 'uppercase',
+                  lineHeight: 1,
+                }}
+              >
+                TOTAL
               </span>
 
               {/* Converted amount */}
-              <div className="flex items-baseline gap-1.5">
+              <span
+                className="font-mono"
+                style={{
+                  fontSize: 28,
+                  fontWeight: 700,
+                  color: '#1B1B1D',
+                  lineHeight: 1,
+                  letterSpacing: -0.5,
+                }}
+              >
+                {convertedAmount}
+              </span>
+
+              {/* Target currency badge */}
+              <div
+                style={{
+                  backgroundColor: '#1B1B1D',
+                  borderRadius: 10,
+                  padding: '2px 8px',
+                  display: 'inline-flex',
+                  alignSelf: 'flex-start',
+                  alignItems: 'center',
+                  gap: 4,
+                }}
+              >
                 <span
-                  className="text-3xl font-mono font-bold tracking-tight tabular-nums"
-                  style={{ color: theme.accent }}
+                  style={{
+                    fontSize: 9,
+                    color: '#5E5E62',
+                    fontWeight: 600,
+                    letterSpacing: 1,
+                  }}
                 >
-                  {convertedAmount}
+                  TO
                 </span>
                 <span
-                  className="text-sm font-semibold uppercase tracking-wider opacity-70"
-                  style={{ color: theme.accent }}
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 700,
+                    color: '#FDFBFF',
+                    letterSpacing: 1,
+                  }}
                 >
                   {targetCurrency}
                 </span>
               </div>
             </div>
+          </div>
+        )}
 
-            {/* Currency indicator dots */}
-            {currencies.length > 1 && (
-              <div className="flex gap-1.5 mt-3">
-                {currencies.map((cur, i) => (
-                  <div
-                    key={cur}
-                    className="w-1.5 h-1.5 rounded-full transition-all duration-300"
-                    style={{
-                      backgroundColor: theme.accent,
-                      opacity: i === currentIndex ? 1 : 0.25,
-                      transform: i === currentIndex ? 'scale(1.3)' : 'scale(1)',
-                    }}
-                  />
-                ))}
-              </div>
-            )}
-          </>
+        {/* Currency indicator dots */}
+        {currencies.length > 1 && (
+          <div className="flex gap-1 mt-1.5 justify-center">
+            {currencies.map((cur, i) => (
+              <div
+                key={cur}
+                style={{
+                  width: i === currentIndex ? 10 : 4,
+                  height: 4,
+                  borderRadius: 2,
+                  backgroundColor:
+                    i === currentIndex ? '#D81921' : '#5E5E62',
+                  transition: 'all 0.3s ease',
+                }}
+              />
+            ))}
+          </div>
         )}
       </div>
     </div>

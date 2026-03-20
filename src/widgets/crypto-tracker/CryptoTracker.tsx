@@ -21,42 +21,41 @@ interface CoinData {
   sparkline_in_7d?: { price: number[] };
 }
 
-const COIN_COLORS: Record<string, string> = {
-  bitcoin: '#F7931A',
-  ethereum: '#627EEA',
-  binancecoin: '#F3BA2F',
-  solana: '#9945FF',
-  ripple: '#23292F',
-  cardano: '#0033AD',
-  dogecoin: '#C2A633',
-  tether: '#26A17B',
-};
-
 const DEFAULT_COINS = ['bitcoin', 'ethereum', 'solana'];
 
-function Sparkline({ prices, color }: { prices: number[]; color: string }) {
+const CHART_WIDTH = 134;
+const CHART_HEIGHT = 50;
+
+function Sparkline({ prices, positive }: { prices: number[]; positive: boolean }) {
   if (!prices || prices.length < 2) return null;
 
-  const width = 100;
-  const height = 32;
   const min = Math.min(...prices);
   const max = Math.max(...prices);
   const range = max - min || 1;
 
   const points = prices
     .map((p, i) => {
-      const x = (i / (prices.length - 1)) * width;
-      const y = height - ((p - min) / range) * height;
+      const x = (i / (prices.length - 1)) * CHART_WIDTH;
+      const y = CHART_HEIGHT - ((p - min) / range) * CHART_HEIGHT;
       return `${x},${y}`;
     })
     .join(' ');
 
+  const strokeColor = positive ? '#4CAF50' : '#D81921';
+
   return (
-    <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-8 mt-1" preserveAspectRatio="none">
+    <svg
+      viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
+      width={CHART_WIDTH}
+      height={CHART_HEIGHT}
+      className="absolute inset-0 m-auto"
+      preserveAspectRatio="none"
+      style={{ opacity: 0.25 }}
+    >
       <polyline
         points={points}
         fill="none"
-        stroke={color}
+        stroke={strokeColor}
         strokeWidth="1.5"
         strokeLinejoin="round"
         strokeLinecap="round"
@@ -76,7 +75,7 @@ export default function CryptoTracker({ config }: WidgetComponentProps) {
   const cycleInterval = trackerConfig?.cycleInterval ?? 10;
   const showSparkline = trackerConfig?.showSparkline ?? true;
 
-  const { containerRef, scale } = useFitScale(240, 160);
+  const { containerRef, scale } = useFitScale(240, 200);
   const [coinData, setCoinData] = useState<CoinData[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const [fadeIn, setFadeIn] = useState(true);
@@ -96,14 +95,12 @@ export default function CryptoTracker({ config }: WidgetComponentProps) {
     }
   }, [coins]);
 
-  // Fetch data on mount and every 60s
   useEffect(() => {
     fetchData();
     const interval = setInterval(fetchData, 60_000);
     return () => clearInterval(interval);
   }, [fetchData]);
 
-  // Auto-cycle through coins
   useEffect(() => {
     if (coinData.length <= 1) return;
     const interval = setInterval(() => {
@@ -116,84 +113,127 @@ export default function CryptoTracker({ config }: WidgetComponentProps) {
     return () => clearInterval(interval);
   }, [coinData.length, cycleInterval]);
 
-  // Reset index when coins change
   useEffect(() => {
     setActiveIndex(0);
   }, [coins.length]);
 
   const coin = coinData[activeIndex];
-  const accentColor = coin ? COIN_COLORS[coin.id] ?? '#888' : '#888';
   const changePositive = coin ? coin.price_change_percentage_24h >= 0 : true;
 
   return (
-    <div ref={containerRef} className="relative w-full h-full overflow-hidden bg-[#0a0a0a]">
+    <div
+      ref={containerRef}
+      className="relative w-full h-full overflow-hidden"
+      style={{
+        backgroundColor: '#1B1B1D',
+        borderRadius: 22,
+      }}
+    >
       <div
         style={{
           transform: `scale(${scale})`,
           transformOrigin: 'top left',
           width: 240,
-          height: 160,
+          height: 200,
+          padding: 16,
         }}
       >
         {!coin ? (
           <div className="flex items-center justify-center w-full h-full">
-            <span className="text-white/40 text-sm">Loading...</span>
+            <span style={{ color: '#ABABAF', fontFamily: 'Inter, sans-serif', fontSize: 12, fontWeight: 500 }}>
+              Loading...
+            </span>
           </div>
         ) : (
           <div
-            className="flex flex-col justify-between p-4 h-full"
+            className="flex flex-col h-full"
             style={{
               transition: 'opacity 0.3s ease-in-out',
               opacity: fadeIn ? 1 : 0,
             }}
           >
-            {/* Header: logo + symbol + name */}
+            {/* Coin logo + symbol + name */}
             <div className="flex items-center gap-2">
               <img
                 src={coin.image}
                 alt={coin.name}
-                className="w-6 h-6 rounded-full"
+                width={36}
+                height={36}
+                className="rounded-full"
+                style={{ width: 36, height: 36 }}
                 crossOrigin="anonymous"
               />
-              <span className="text-white/80 text-xs font-semibold uppercase tracking-wider">
-                {coin.symbol}
-              </span>
-              <span className="text-white/40 text-xs">{coin.name}</span>
+              <div className="flex flex-col">
+                <span
+                  style={{
+                    fontFamily: 'Inter, sans-serif',
+                    fontSize: 12,
+                    fontWeight: 500,
+                    color: '#FFFFFF',
+                    textTransform: 'uppercase',
+                    lineHeight: 1.2,
+                  }}
+                >
+                  {coin.symbol}
+                </span>
+                <span
+                  style={{
+                    fontFamily: 'Inter, sans-serif',
+                    fontSize: 11,
+                    fontWeight: 500,
+                    color: '#ABABAF',
+                    lineHeight: 1.2,
+                  }}
+                >
+                  {coin.name}
+                </span>
+              </div>
             </div>
 
-            {/* Price */}
-            <div className="mt-1">
-              <span className="text-white text-2xl font-bold leading-none">
+            {/* Price area with sparkline behind */}
+            <div className="relative flex-1 flex items-center justify-center" style={{ marginTop: 8 }}>
+              {showSparkline && coin.sparkline_in_7d?.price && (
+                <Sparkline prices={coin.sparkline_in_7d.price} positive={changePositive} />
+              )}
+              <span
+                className="font-mono text-2xl font-bold tracking-tight"
+                style={{
+                  color: '#FFFFFF',
+                  lineHeight: 1,
+                  position: 'relative',
+                  zIndex: 1,
+                }}
+              >
                 {formatPrice(coin.current_price)}
               </span>
             </div>
 
             {/* 24h change */}
-            <div className="flex items-center gap-1 mt-1">
+            <div className="flex justify-center" style={{ marginTop: 4 }}>
               <span
-                className="text-xs font-semibold"
-                style={{ color: changePositive ? '#22c55e' : '#ef4444' }}
+                style={{
+                  fontFamily: 'Inter, sans-serif',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: changePositive ? '#4CAF50' : '#D81921',
+                }}
               >
                 {changePositive ? '+' : ''}
                 {coin.price_change_percentage_24h?.toFixed(2)}%
               </span>
-              <span className="text-white/30 text-xs">24h</span>
             </div>
 
-            {/* Sparkline */}
-            {showSparkline && coin.sparkline_in_7d?.price && (
-              <Sparkline prices={coin.sparkline_in_7d.price} color={accentColor} />
-            )}
-
-            {/* Dot indicators */}
+            {/* Pagination dots */}
             {coinData.length > 1 && (
-              <div className="flex gap-1 mt-1 justify-center">
+              <div className="flex justify-center" style={{ marginTop: 8, gap: 6 }}>
                 {coinData.map((_, i) => (
                   <div
                     key={i}
-                    className="w-1.5 h-1.5 rounded-full transition-colors duration-300"
+                    className="rounded-full transition-colors duration-300"
                     style={{
-                      backgroundColor: i === activeIndex ? accentColor : 'rgba(255,255,255,0.2)',
+                      width: 6,
+                      height: 6,
+                      backgroundColor: i === activeIndex ? '#FDFBFF' : '#5E5E62',
                     }}
                   />
                 ))}

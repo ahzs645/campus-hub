@@ -6,23 +6,38 @@ import { useFitScale } from '@/hooks/useFitScale';
 import KaomojiOptions from './KaomojiOptions';
 
 interface KaomojiConfig {
-  cycleInterval?: number; // seconds, default 5
+  cycleInterval?: number;
 }
 
 const KAOMOJI = [
-  { face: '(\u25D5\u203F\u25D5)', mood: 'Happy' },
-  { face: '(\uFF89\u25D5\u30EE\u25D5)\uFF89*:\u30FB\uFF9F\u2727', mood: 'Excited' },
-  { face: '(\u2665\u03C9\u2665*)', mood: 'Love' },
-  { face: '(\u30FB_\u30FB)', mood: 'Neutral' },
-  { face: '(\u00AC\u203F\u00AC)', mood: 'Thinking' },
-  { face: '(\u2565_\u2565)', mood: 'Sad' },
-  { face: '(\u2299_\u2299)', mood: 'Surprised' },
-  { face: '(\u2044 \u2044>\u2044 \u25BD \u2044<\u2044 \u2044)', mood: 'Shy' },
-  { face: '(\u3065\uFF61\u25D5\u203F\u203F\u25D5\uFF61)\u3065', mood: 'Hug' },
-  { face: '(\u30CE\u0CA0\u76CA\u0CA0)\u30CE\u5F61\u253B\u2501\u253B', mood: 'Angry' },
-  { face: '(\uFFE3\u03C9\uFFE3)', mood: 'Content' },
-  { face: '(\u2310\u25A0_\u25A0)', mood: 'Cool' },
+  { face: '(◕‿◕)', mood: 'Happy' },
+  { face: '(ﾉ◕ヮ◕)ﾉ*:・ﾟ✧', mood: 'Excited' },
+  { face: '(♥ω♥*)', mood: 'Love' },
+  { face: '(・_・)', mood: 'Neutral' },
+  { face: '(¬‿¬)', mood: 'Thinking' },
+  { face: '(╥_╥)', mood: 'Sad' },
+  { face: '(⊙_⊙)', mood: 'Surprised' },
+  { face: '(⁄ ⁄>⁄ ▽ ⁄<⁄ ⁄)', mood: 'Shy' },
+  { face: '(づ｡◕‿‿◕｡)づ', mood: 'Hug' },
+  { face: '(ノಠ益ಠ)ノ彡┻━┻', mood: 'Angry' },
+  { face: '(￣ω￣)', mood: 'Content' },
+  { face: '(⌐■_■)', mood: 'Cool' },
 ];
+
+const MOOD_COLORS: Record<string, string> = {
+  Happy: '#FDFBFF',
+  Excited: '#FDFBFF',
+  Hug: '#FDFBFF',
+  Love: '#D81921',
+  Shy: '#D81921',
+  Neutral: '#ABABAF',
+  Thinking: '#ABABAF',
+  Sad: '#ABABAF',
+  Surprised: '#FDFBFF',
+  Angry: '#FDFBFF',
+  Cool: '#ABABAF',
+  Content: '#ABABAF',
+};
 
 export default function Kaomoji({ config: rawConfig }: WidgetComponentProps) {
   const config = (rawConfig ?? {}) as KaomojiConfig;
@@ -46,25 +61,40 @@ export default function Kaomoji({ config: rawConfig }: WidgetComponentProps) {
   }, [cycleInterval]);
 
   const current = KAOMOJI[index];
+  const moodColor = MOOD_COLORS[current.mood] ?? '#FDFBFF';
 
   return (
     <div
       ref={containerRef}
       className="flex items-center justify-center w-full h-full overflow-hidden"
+      style={{ backgroundColor: '#1B1B1D', borderRadius: 22 }}
     >
       <div
         style={{ transform: `scale(${scale})`, transformOrigin: 'center center' }}
         className="flex flex-col items-center justify-center"
       >
         <div
-          className="text-4xl font-medium text-[var(--ui-text)] whitespace-nowrap transition-opacity duration-500"
-          style={{ opacity: visible ? 1 : 0 }}
+          className="font-medium whitespace-nowrap transition-opacity duration-500 text-center"
+          style={{
+            opacity: visible ? 1 : 0,
+            color: moodColor,
+            fontSize: '3rem',
+            lineHeight: 1.1,
+          }}
         >
           {current.face}
         </div>
         <div
-          className="mt-2 text-sm text-[var(--ui-text-muted)] tracking-wide uppercase transition-opacity duration-500"
-          style={{ opacity: visible ? 1 : 0 }}
+          className="transition-opacity duration-500"
+          style={{
+            opacity: visible ? 1 : 0,
+            color: '#5E5E62',
+            fontFamily: 'var(--font-ndot, monospace)',
+            fontSize: '0.7rem',
+            letterSpacing: '0.15em',
+            textTransform: 'uppercase',
+            marginTop: 8,
+          }}
         >
           {current.mood}
         </div>

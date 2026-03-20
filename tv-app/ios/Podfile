@@ -23,9 +23,6 @@ target 'CampusHubTV' do
     :app_path => "#{Pod::Config.instance.installation_root}/.."
   )
 
-  # Custom native WKWebView for tvOS (react-native-webview doesn't support tvOS)
-  pod 'TVWebViewNative', :path => './TVWebViewNative'
-
   post_install do |installer|
     # https://github.com/facebook/react-native/blob/main/packages/react-native/scripts/react_native_pods.rb#L197-L202
     react_native_post_install(
