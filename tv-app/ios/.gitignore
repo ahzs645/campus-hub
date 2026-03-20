@@ -1,0 +1,5 @@
+Pods/
+build/
+*.xcworkspace
+Podfile.lock
+.xcode.env.local

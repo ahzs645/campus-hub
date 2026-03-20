@@ -9,157 +9,285 @@ type Props = {
 };
 
 export function SetupScreen({ serverUrl, deviceName }: Props) {
-  // QR code points to the live website with the TV's local address as a param
-  // e.g. https://campus.ahmadjalil.com/tv-setup?tv=http://192.168.1.50:8888
   const qrValue = serverUrl
     ? `${CONFIG.CAMPUS_HUB_URL}/tv-setup?tv=${encodeURIComponent(serverUrl)}`
     : null;
 
   return (
     <View style={styles.container}>
-      <View style={styles.content}>
-        <Text style={styles.title}>Campus Hub TV</Text>
-        <Text style={styles.subtitle}>Setup Mode</Text>
-
-        {qrValue && serverUrl ? (
-          <>
-            <View style={styles.qrContainer}>
-              <QRCode
-                value={qrValue}
-                size={200}
-                backgroundColor="#ffffff"
-                color="#000000"
-              />
+      {qrValue && serverUrl ? (
+        <View style={styles.splitLayout}>
+          {/* Left side — instructions */}
+          <View style={styles.leftPanel}>
+            <View style={styles.deviceBadge}>
+              <Text style={styles.deviceBadgeIcon}>📺</Text>
+              <Text style={styles.deviceBadgeText}>{deviceName}</Text>
             </View>
 
-            <Text style={styles.instruction}>
-              Scan this QR code with your phone to configure this display
-            </Text>
+            <Text style={styles.title}>Quickly set up with{"\n"}your phone</Text>
 
-            <View style={styles.urlBox}>
-              <Text style={styles.urlLabel}>Opens:</Text>
-              <Text style={styles.urlWebsite}>
-                {CONFIG.CAMPUS_HUB_URL}/tv-setup
+            <View style={styles.step}>
+              <View style={styles.stepNumber}>
+                <Text style={styles.stepNumberText}>1</Text>
+              </View>
+              <Text style={styles.stepText}>
+                Make sure your phone is connected{"\n"}to the same Wi-Fi network as this TV
               </Text>
-              <Text style={styles.urlDivider}>connected to</Text>
-              <Text style={styles.url}>{serverUrl}</Text>
             </View>
 
-            <Text style={styles.hint}>
-              Make sure your phone is on the same Wi-Fi network as this TV
-            </Text>
-          </>
-        ) : (
-          <>
-            <ActivityIndicator
-              size="large"
-              color="#3b82f6"
-              style={styles.spinner}
-            />
-            <Text style={styles.instruction}>
-              Starting configuration server...
-            </Text>
-            <Text style={styles.hint}>Connecting to network</Text>
-          </>
-        )}
-      </View>
+            <View style={styles.step}>
+              <View style={styles.stepNumber}>
+                <Text style={styles.stepNumberText}>2</Text>
+              </View>
+              <View>
+                <Text style={styles.stepText}>
+                  Open your phone's camera and scan{"\n"}the QR code on the right
+                </Text>
+              </View>
+            </View>
 
+            <View style={styles.step}>
+              <View style={styles.stepNumber}>
+                <Text style={styles.stepNumberText}>3</Text>
+              </View>
+              <Text style={styles.stepText}>
+                Choose a dashboard layout and apply{"\n"}it to this display
+              </Text>
+            </View>
+
+            <View style={styles.helpRow}>
+              <Text style={styles.helpText}>
+                Or visit{" "}
+                <Text style={styles.helpUrl}>
+                  {CONFIG.CAMPUS_HUB_URL.replace("https://", "")}/tv-setup
+                </Text>
+              </Text>
+            </View>
+          </View>
+
+          {/* Right side — QR code */}
+          <View style={styles.rightPanel}>
+            <View style={styles.qrCard}>
+              {/* Corner accents */}
+              <View style={[styles.cornerAccent, styles.cornerTL]} />
+              <View style={[styles.cornerAccent, styles.cornerTR]} />
+              <View style={[styles.cornerAccent, styles.cornerBL]} />
+              <View style={[styles.cornerAccent, styles.cornerBR]} />
+
+              <View style={styles.qrInner}>
+                <QRCode
+                  value={qrValue}
+                  size={260}
+                  backgroundColor="#ffffff"
+                  color="#000000"
+                />
+              </View>
+            </View>
+            <Text style={styles.qrCaption}>Scan this QR code</Text>
+          </View>
+        </View>
+      ) : (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#B79527" style={styles.spinner} />
+          <Text style={styles.loadingTitle}>Starting configuration server...</Text>
+          <Text style={styles.loadingHint}>Connecting to network</Text>
+        </View>
+      )}
+
+      {/* Footer */}
       <View style={styles.footer}>
+        <Text style={styles.footerChevron}>⌄</Text>
         <Text style={styles.footerText}>
-          {deviceName} • Press Back to return to display
+          Press Back to return to display
         </Text>
       </View>
     </View>
   );
 }
 
+const GOLD = "#B79527";
+const GREEN = "#035642";
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#0a0a0a",
+    backgroundColor: "#1a1a2e",
     justifyContent: "center",
     alignItems: "center",
   },
-  content: {
+
+  // -- Split layout (instructions left, QR right) --
+  splitLayout: {
+    flexDirection: "row",
     alignItems: "center",
-    padding: 40,
+    justifyContent: "center",
+    paddingHorizontal: 80,
+    gap: 100,
+    flex: 1,
   },
+  leftPanel: {
+    flex: 1,
+    maxWidth: 520,
+    justifyContent: "center",
+  },
+  rightPanel: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  // -- Device badge --
+  deviceBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16,
+    gap: 8,
+  },
+  deviceBadgeIcon: {
+    fontSize: 18,
+  },
+  deviceBadgeText: {
+    fontSize: 16,
+    color: "#9ca3af",
+    fontWeight: "500",
+  },
+
+  // -- Title --
   title: {
-    fontSize: 36,
+    fontSize: 42,
     fontWeight: "700",
     color: "#f9fafb",
-    marginBottom: 4,
+    marginBottom: 48,
+    lineHeight: 52,
   },
-  subtitle: {
-    fontSize: 18,
-    color: "#6b7280",
-    marginBottom: 40,
-    fontWeight: "400",
+
+  // -- Steps --
+  step: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: 28,
+    gap: 16,
   },
-  qrContainer: {
-    backgroundColor: "#ffffff",
-    padding: 20,
+  stepNumber: {
+    width: 32,
+    height: 32,
     borderRadius: 16,
-    marginBottom: 32,
-    elevation: 8,
+    backgroundColor: GREEN,
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 2,
   },
-  instruction: {
+  stepNumberText: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: GOLD,
+  },
+  stepText: {
     fontSize: 18,
     color: "#d1d5db",
-    textAlign: "center",
-    marginBottom: 20,
-    maxWidth: 400,
     lineHeight: 26,
   },
-  urlBox: {
-    backgroundColor: "#111827",
-    borderWidth: 1,
-    borderColor: "#1f2937",
-    borderRadius: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    marginBottom: 20,
-    alignItems: "center",
+
+  // -- Help row --
+  helpRow: {
+    marginTop: 16,
   },
-  urlLabel: {
-    fontSize: 11,
+  helpText: {
+    fontSize: 15,
     color: "#6b7280",
-    marginBottom: 4,
-    textTransform: "uppercase",
-    letterSpacing: 1,
   },
-  urlWebsite: {
-    fontSize: 14,
-    color: "#9ca3af",
-    fontFamily: "monospace",
-    marginBottom: 6,
-  },
-  urlDivider: {
-    fontSize: 11,
-    color: "#4b5563",
-    marginBottom: 6,
-  },
-  url: {
-    fontSize: 16,
-    color: "#3b82f6",
+  helpUrl: {
+    color: GOLD,
     fontWeight: "600",
-    fontFamily: "monospace",
   },
-  hint: {
-    fontSize: 14,
-    color: "#4b5563",
+
+  // -- QR card with corner accents --
+  qrCard: {
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderRadius: 24,
+    padding: 32,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+    position: "relative",
+  },
+  qrInner: {
+    backgroundColor: "#ffffff",
+    borderRadius: 16,
+    padding: 16,
+  },
+  cornerAccent: {
+    position: "absolute",
+    width: 28,
+    height: 28,
+    borderColor: GOLD,
+  },
+  cornerTL: {
+    top: -2,
+    left: -2,
+    borderTopWidth: 4,
+    borderLeftWidth: 4,
+    borderTopLeftRadius: 24,
+  },
+  cornerTR: {
+    top: -2,
+    right: -2,
+    borderTopWidth: 4,
+    borderRightWidth: 4,
+    borderTopRightRadius: 24,
+    borderColor: GREEN,
+  },
+  cornerBL: {
+    bottom: -2,
+    left: -2,
+    borderBottomWidth: 4,
+    borderLeftWidth: 4,
+    borderBottomLeftRadius: 24,
+    borderColor: GREEN,
+  },
+  cornerBR: {
+    bottom: -2,
+    right: -2,
+    borderBottomWidth: 4,
+    borderRightWidth: 4,
+    borderBottomRightRadius: 24,
+  },
+  qrCaption: {
+    marginTop: 20,
+    fontSize: 16,
+    color: "#9ca3af",
     textAlign: "center",
-    maxWidth: 350,
+  },
+
+  // -- Loading state --
+  loadingContainer: {
+    alignItems: "center",
   },
   spinner: {
     marginBottom: 24,
   },
+  loadingTitle: {
+    fontSize: 22,
+    color: "#f9fafb",
+    fontWeight: "600",
+    marginBottom: 8,
+  },
+  loadingHint: {
+    fontSize: 16,
+    color: "#6b7280",
+  },
+
+  // -- Footer --
   footer: {
     position: "absolute",
-    bottom: 32,
+    bottom: 40,
+    alignItems: "center",
+  },
+  footerChevron: {
+    fontSize: 24,
+    color: "#4b5563",
+    marginBottom: 4,
   },
   footerText: {
-    fontSize: 13,
-    color: "#374151",
+    fontSize: 14,
+    color: "#4b5563",
   },
 });

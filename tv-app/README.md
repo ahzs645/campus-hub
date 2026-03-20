@@ -93,13 +93,42 @@ The web app runs on a separate server (or can be bundled as assets for Android T
 - **Local network**: Host Campus Hub on the same LAN as the TVs for fastest load times.
 - **Offline bundling** (Android only): Export the Next.js static site into `android/app/src/main/assets/web/` and set `CAMPUS_HUB_URL` to `file:///android_asset/web`.
 
-## Generating Native Projects
+## tvOS Native Project
 
-This scaffold provides the React Native source code. To generate the native iOS and Android project files:
+The `ios/` directory contains the native Xcode project for Apple TV (tvOS):
+
+| File | Purpose |
+|------|---------|
+| `CampusHubTV.xcodeproj/project.pbxproj` | Xcode project targeting tvOS 16.0 with `TARGETED_DEVICE_FAMILY = 3` (Apple TV) |
+| `CampusHubTV/AppDelegate.mm` + `.h` | Standard React Native app delegate |
+| `CampusHubTV/main.m` | App entry point |
+| `CampusHubTV/Info.plist` | App config with local network permissions, dark mode, ATS exceptions |
+| `CampusHubTV/LaunchScreen.storyboard` | Launch screen with "Campus Hub TV" in gold on green (matching theme) |
+| `CampusHubTV/PrivacyInfo.xcprivacy` | Apple privacy manifest |
+| `Podfile` | CocoaPods config targeting `platform :tvos, '16.0'` |
+| `.xcode.env` | Node binary path for RN build scripts |
+
+### Building for tvOS
 
 ```bash
-# After npm install, initialize native projects
-npx react-native init CampusHubTV --template react-native-tvos-template --directory .
+# Install CocoaPods (one-time)
+gem install cocoapods
+# or: brew install cocoapods
+
+# Install pods
+cd tv-app/ios && pod install && cd ..
+
+# Run on Apple TV simulator
+npm run tvos
 ```
 
-Or manually create the projects following the [react-native-tvos documentation](https://github.com/react-native-tvos/react-native-tvos).
+The `npm run tvos` script targets `--scheme CampusHubTV --simulator 'Apple TV'`, so it works out of the box after pod install.
+
+### Code Signing (Physical Apple TV)
+
+To deploy to a real Apple TV device:
+
+1. Open `ios/CampusHubTV.xcworkspace` in Xcode
+2. Select the CampusHubTV target → Signing & Capabilities
+3. Set your development team and bundle identifier
+4. Connect your Apple TV and select it as the run destination
