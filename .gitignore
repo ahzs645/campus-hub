@@ -44,3 +44,6 @@ next-env.d.ts
 docs/dist/
 docs/.astro/
 docs/node_modules/
+
+# signaling server
+signaling-server/node_modules/

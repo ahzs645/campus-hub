@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import AppIcon from '@/components/AppIcon';
 import { useAdaptiveFitScale } from '@/hooks/useFitScale';
 import { buildCacheKey, buildProxyUrl, fetchTextWithCache } from '@/lib/data-cache';
@@ -58,6 +58,48 @@ const resolveClassSection = (
   if (!selectedClass) return schedule.byClass[0] ?? null;
   return schedule.byClass.find((section) => section.title === selectedClass) ?? schedule.byClass[0] ?? null;
 };
+
+/** Vertically auto-scrolls children when they overflow the container. */
+function VerticalTicker({ children, className }: { children: React.ReactNode; className?: string }) {
+  const outerRef = useRef<HTMLDivElement>(null);
+  const innerRef = useRef<HTMLDivElement>(null);
+  const [overflow, setOverflow] = useState(0);
+
+  useEffect(() => {
+    const outer = outerRef.current;
+    const inner = innerRef.current;
+    if (!outer || !inner) return;
+    const check = () => {
+      const diff = inner.scrollHeight - outer.clientHeight;
+      setOverflow(diff > 2 ? diff : 0);
+    };
+    check();
+    const ro = new ResizeObserver(check);
+    ro.observe(outer);
+    return () => ro.disconnect();
+  }, [children]);
+
+  return (
+    <div ref={outerRef} className={`overflow-hidden ${className ?? ''}`}>
+      <div
+        ref={innerRef}
+        style={
+          overflow > 0
+            ? {
+                animation: `vticker ${Math.max(6, overflow / 8)}s linear infinite alternate`,
+                '--vticker-dist': `-${overflow + 4}px`,
+              } as React.CSSProperties
+            : undefined
+        }
+      >
+        {children}
+      </div>
+      {overflow > 0 && (
+        <style>{`@keyframes vticker{0%,20%{transform:translateY(0)}80%,100%{transform:translateY(var(--vticker-dist))}}`}</style>
+      )}
+    </div>
+  );
+}
 
 const getLoadError = (error: unknown, corsProxy?: string): string => {
   if (!corsProxy) {
@@ -128,8 +170,7 @@ export default function GroupFitness({
       ? resolveClassSection(schedule, selectedClass)
       : resolveDaySection(schedule, selectedDay);
 
-  const visibleRows = section?.rows.slice(0, maxRows) ?? [];
-  const hiddenRowCount = Math.max(0, (section?.rows.length ?? 0) - visibleRows.length);
+  const visibleRows = section?.rows ?? [];
   const lastModified = formatLastModified(schedule?.lastModified);
 
   const { containerRef, scale, designWidth, designHeight } = useAdaptiveFitScale({
@@ -140,11 +181,11 @@ export default function GroupFitness({
   const rowColumns =
     viewMode === 'class'
       ? showInstructor
-        ? 'grid-cols-[1.05fr_1.2fr_0.95fr_0.75fr]'
-        : 'grid-cols-[1.1fr_1.35fr_1fr]'
+        ? 'grid-cols-[1fr_1.4fr_0.8fr_0.7fr]'
+        : 'grid-cols-[1fr_1.5fr_0.9fr]'
       : showInstructor
-        ? 'grid-cols-[1.4fr_1.05fr_0.9fr_0.75fr]'
-        : 'grid-cols-[1.5fr_1.1fr_1fr]';
+        ? 'grid-cols-[1.2fr_1.3fr_0.8fr_0.7fr]'
+        : 'grid-cols-[1.3fr_1.4fr_0.9fr]';
 
   const firstColumnLabel = viewMode === 'class' ? 'Day' : 'Class';
   const emptyStateText =
@@ -215,30 +256,32 @@ export default function GroupFitness({
               </div>
 
               {visibleRows.length > 0 ? (
-                <div className="flex-1 divide-y divide-white/8 overflow-hidden">
+                <VerticalTicker className="flex-1">
+                  <div className="divide-y divide-white/8">
                   {visibleRows.map((row, index) => (
-                    <div key={`${section.title}-${index}`} className={`grid ${rowColumns} gap-3 py-3`}>
+                    <div key={`${section.title}-${index}`} className={`grid ${rowColumns} gap-3 py-2.5`}>
                       <div className="min-w-0">
-                        <div className="truncate text-[16px] font-medium text-white">
+                        <div className="truncate text-[15px] font-medium text-white">
                           {viewMode === 'class' ? row.day || 'TBA' : row.className || 'TBA'}
                         </div>
                       </div>
 
                       <div className="min-w-0">
-                        <div className="truncate text-[15px] text-white/85">{row.time || 'TBA'}</div>
+                        <div className="truncate text-[14px] text-white/85">{row.time || 'TBA'}</div>
                         {row.note && (
                           <div className="mt-0.5 truncate text-[11px] italic text-white/45">{row.note}</div>
                         )}
                       </div>
 
-                      <div className="truncate text-[15px] text-white/70">{row.location || 'TBA'}</div>
+                      <div className="truncate text-[14px] text-white/70">{row.location || 'TBA'}</div>
 
                       {showInstructor && (
-                        <div className="truncate text-[15px] text-white/70">{row.instructor || 'TBA'}</div>
+                        <div className="truncate text-[14px] text-white/70">{row.instructor || 'TBA'}</div>
                       )}
                     </div>
                   ))}
-                </div>
+                  </div>
+                </VerticalTicker>
               ) : (
                 <div className="flex flex-1 items-center justify-center text-center">
                   <div className="max-w-[360px] text-[15px] leading-relaxed text-white/65">{emptyStateText}</div>
@@ -262,9 +305,7 @@ export default function GroupFitness({
           <div className="min-w-0 truncate">
             {error && schedule
               ? error
-              : hiddenRowCount > 0
-                ? `+${hiddenRowCount} more ${viewMode === 'class' ? 'times' : 'classes'} not shown`
-                : schedule?.closureNote || 'UNBC Northern Sport Centre'}
+              : schedule?.closureNote || 'UNBC Northern Sport Centre'}
           </div>
           {lastModified && <div className="shrink-0">Updated {lastModified}</div>}
         </div>

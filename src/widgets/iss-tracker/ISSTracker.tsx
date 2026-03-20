@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { WidgetComponentProps, registerWidget } from '@/lib/widget-registry';
-import { useFitScale } from '@/hooks/useFitScale';
+import { useAdaptiveFitScale } from '@/hooks/useFitScale';
 import ISSTrackerOptions from './ISSTrackerOptions';
 
 interface ISSTrackerConfig {
@@ -17,15 +17,10 @@ interface ISSPosition {
   timestamp: number;
 }
 
-const EARTH_SIZE = 90;
-const DESIGN_W = 240;
-const DESIGN_H = 200;
-
 // Compute the sun longitude offset based on UTC hour for day/night overlay
 function getSunLongitude(): number {
   const now = new Date();
   const hours = now.getUTCHours() + now.getUTCMinutes() / 60;
-  // At 12:00 UTC the sun is at longitude 0; it moves 15 deg/hour westward
   return -(hours - 12) * 15;
 }
 
@@ -64,11 +59,24 @@ export default function ISSTracker({ config }: WidgetComponentProps) {
     return () => clearInterval(interval);
   }, [fetchPosition, refreshInterval]);
 
-  const { containerRef, scale } = useFitScale(DESIGN_W, DESIGN_H);
+  const {
+    containerRef, scale, designWidth: BASE_W, designHeight: DESIGN_H,
+    isLandscape, containerWidth, containerHeight,
+  } = useAdaptiveFitScale({
+    landscape: { w: 420, h: 180 },
+    portrait: { w: 220, h: 280 },
+  });
 
-  // Equirectangular projection onto the circular earth image
-  const projectX = (lon: number) => ((lon + 180) / 360) * EARTH_SIZE;
-  const projectY = (lat: number) => ((90 - lat) / 180) * EARTH_SIZE;
+  const DESIGN_W = containerWidth > 0 ? Math.max(BASE_W, containerWidth / scale) : BASE_W;
+  const ACTUAL_H = containerHeight > 0 ? Math.max(DESIGN_H, containerHeight / scale) : DESIGN_H;
+
+  // Globe size adapts to available space
+  const earthSize = isLandscape
+    ? Math.min(ACTUAL_H * 0.75, DESIGN_W * 0.35, 160)
+    : Math.min(ACTUAL_H * 0.5, DESIGN_W * 0.7, 180);
+
+  const projectX = (lon: number) => ((lon + 180) / 360) * earthSize;
+  const projectY = (lat: number) => ((90 - lat) / 180) * earthSize;
 
   const formatCoord = (lat: number, lon: number) => {
     const latDir = lat >= 0 ? 'N' : 'S';
@@ -76,10 +84,84 @@ export default function ISSTracker({ config }: WidgetComponentProps) {
     return `${Math.abs(lat).toFixed(1)}° ${latDir}, ${Math.abs(lon).toFixed(1)}° ${lonDir}`;
   };
 
-  // Sun position for radial gradient center (mapped to earth circle)
   const sunLon = getSunLongitude();
-  const sunCx = ((sunLon + 180) / 360) * 100; // percentage
-  const sunCy = 50; // equator
+  const sunCx = ((sunLon + 180) / 360) * 100;
+  const sunCy = 50;
+
+  const coordFontSize = Math.max(11, earthSize * 0.14);
+  const speedFontSize = Math.max(10, earthSize * 0.11);
+
+  const renderGlobe = () => (
+    <div
+      style={{
+        width: earthSize,
+        height: earthSize,
+        borderRadius: earthSize / 2,
+        border: '2px solid #5E5E62',
+        overflow: 'hidden',
+        position: 'relative',
+        boxShadow: '0 0 20px rgba(0, 150, 255, 0.4)',
+        flexShrink: 0,
+      }}
+    >
+      <img
+        src="https://eoimages.gsfc.nasa.gov/images/imagerecords/57000/57730/land_ocean_ice_2048.png"
+        alt="Earth"
+        style={{ width: earthSize, height: earthSize, objectFit: 'cover', display: 'block' }}
+        draggable={false}
+      />
+      <svg
+        width={earthSize}
+        height={earthSize}
+        viewBox={`0 0 ${earthSize} ${earthSize}`}
+        style={{ position: 'absolute', top: 0, left: 0 }}
+      >
+        <defs>
+          <radialGradient id="daynight" cx={`${sunCx}%`} cy={`${sunCy}%`} r="50%">
+            <stop offset="0%" stopColor="transparent" />
+            <stop offset="50%" stopColor="transparent" />
+            <stop offset="100%" stopColor="rgba(0,0,0,0.65)" />
+          </radialGradient>
+        </defs>
+        <rect width={earthSize} height={earthSize} fill="url(#daynight)" />
+      </svg>
+      {position && (
+        <>
+          <div
+            style={{
+              position: 'absolute',
+              left: projectX(position.longitude),
+              top: projectY(position.latitude),
+              width: 8, height: 8, borderRadius: 4,
+              backgroundColor: '#D81921', border: '1px solid #FFFFFF',
+              transform: 'translate(-50%, -50%)', zIndex: 2,
+            }}
+          />
+          <div
+            style={{
+              position: 'absolute',
+              left: projectX(position.longitude),
+              top: projectY(position.latitude),
+              width: 8, height: 8, borderRadius: 4,
+              backgroundColor: '#D81921', opacity: 0.6, zIndex: 1,
+              animation: 'iss-pulse 2s ease-out infinite',
+            }}
+          />
+        </>
+      )}
+    </div>
+  );
+
+  const renderInfo = () => (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+      <span style={{ fontFamily: 'Inter, sans-serif', fontSize: coordFontSize, color: '#E0E0E0', letterSpacing: 0.2 }}>
+        {position ? formatCoord(position.latitude, position.longitude) : '...'}
+      </span>
+      <span style={{ fontFamily: 'Inter, sans-serif', fontSize: speedFontSize, color: '#8E8E93' }}>
+        {position ? `${Math.round(position.velocity).toLocaleString()} km/h` : '...'}
+      </span>
+    </div>
+  );
 
   return (
     <div
@@ -96,14 +178,18 @@ export default function ISSTracker({ config }: WidgetComponentProps) {
       <div
         style={{
           width: DESIGN_W,
-          height: DESIGN_H,
+          height: ACTUAL_H,
           transform: `scale(${scale})`,
           transformOrigin: 'top left',
         }}
-        className="flex flex-col items-center justify-between py-4"
+        className={
+          isLandscape
+            ? 'flex items-center justify-center gap-6 px-5'
+            : 'flex flex-col items-center justify-center gap-3 py-4'
+        }
       >
         {loading && !position && (
-          <div className="flex-1 flex items-center justify-center">
+          <div className="flex items-center justify-center">
             <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, color: '#8E8E93' }}>
               Loading ISS position...
             </span>
@@ -111,7 +197,7 @@ export default function ISSTracker({ config }: WidgetComponentProps) {
         )}
 
         {error && !position && (
-          <div className="flex-1 flex items-center justify-center">
+          <div className="flex items-center justify-center">
             <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, color: '#D81921' }}>
               {error}
             </span>
@@ -119,124 +205,21 @@ export default function ISSTracker({ config }: WidgetComponentProps) {
         )}
 
         {position && (
-          <>
-            {/* Earth globe */}
-            {showMap && (
-              <div
-                style={{
-                  width: EARTH_SIZE,
-                  height: EARTH_SIZE,
-                  borderRadius: EARTH_SIZE / 2,
-                  border: '2px solid #5E5E62',
-                  overflow: 'hidden',
-                  position: 'relative',
-                  boxShadow: '0 0 20px rgba(0, 150, 255, 0.4)',
-                  flexShrink: 0,
-                }}
-              >
-                {/* NASA Earth map */}
-                <img
-                  src="https://eoimages.gsfc.nasa.gov/images/imagerecords/57000/57730/land_ocean_ice_2048.png"
-                  alt="Earth"
-                  style={{
-                    width: EARTH_SIZE,
-                    height: EARTH_SIZE,
-                    objectFit: 'cover',
-                    display: 'block',
-                  }}
-                  draggable={false}
-                />
-
-                {/* Day/night radial gradient overlay */}
-                <svg
-                  width={EARTH_SIZE}
-                  height={EARTH_SIZE}
-                  viewBox={`0 0 ${EARTH_SIZE} ${EARTH_SIZE}`}
-                  style={{ position: 'absolute', top: 0, left: 0 }}
-                >
-                  <defs>
-                    <radialGradient
-                      id="daynight"
-                      cx={`${sunCx}%`}
-                      cy={`${sunCy}%`}
-                      r="50%"
-                    >
-                      <stop offset="0%" stopColor="transparent" />
-                      <stop offset="50%" stopColor="transparent" />
-                      <stop offset="100%" stopColor="rgba(0,0,0,0.65)" />
-                    </radialGradient>
-                  </defs>
-                  <rect
-                    width={EARTH_SIZE}
-                    height={EARTH_SIZE}
-                    fill="url(#daynight)"
-                  />
-                </svg>
-
-                {/* ISS red dot marker */}
-                <div
-                  style={{
-                    position: 'absolute',
-                    left: projectX(position.longitude),
-                    top: projectY(position.latitude),
-                    width: 8,
-                    height: 8,
-                    borderRadius: 4,
-                    backgroundColor: '#D81921',
-                    border: '1px solid #FFFFFF',
-                    transform: 'translate(-50%, -50%)',
-                    zIndex: 2,
-                  }}
-                />
-                {/* Pulse ring */}
-                <div
-                  style={{
-                    position: 'absolute',
-                    left: projectX(position.longitude),
-                    top: projectY(position.latitude),
-                    width: 8,
-                    height: 8,
-                    borderRadius: 4,
-                    backgroundColor: '#D81921',
-                    opacity: 0.6,
-                    zIndex: 1,
-                    animation: 'iss-pulse 2s ease-out infinite',
-                  }}
-                />
+          isLandscape ? (
+            /* Landscape: globe left, info right */
+            <>
+              {showMap && renderGlobe()}
+              <div className="flex flex-col items-center justify-center gap-1">
+                {renderInfo()}
               </div>
-            )}
-
-            {/* Footer */}
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: 2,
-                marginTop: 'auto',
-              }}
-            >
-              <span
-                style={{
-                  fontFamily: 'Inter, sans-serif',
-                  fontSize: 12,
-                  color: '#E0E0E0',
-                  letterSpacing: 0.2,
-                }}
-              >
-                {formatCoord(position.latitude, position.longitude)}
-              </span>
-              <span
-                style={{
-                  fontFamily: 'Inter, sans-serif',
-                  fontSize: 10,
-                  color: '#8E8E93',
-                }}
-              >
-                {Math.round(position.velocity).toLocaleString()} km/h
-              </span>
-            </div>
-          </>
+            </>
+          ) : (
+            /* Portrait: globe top, info bottom */
+            <>
+              {showMap && renderGlobe()}
+              {renderInfo()}
+            </>
+          )
         )}
       </div>
     </div>

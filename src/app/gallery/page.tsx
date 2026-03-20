@@ -19,11 +19,37 @@ const PREVIEW_THEME = {
 
 type SizePreset = 'small' | 'medium' | 'large';
 
-const SIZE_MAP: Record<SizePreset, { w: number; h: number }> = {
-  small: { w: 240, h: 240 },
-  medium: { w: 360, h: 280 },
-  large: { w: 480, h: 320 },
+const BASE_SCALE: Record<SizePreset, number> = {
+  small: 200,
+  medium: 280,
+  large: 360,
 };
+
+function getWidgetPreviewSize(widget: WidgetDefinition, scale: number) {
+  const aspect = widget.defaultW / widget.defaultH;
+  // For very wide widgets (aspect > 3), show them wide
+  // For tall widgets (aspect < 1), show them tall
+  // Clamp dimensions to reasonable bounds
+  let w: number, h: number;
+  if (aspect >= 3) {
+    // Wide widgets: full width, shorter height
+    w = Math.min(scale * 1.8, 560);
+    h = Math.max(w / Math.min(aspect, 8), 80);
+  } else if (aspect >= 1.5) {
+    // Moderately wide
+    w = Math.min(scale * 1.4, 480);
+    h = w / aspect;
+  } else if (aspect <= 0.7) {
+    // Tall widgets
+    h = scale;
+    w = h * aspect;
+  } else {
+    // Roughly square
+    w = scale;
+    h = scale / aspect;
+  }
+  return { w: Math.round(w), h: Math.round(h) };
+}
 
 export default function GalleryPage() {
   const [widgets, setWidgets] = useState<WidgetDefinition[]>([]);
@@ -41,7 +67,7 @@ export default function GalleryPage() {
       w.type.toLowerCase().includes(search.toLowerCase()),
   );
 
-  const size = SIZE_MAP[previewSize];
+  const scale = BASE_SCALE[previewSize];
 
   return (
     <div className="min-h-screen bg-[#0a0a0a]">
@@ -109,12 +135,11 @@ export default function GalleryPage() {
 
       {/* Gallery Grid */}
       <main className="max-w-7xl mx-auto px-6 py-8">
-        <div className="grid gap-6" style={{
-          gridTemplateColumns: `repeat(auto-fill, minmax(${Math.min(size.w + 32, 400)}px, 1fr))`,
-        }}>
-          {filtered.map((widget) => (
-            <WidgetCard key={widget.type} widget={widget} size={size} />
-          ))}
+        <div className="flex flex-wrap gap-6 justify-center">
+          {filtered.map((widget) => {
+            const size = getWidgetPreviewSize(widget, scale);
+            return <WidgetCard key={widget.type} widget={widget} size={size} />;
+          })}
         </div>
 
         {filtered.length === 0 && (
@@ -143,11 +168,14 @@ function WidgetCard({
     : widget.defaultProps;
 
   return (
-    <div className="group rounded-2xl bg-white/[0.03] border border-white/[0.06] overflow-hidden hover:border-[#B79527]/30 transition-all hover:shadow-lg hover:shadow-[#B79527]/5">
+    <div
+      className="group rounded-2xl bg-white/[0.03] border border-white/[0.06] overflow-hidden hover:border-[#B79527]/30 transition-all hover:shadow-lg hover:shadow-[#B79527]/5"
+      style={{ width: size.w + 32 }}
+    >
       {/* Preview container */}
       <div
         className="relative overflow-hidden bg-[#111]"
-        style={{ height: size.h }}
+        style={{ height: size.h + 32 }}
       >
         <div
           className="absolute inset-0 flex items-center justify-center"
@@ -155,7 +183,7 @@ function WidgetCard({
         >
           <div
             className="relative overflow-hidden rounded-xl"
-            style={{ width: size.w - 32, height: size.h - 32 }}
+            style={{ width: size.w, height: size.h }}
           >
             <ErrorBoundary name={widget.name}>
               <Component
