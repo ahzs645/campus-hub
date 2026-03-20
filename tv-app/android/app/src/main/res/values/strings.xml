@@ -1,3 +1,21 @@
 <resources>
     <string name="app_name">Campus Hub TV</string>
+    <string name="loading_title">Loading Campus Hub...</string>
+    <string name="loading_subtitle">Preparing the display shell</string>
+    <string name="error_title">Display failed to load</string>
+    <string name="retry">Retry</string>
+    <string name="open_setup">Open Setup</string>
+    <string name="load_offline">Load Offline Page</string>
+    <string name="setup_title">Set up this display from your phone</string>
+    <string name="setup_body">Scan the QR code to open the TV\'s direct local setup page, or open the local address manually and enter the pairing code shown here.</string>
+    <string name="setup_step_network">1. Connect your phone to the same Wi-Fi or Ethernet network.</string>
+    <string name="setup_step_scan">2. Scan the QR code or open the local address and enter the pairing code.</string>
+    <string name="setup_step_apply">3. Apply a display URL or JSON config to update the screen.</string>
+    <string name="setup_waiting">Waiting for a network address...</string>
+    <string name="setup_pair_code_pending">Pair code will appear once the local address is ready.</string>
+    <string name="setup_pair_code_value">Pair code: %1$s</string>
+    <string name="setup_qr_caption">QR opens the local TV page directly</string>
+    <string name="setup_open_display">Open Display</string>
+    <string name="setup_reset">Reset to Default</string>
+    <string name="identify_message">Campus Hub TV</string>
 </resources>

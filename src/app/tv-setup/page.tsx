@@ -3,7 +3,7 @@
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { Tv, Camera, ArrowLeft, Wifi, CheckCircle2, AlertCircle, Loader2, RefreshCw, Send, Settings2, RotateCcw, Eye, Info } from 'lucide-react';
+import { Tv, Camera, ArrowLeft, Wifi, CheckCircle2, AlertCircle, Loader2, RefreshCw, Send, RotateCcw, Eye, Info } from 'lucide-react';
 
 type ConnectionState = 'scanning' | 'connecting' | 'connected' | 'error';
 
@@ -11,6 +11,11 @@ type TVInfo = {
   url: string;
   device?: string;
   currentUrl?: string;
+  pairCode?: string;
+  transport?: {
+    supportsWebSocket?: boolean;
+    webSocketPath?: string;
+  };
 };
 
 export default function TVSetupPageWrapper() {
@@ -35,6 +40,7 @@ function TVSetupPage() {
   const [tab, setTab] = useState<'url' | 'json'>('url');
   const [configUrl, setConfigUrl] = useState('');
   const [configJson, setConfigJson] = useState('');
+  const [pairCode, setPairCode] = useState('');
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -51,42 +57,73 @@ function TVSetupPage() {
     }
   }, []);
 
-  const connectToTV = useCallback(async (url: string) => {
+  const parseTVTarget = useCallback((target: string, explicitPairCode?: string) => {
+    const parsed = new URL(target);
+    const detectedPairCode = parsed.searchParams.get('pair') ?? '';
+    return {
+      url: `${parsed.protocol}//${parsed.host}`,
+      pairCode: (explicitPairCode || detectedPairCode).trim(),
+    };
+  }, []);
+
+  const createPairHeaders = useCallback((pairCodeValue?: string) => {
+    const headers: HeadersInit = {};
+    if (pairCodeValue) {
+      headers['X-Pair-Code'] = pairCodeValue;
+    }
+    return headers;
+  }, []);
+
+  const connectToTV = useCallback(async (target: string, explicitPairCode?: string) => {
     setState('connecting');
     stopCamera();
 
     try {
-      const res = await fetch(`${url}/api/config`, { signal: AbortSignal.timeout(5000) });
+      const tvTarget = parseTVTarget(target, explicitPairCode);
+      setPairCode(tvTarget.pairCode);
+
+      const headers = createPairHeaders(tvTarget.pairCode);
+      const res = await fetch(`${tvTarget.url}/api/config`, {
+        headers,
+        signal: AbortSignal.timeout(5000),
+      });
       if (!res.ok) throw new Error('TV not responding');
       const data = await res.json();
 
       // Also get device info
       let device = 'Campus Hub TV';
+      let transport: TVInfo['transport'] | undefined;
       try {
-        const infoRes = await fetch(`${url}/api/action`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'info' }),
+        const infoRes = await fetch(`${tvTarget.url}/api/info`, {
+          headers,
           signal: AbortSignal.timeout(3000),
         });
         if (infoRes.ok) {
           const info = await infoRes.json();
           device = info.device || device;
+          transport = info.transport;
         }
       } catch {}
 
-      setTVInfo({ url, device, currentUrl: data.url });
+      setTVInfo({
+        url: tvTarget.url,
+        device,
+        currentUrl: data.url,
+        pairCode: tvTarget.pairCode,
+        transport,
+      });
       setConfigUrl(data.url || '');
+      setConfigJson(data.configJson || '');
       setState('connected');
     } catch {
       const isHttps = typeof window !== 'undefined' && window.location.protocol === 'https:';
       const mixedContentHint = isHttps
-        ? '\n\nNote: Your browser may block connections from HTTPS to a local HTTP device. Try opening this page directly: ' + url
+        ? '\n\nNote: Your browser may block connections from HTTPS to a local HTTP device. The TV QR flow opens the local page directly, which is the recommended setup path.'
         : '';
-      setError(`Could not connect to TV at ${url}. Make sure you're on the same Wi-Fi network.${mixedContentHint}`);
+      setError(`Could not connect to the local TV setup endpoint. Make sure you're on the same Wi-Fi network and use the pairing code shown on the TV.${mixedContentHint}`);
       setState('error');
     }
-  }, [stopCamera]);
+  }, [createPairHeaders, parseTVTarget, stopCamera]);
 
   const startCamera = useCallback(async () => {
     setState('scanning');
@@ -154,7 +191,7 @@ function TVSetupPage() {
   useEffect(() => {
     const tvUrl = searchParams.get('tv');
     if (tvUrl) {
-      connectToTV(tvUrl);
+      connectToTV(tvUrl, searchParams.get('pair') ?? undefined);
     }
   }, [searchParams, connectToTV]);
 
@@ -169,13 +206,22 @@ function TVSetupPage() {
     if (!value.trim()) { showStatus('Please enter a value', 'error'); return; }
 
     if (type === 'json') {
-      try { JSON.parse(value); } catch (e: any) { showStatus(`Invalid JSON: ${e.message}`, 'error'); return; }
+      try {
+        JSON.parse(value);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown JSON parse error';
+        showStatus(`Invalid JSON: ${message}`, 'error');
+        return;
+      }
     }
 
     try {
       const res = await fetch(`${tvInfo.url}/api/config`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...createPairHeaders(tvInfo.pairCode),
+        },
         body: JSON.stringify({ type, value }),
         signal: AbortSignal.timeout(5000),
       });
@@ -195,7 +241,10 @@ function TVSetupPage() {
     try {
       const res = await fetch(`${tvInfo.url}/api/action`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...createPairHeaders(tvInfo.pairCode),
+        },
         body: JSON.stringify({ action }),
         signal: AbortSignal.timeout(5000),
       });
@@ -230,6 +279,10 @@ function TVSetupPage() {
               </div>
               <h1 className="text-3xl font-display font-bold">TV Setup</h1>
               <p className="text-white/50 text-sm">{tvInfo.device}</p>
+              <p className="text-white/30 text-xs">
+                Direct local HTTP pairing{tvInfo.transport?.supportsWebSocket ? ' with WebSocket updates' : ''}
+                {tvInfo.transport?.webSocketPath ? ` • reserved live path ${tvInfo.transport.webSocketPath}` : ''}
+              </p>
             </div>
 
             {/* Config Section */}
@@ -448,12 +501,12 @@ function TVSetupPage() {
           <div className="rounded-xl bg-white/5 border border-white/10 p-5 space-y-3">
             <div className="flex items-center gap-2">
               <Wifi className="w-4 h-4 text-white/40" />
-              <h2 className="font-semibold text-sm text-white/70">Or enter TV address manually</h2>
+              <h2 className="font-semibold text-sm text-white/70">Or enter the local TV address manually</h2>
             </div>
             <p className="text-xs text-white/30">
-              The address is shown on the TV setup screen (e.g. http://192.168.1.50:8888)
+              Use the base address shown on the TV and the 6-digit pairing code from the same screen. The QR code already includes both.
             </p>
-            <div className="flex gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-[1fr_140px_auto] gap-2">
               <input
                 type="url"
                 placeholder="http://192.168.1.x:8888"
@@ -461,15 +514,24 @@ function TVSetupPage() {
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     const val = (e.target as HTMLInputElement).value.trim();
-                    if (val) connectToTV(val);
+                    if (val) connectToTV(val, pairCode);
                   }
                 }}
                 id="manual-url"
               />
+              <input
+                type="text"
+                inputMode="numeric"
+                maxLength={6}
+                value={pairCode}
+                onChange={(e) => setPairCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                placeholder="123456"
+                className="px-3 py-2.5 bg-black/30 border border-white/10 rounded-lg text-sm text-white placeholder:text-white/20 outline-none focus:border-[#B79527]/50 transition-colors"
+              />
               <button
                 onClick={() => {
                   const input = document.getElementById('manual-url') as HTMLInputElement;
-                  if (input?.value.trim()) connectToTV(input.value.trim());
+                  if (input?.value.trim()) connectToTV(input.value.trim(), pairCode);
                 }}
                 className="px-4 py-2.5 rounded-lg font-semibold text-sm transition-all hover:scale-105"
                 style={{ backgroundColor: '#B79527', color: '#035642' }}
@@ -484,9 +546,9 @@ function TVSetupPage() {
             <h2 className="font-semibold text-sm text-white/70">How it works</h2>
             <div className="space-y-2.5">
               {[
-                { step: '1', text: 'The TV app shows a QR code on screen' },
-                { step: '2', text: 'Scan it with your phone camera from this page' },
-                { step: '3', text: 'Configure what the TV displays — no server needed' },
+                { step: '1', text: 'The TV app shows a QR code, local address, and 6-digit pairing code.' },
+                { step: '2', text: 'The QR opens the TV’s local setup page directly, or you can connect manually here with the same pair code.' },
+                { step: '3', text: 'Changes are sent straight to the TV over the local network with no relay server.' },
               ].map(({ step, text }) => (
                 <div key={step} className="flex items-start gap-3">
                   <span className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold shrink-0 mt-0.5" style={{ backgroundColor: 'rgba(183, 149, 39, 0.2)', color: '#B79527' }}>{step}</span>

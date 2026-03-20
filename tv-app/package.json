@@ -3,7 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "android-tv": "react-native run-android",
+    "android-tv-build": "cd android && ./gradlew app:assembleDebug",
+    "android-tv": "cd android && ./gradlew app:installDebug && adb shell am start -n com.campushubtv/.MainActivity",
     "tvos": "react-native run-ios --scheme CampusHubTV --simulator 'Apple TV'",
     "start": "react-native start",
     "lint": "eslint ."

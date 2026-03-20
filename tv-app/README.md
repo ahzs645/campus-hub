@@ -1,12 +1,15 @@
 # Campus Hub TV
 
-React Native TV shell for Android TV and Google TV, with experimental non-Android fallback code in the repository. The primary supported use case is loading the Campus Hub web display in a lightweight managed TV container.
+Android TV / Google TV shell for Campus Hub. The supported Android target is now a thin native Kotlin app that wraps the Campus Hub web display in a `WebView`, keeps a small local setup server, and stays focused on unattended signage use.
+
+The React Native code in this directory remains only for experimental non-Android TV work.
 
 ## Prerequisites
 
 - Node.js 18+
-- [React Native development environment](https://reactnative.dev/docs/environment-setup)
-- For Android TV: Android Studio with Android TV emulator or device
+- Android Studio / Android SDK
+- For Android TV: Android TV emulator or device available through ADB
+- React Native tooling is only needed if you are still experimenting with the tvOS side of this directory
 
 ## Setup
 
@@ -26,44 +29,73 @@ npm install
 npm run android-tv
 ```
 
-Ensure an Android TV emulator is running or a device is connected via ADB.
+This installs the native Android TV shell and launches `com.campushubtv/.MainActivity`.
+
+If you only want to build the APK:
+
+```bash
+npm run android-tv-build
+```
 
 ## Configuration
 
-Edit `src/utils/config.ts` to set your Campus Hub server URL:
+Edit the Android build constants in `android/app/build.gradle` to set your Campus Hub server URL:
 
-```ts
-export const CONFIG = {
-  CAMPUS_HUB_URL: "https://hub.yourcampus.edu",
-  DEFAULT_PATH: "/display/",
-  // ...
-};
-```
-
-For URL-configured displays, append the config hash to the path:
-
-```ts
-DEFAULT_PATH: "/display/?c=YOUR_CONFIG_HASH",
-```
+- `CAMPUS_HUB_BASE_URL`
+- `DEFAULT_DISPLAY_PATH`
+- `OFFLINE_FALLBACK_URL`
+- `SETUP_WEBSOCKET_PATH`
 
 Local network `http://` URLs are supported on Android so the shell can point at a LAN-hosted Campus Hub instance during signage deployments.
 
+## Pairing Model
+
+The shipped Android TV pairing flow is **direct local HTTP**:
+
+- The TV shows a QR code that opens `http://<tv-ip>:8888/?pair=<code>`.
+- The phone connects to the TV directly on the LAN.
+- The TV's local page uses the 6-digit pairing code for API access.
+- Config updates and actions are sent straight to the TV over HTTP.
+
+This keeps setup serverless and avoids a relay/signaling service for the TV shell.
+
+### Why this is the shipped path
+
+- It works with the current thin-shell architecture.
+- It avoids WebRTC signaling, TURN, and backend coordination.
+- It is simpler to support operationally for same-network signage installs.
+
+### What was considered and not used
+
+- **Public-site-only control without a local endpoint**: browsers do not give normal websites reliable LAN discovery or unrestricted direct local connectivity.
+- **LocalSend-style browser discovery**: realistic for native apps, not for a normal hosted web page.
+- **PairDrop/WebRTC-style setup**: still needs server-assisted signaling and optional TURN.
+- **WICG Local Peer-to-Peer API**: promising, but not a production-ready browser dependency for this project.
+
+### WebSocket upgrade path
+
+The local API already reserves a future transport seam for live updates:
+
+- HTTP today: `http://<tv-ip>:8888`
+- Reserved socket path for future work: `ws://<tv-ip>:8888/ws?pair=<code>`
+
+The current implementation advertises that WebSocket path in its metadata, but does not enable it yet. The intent is to add live status pushes and persistent control sessions later without redesigning the pairing flow.
+
 ## Remote Control
 
-| Action        | Apple TV (Siri Remote) | Android TV (D-pad) |
-|---------------|----------------------|-------------------|
-| Reload (error)| Press Select         | Press Select      |
-| Go back       | Press Menu           | Press Menu        |
-| Force reload  | Long-press Select    | Long-press Select |
-| Info overlay  | Press Play/Pause     | Press Play/Pause  |
+| Action | Android TV |
+|--------|------------|
+| Open setup | `Back` or `Menu` |
+| Return from setup | `Back` |
+| Retry on error | Focus `Retry` and press `Select` |
 
 ## Architecture
 
-The Android TV app is a thin native shell that loads the Campus Hub web display in a WebView:
+The Android TV app is a thin native shell that loads the Campus Hub web display in a `WebView`:
 
 ```
 ┌─────────────────────────────────┐
-│  React Native TV shell            │
+│  Native Android TV shell          │
 │  ┌───────────────────────────┐  │
 │  │  WebView                  │  │
 │  │  ┌─────────────────────┐  │  │
@@ -71,20 +103,25 @@ The Android TV app is a thin native shell that loads the Campus Hub web display 
 │  │  │ (Next.js static)    │  │  │
 │  │  └─────────────────────┘  │  │
 │  └───────────────────────────┘  │
-│  TV Remote Handler               │
-│  Auto-reload Timer               │
-│  Error/Loading States            │
+│  Local Setup Server (port 8888) │
+│  Pair Code + QR Setup Screen    │
+│  Auto-reload / Offline Fallback │
 └─────────────────────────────────┘
 ```
 
-The web app runs on a separate server. The Android TV shell connects to it over the network and provides remote shortcuts, setup QR flow, and reload controls.
+The setup flow is local-first:
+
+- The TV shows a QR code, local address, and 6-digit pairing code.
+- The QR opens the TV's own local setup page directly.
+- The local page calls `/api/config`, `/api/info`, and `/api/action` on the TV with the pairing code.
+- The TV exits QR mode as soon as a config is applied and returns to the display.
 
 ## Deployment Tips
 
 - **Kiosk mode**: On Android TV, use a device management tool to lock the device to this app on boot.
 - **Local network**: Host Campus Hub on the same LAN as the TVs for fastest load times.
 - **Wrapper-only deployment**: Keep the Android app as a minimal shell and let the web app remain the product surface for widget rendering and configuration.
-- **Offline bundling** (Android only): Export the Next.js static site into `android/app/src/main/assets/web/` and set `CAMPUS_HUB_URL` to `file:///android_asset/web`.
+- **Offline bundling**: Export a static display build into Android assets and point `CAMPUS_HUB_BASE_URL` at `file:///android_asset/web`.
 
 ## tvOS Status
 

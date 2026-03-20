@@ -172,3 +172,26 @@ Android TV and Google TV remain practical targets because they align more natura
 - **Offline or bundled deployments are more achievable** — if a deployment needs a packaged local copy of the static site instead of a hosted URL, Android is a more natural place to support that without changing the overall architecture.
 
 In other words: Campus Hub is not documented as a native TV app product, but Android TV / Google TV can still be a good deployment target when used as a managed runtime for the web display.
+
+### Android TV pairing model
+
+The supported Android TV shell uses a **direct local HTTP pairing flow** rather than a cloud relay or a WebRTC-style signaling system.
+
+- The TV app shows a QR code that opens its own local setup page, for example `http://<tv-ip>:8888/?pair=<code>`.
+- The phone connects directly to the TV on the same LAN.
+- A short pairing code gates access to the local control APIs.
+- The local page sends display URLs, JSON configs, and actions such as reload/reset/identify directly to the TV.
+
+This model was chosen because it matches the product's current deployment assumptions:
+
+- **Same-network installs are the common case** — signage administrators are usually configuring a screen while physically near it and on the same local network.
+- **It avoids backend coupling** — no relay, device registry, TURN infrastructure, or account-bound pairing layer is required to ship the Android shell.
+- **It keeps the TV app thin** — the app only needs a local setup endpoint and a WebView-based display runtime.
+
+There are also explicit limits to this approach:
+
+- **No LAN discovery from a normal hosted web page** — browsers do not expose LocalSend-style nearby-device discovery to ordinary sites.
+- **No serverless WebRTC setup win** — using WebRTC would still introduce signaling complexity that is unnecessary for local signage control.
+- **No reliance on experimental browser APIs** — emerging proposals such as the Local Peer-to-Peer API are promising, but not mature enough to be the foundation of the shipped pairing flow.
+
+The Android shell reserves a future local WebSocket path for live sessions, but the shipped control plane is direct local HTTP because it is the most stable path today.
