@@ -45,6 +45,7 @@ export const WIDGET_TAGS: Record<string, string[]> = {
   'qrcode':               ['Utility'],
   'widget-stack':         ['Utility'],
   'google-calendar':      ['Campus', 'Time'],
+  'home-assistant':       ['Utility', 'Info'],
 };
 
 export function getWidgetTags(type: string): string[] {

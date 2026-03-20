@@ -59,6 +59,7 @@ const DISPLAY_WIDGET_LOADERS: Record<string, DisplayWidgetLoader> = {
   'rock-paper-scissors': () => import('@/widgets/rock-paper-scissors/RockPaperScissors'),
   'word-of-the-day': () => import('@/widgets/word-of-the-day/WordOfTheDay'),
   'coin-dice': () => import('@/widgets/coin-dice/CoinDice'),
+  'home-assistant': () => import('@/widgets/home-assistant/HomeAssistant'),
 };
 
 export const DISPLAY_WIDGET_COMPONENTS: Record<string, DisplayWidgetComponent> = Object.fromEntries(

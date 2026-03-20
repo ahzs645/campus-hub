@@ -48,6 +48,7 @@ import './rss-reader/RSSReader';
 import './google-calendar/GoogleCalendar';
 import './simple-table/SimpleTable';
 import './word-clock/WordClock';
+import './home-assistant/HomeAssistant';
 
 // Re-export registry functions
 export { getWidget, getAllWidgets, getWidgetComponent } from '@/lib/widget-registry';

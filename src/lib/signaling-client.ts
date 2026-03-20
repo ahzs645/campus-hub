@@ -36,6 +36,11 @@ interface SignalingClient {
   sendHeartbeat: (currentConfig?: string) => void;
   reportStatus: (status: Record<string, unknown>) => void;
   isConnected: () => boolean;
+  // Home Assistant bridge
+  haSubscribe: (entityIds: string[]) => void;
+  haUnsubscribe: (entityIds?: string[]) => void;
+  haCallService: (domain: string, service: string, data?: Record<string, unknown>, target?: Record<string, unknown>) => void;
+  haGetEntities: (domain?: string) => void;
 }
 
 function createSignalingClient(
@@ -108,6 +113,11 @@ function createSignalingClient(
       "display-offline",
       "display-status",
       "error",
+      // Home Assistant bridge events
+      "ha-state",
+      "ha-entities",
+      "ha-error",
+      "ha-service-result",
     ];
 
     for (const event of forwardEvents) {
@@ -138,6 +148,23 @@ function createSignalingClient(
     socket?.emit("display-status", { displayId, status });
   }
 
+  // Home Assistant bridge methods
+  function haSubscribe(entityIds: string[]) {
+    socket?.emit("ha-subscribe", { entityIds });
+  }
+
+  function haUnsubscribe(entityIds?: string[]) {
+    socket?.emit("ha-unsubscribe", { entityIds });
+  }
+
+  function haCallService(domain: string, service: string, data?: Record<string, unknown>, target?: Record<string, unknown>) {
+    socket?.emit("ha-call-service", { domain, service, data, target });
+  }
+
+  function haGetEntities(domain?: string) {
+    socket?.emit("ha-get-entities", { domain });
+  }
+
   return {
     connect,
     disconnect,
@@ -148,6 +175,10 @@ function createSignalingClient(
     sendHeartbeat,
     reportStatus,
     isConnected: () => connected,
+    haSubscribe,
+    haUnsubscribe,
+    haCallService,
+    haGetEntities,
   };
 }
 

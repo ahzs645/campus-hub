@@ -1,5 +1,6 @@
 const { createServer } = require("http");
 const { Server } = require("socket.io");
+const { HABridge } = require("./ha-bridge");
 
 const PORT = process.env.PORT || 3030;
 const CORS_ORIGIN = process.env.CORS_ORIGIN || "*";
@@ -30,6 +31,17 @@ const httpServer = createServer((req, res) => {
     return res.end(JSON.stringify(list));
   }
 
+  // HA entity discovery — GET /ha/entities?domain=sensor
+  if (req.method === "GET" && req.url?.startsWith("/ha/entities")) {
+    res.writeHead(200, {
+      "Content-Type": "application/json",
+      "Access-Control-Allow-Origin": CORS_ORIGIN,
+    });
+    const params = new URL(req.url, `http://localhost:${PORT}`).searchParams;
+    const domain = params.get("domain") || undefined;
+    return res.end(JSON.stringify(haBridge ? haBridge.getEntities(domain) : []));
+  }
+
   res.writeHead(404);
   res.end("Not found");
 });
@@ -40,6 +52,9 @@ const io = new Server(httpServer, {
     methods: ["GET", "POST"],
   },
 });
+
+// Home Assistant bridge
+const haBridge = new HABridge(io);
 
 // State
 // displays: Map<displayId, { socketId, socket, name, connectedAt, lastHeartbeat, currentConfig, controllers: Set<socketId> }>
@@ -150,6 +165,28 @@ io.on("connection", (socket) => {
     display.socket.emit("apply-action", { action, from: socket.id });
   });
 
+  // === HOME ASSISTANT BRIDGE ===
+  socket.on("ha-subscribe", ({ entityIds } = {}) => {
+    if (Array.isArray(entityIds)) {
+      haBridge.subscribe(socket.id, entityIds);
+    }
+  });
+
+  socket.on("ha-unsubscribe", ({ entityIds } = {}) => {
+    haBridge.unsubscribe(socket.id, entityIds || null);
+  });
+
+  socket.on("ha-call-service", ({ domain, service, data, target } = {}) => {
+    if (domain && service) {
+      haBridge.callService(socket.id, domain, service, data, target);
+    }
+  });
+
+  socket.on("ha-get-entities", ({ domain } = {}) => {
+    const entities = haBridge.getEntities(domain);
+    socket.emit("ha-entities", { entities });
+  });
+
   // === GENERIC MESSAGE (for future extensibility) ===
   socket.on("message", ({ displayId, payload } = {}) => {
     const display = displays.get(displayId);
@@ -176,6 +213,9 @@ io.on("connection", (socket) => {
       if (display) display.controllers.delete(socket.id);
       controllers.delete(socket.id);
     }
+
+    // Clean up HA subscriptions
+    haBridge.removeDisplay(socket.id);
 
     console.log(`[disconnect] ${socket.id}`);
   });
