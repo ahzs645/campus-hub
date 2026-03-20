@@ -42,6 +42,8 @@ import './flashcard/Flashcard';
 import './bottle-spin/BottleSpin';
 import './rock-paper-scissors/RockPaperScissors';
 import './nothing-glyph/NothingGlyph';
+import './word-of-the-day/WordOfTheDay';
+import './coin-dice/CoinDice';
 
 // Re-export registry functions
 export { getWidget, getAllWidgets, getWidgetComponent } from '@/lib/widget-registry';
