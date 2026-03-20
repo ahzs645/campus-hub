@@ -9,6 +9,7 @@ import {
   type DisplayConfig,
   type WidgetConfig,
 } from '@/lib/config';
+import { createSignalingClient, type SignalingClient } from '@/lib/signaling-client';
 import { buildCacheKey, fetchJsonWithCache } from '@/lib/data-cache';
 import { preloadDisplayWidgetComponent } from '@/lib/display-widget-components';
 import WidgetRenderer from '@/components/WidgetRenderer';
@@ -168,6 +169,97 @@ function DisplayContent() {
       isMounted = false;
     };
   }, [paramsKey]);
+
+  // === Signaling server connection ===
+  // When ?signal=ws://server:3030&displayId=lobby-1 are present,
+  // the display connects to the signaling server and listens for
+  // remote config pushes and actions from controllers.
+  useEffect(() => {
+    const signalUrl = searchParams.get('signal');
+    const displayId = searchParams.get('displayId');
+    if (!signalUrl || !displayId) return;
+
+    let client: SignalingClient | null = null;
+
+    const setup = async () => {
+      client = createSignalingClient(signalUrl, 'display', displayId, {
+        name: searchParams.get('displayName') || displayId,
+        currentConfig: window.location.href,
+      });
+
+      client.on('apply-config', async (data) => {
+        const config = data.config as { type: string; value: string } | undefined;
+        if (!config) return;
+
+        let newConfig: DisplayConfig | null = null;
+
+        if (config.type === 'url') {
+          // Navigate to the new display URL
+          window.location.href = config.value;
+          return;
+        } else if (config.type === 'configUrl') {
+          try {
+            const { data: fetched } = await fetchJsonWithCache<DisplayConfig>(
+              resolveUrl(config.value),
+              { cacheKey: buildCacheKey('signal-config', config.value), ttlMs: 60_000 }
+            );
+            newConfig = normalizeConfig(fetched);
+          } catch (e) {
+            console.error('[signaling] Failed to fetch configUrl:', e);
+            client?.reportStatus({ error: 'Failed to fetch config URL' });
+          }
+        } else if (config.type === 'playlistUrl') {
+          // Reload with new playlist
+          const url = new URL(window.location.href);
+          url.searchParams.set('playlistUrl', config.value);
+          window.location.href = url.toString();
+          return;
+        } else if (config.type === 'json') {
+          try {
+            newConfig = normalizeConfig(
+              typeof config.value === 'string' ? JSON.parse(config.value) : config.value
+            );
+          } catch (e) {
+            console.error('[signaling] Invalid JSON config:', e);
+            client?.reportStatus({ error: 'Invalid JSON config' });
+          }
+        }
+
+        if (newConfig) {
+          setPlaylist(null);
+          setActiveConfig(newConfig);
+          client?.reportStatus({ applied: true, type: config.type });
+        }
+      });
+
+      client.on('apply-action', (data) => {
+        const action = data.action as string;
+        if (action === 'reload') window.location.reload();
+        else if (action === 'identify') {
+          // Flash the display ID on screen briefly
+          const el = document.createElement('div');
+          el.textContent = displayId;
+          Object.assign(el.style, {
+            position: 'fixed', inset: '0', zIndex: '9999',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: '8vw', fontWeight: 'bold', color: '#fff',
+            background: 'rgba(0,0,0,0.8)',
+          });
+          document.body.appendChild(el);
+          setTimeout(() => el.remove(), 3000);
+        }
+      });
+
+      client.on('connected', () => console.log(`[signaling] Connected as display "${displayId}"`));
+      client.on('disconnected', () => console.log('[signaling] Disconnected, will reconnect...'));
+
+      await client.connect();
+    };
+
+    setup();
+
+    return () => { client?.disconnect(); };
+  }, [searchParams]);
 
   useEffect(() => {
     if (!playlist || playlist.items.length === 0) return;

@@ -3,9 +3,11 @@
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { Tv, Camera, ArrowLeft, Wifi, CheckCircle2, AlertCircle, Loader2, RefreshCw, Send, RotateCcw, Eye, Info } from 'lucide-react';
+import { Tv, Camera, ArrowLeft, Wifi, CheckCircle2, AlertCircle, Loader2, RefreshCw, Send, RotateCcw, Eye, Info, Radio, MonitorSmartphone } from 'lucide-react';
+import { createSignalingClient, type SignalingClient } from '@/lib/signaling-client';
 
 type ConnectionState = 'scanning' | 'connecting' | 'connected' | 'error';
+type ConnectionMode = 'direct' | 'signaling';
 
 type TVInfo = {
   url: string;
@@ -41,6 +43,10 @@ function TVSetupPage() {
   const [configUrl, setConfigUrl] = useState('');
   const [configJson, setConfigJson] = useState('');
   const [pairCode, setPairCode] = useState('');
+  const [connectionMode, setConnectionMode] = useState<ConnectionMode>('direct');
+  const [signalingUrl, setSignalingUrl] = useState('');
+  const [signalingDisplayId, setSignalingDisplayId] = useState('');
+  const signalingClientRef = useRef<SignalingClient | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -137,6 +143,64 @@ function TVSetupPage() {
     }
   }, [createPairHeaders, parseTVTarget, stopCamera]);
 
+  const connectViaSignaling = useCallback(async () => {
+    if (!signalingUrl.trim() || !signalingDisplayId.trim()) {
+      setError('Please enter the signaling server URL and display ID');
+      setState('error');
+      return;
+    }
+
+    setState('connecting');
+    stopCamera();
+
+    try {
+      const client = createSignalingClient(signalingUrl, 'controller', signalingDisplayId);
+      signalingClientRef.current = client;
+
+      client.on('display-online', (data) => {
+        setTVInfo({
+          url: signalingUrl,
+          device: (data.name as string) || signalingDisplayId,
+          currentUrl: data.currentConfig as string || undefined,
+        });
+        setConnectionMode('signaling');
+        setState('connected');
+      });
+
+      client.on('display-offline', () => {
+        showStatus('Display disconnected from signaling server', 'error');
+      });
+
+      client.on('display-status', (data) => {
+        const status = data.status as Record<string, unknown>;
+        if (status?.applied) showStatus('Config applied!', 'success');
+        else if (status?.error) showStatus(`Display error: ${status.error}`, 'error');
+      });
+
+      client.on('error', (data) => {
+        showStatus((data.message as string) || 'Signaling error', 'error');
+      });
+
+      await client.connect();
+
+      // If display doesn't come online within 8s, show waiting state
+      setTimeout(() => {
+        if (state === 'connecting') {
+          setTVInfo({
+            url: signalingUrl,
+            device: signalingDisplayId,
+          });
+          setConnectionMode('signaling');
+          setState('connected');
+          showStatus('Connected to server. Waiting for display to come online...', 'error');
+        }
+      }, 8000);
+    } catch {
+      setError('Failed to connect to signaling server');
+      setState('error');
+    }
+  }, [signalingUrl, signalingDisplayId, stopCamera, state]);
+
   const startCamera = useCallback(async () => {
     setState('scanning');
     setError('');
@@ -227,6 +291,15 @@ function TVSetupPage() {
       }
     }
 
+    // Signaling mode — push via WebSocket
+    if (connectionMode === 'signaling' && signalingClientRef.current) {
+      signalingClientRef.current.pushConfig({ type: type as 'url' | 'json', value });
+      showStatus('Config sent via signaling server...', 'success');
+      setTVInfo({ ...tvInfo, currentUrl: type === 'url' ? value : tvInfo.currentUrl });
+      return;
+    }
+
+    // Direct mode — push via HTTP
     try {
       const res = await fetch(`${tvInfo.url}/api/config`, {
         method: 'POST',
@@ -252,6 +325,15 @@ function TVSetupPage() {
 
   const sendAction = async (action: string) => {
     if (!tvInfo) return;
+
+    // Signaling mode
+    if (connectionMode === 'signaling' && signalingClientRef.current) {
+      signalingClientRef.current.pushAction(action);
+      showStatus(`Action "${action}" sent via signaling`, 'success');
+      return;
+    }
+
+    // Direct mode
     try {
       const res = await fetch(`${tvInfo.url}/api/action`, {
         method: 'POST',
@@ -299,8 +381,9 @@ function TVSetupPage() {
               <h1 className="text-3xl font-display font-bold">TV Setup</h1>
               <p className="text-white/50 text-sm">{tvInfo.device}</p>
               <p className="text-white/30 text-xs">
-                Direct local HTTP pairing{tvInfo.transport?.supportsWebSocket ? ' with WebSocket updates' : ''}
-                {tvInfo.transport?.webSocketPath ? ` • reserved live path ${tvInfo.transport.webSocketPath}` : ''}
+                {connectionMode === 'signaling'
+                  ? `Via signaling server • ${signalingDisplayId}`
+                  : `Direct local HTTP pairing${tvInfo.transport?.supportsWebSocket ? ' with WebSocket updates' : ''}${tvInfo.transport?.webSocketPath ? ` • reserved live path ${tvInfo.transport.webSocketPath}` : ''}`}
               </p>
             </div>
 
@@ -404,7 +487,14 @@ function TVSetupPage() {
                 <ArrowLeft className="w-3.5 h-3.5" /> Home
               </Link>
               <button
-                onClick={() => { setState('scanning'); setTVInfo(null); startCamera(); }}
+                onClick={() => {
+                  signalingClientRef.current?.disconnect();
+                  signalingClientRef.current = null;
+                  setConnectionMode('direct');
+                  setState('scanning');
+                  setTVInfo(null);
+                  startCamera();
+                }}
                 className="text-sm text-white/30 hover:text-white/60 transition-colors flex items-center gap-1.5"
               >
                 <Camera className="w-3.5 h-3.5" /> Scan Another TV
@@ -556,6 +646,41 @@ function TVSetupPage() {
                 style={{ backgroundColor: '#B79527', color: '#035642' }}
               >
                 Connect
+              </button>
+            </div>
+          </div>
+
+          {/* Signaling server connection */}
+          <div className="rounded-xl bg-white/5 border border-white/10 p-5 space-y-3">
+            <div className="flex items-center gap-2">
+              <Radio className="w-4 h-4 text-white/40" />
+              <h2 className="font-semibold text-sm text-white/70">Or connect via signaling server</h2>
+            </div>
+            <p className="text-xs text-white/30">
+              For TVs running Campus Hub in a browser (no Android app needed). The TV and this device both connect to the signaling server.
+            </p>
+            <div className="space-y-2">
+              <input
+                type="url"
+                value={signalingUrl}
+                onChange={(e) => setSignalingUrl(e.target.value)}
+                placeholder="ws://homeassistant.local:3030"
+                className="w-full px-3 py-2.5 bg-black/30 border border-white/10 rounded-lg text-sm text-white placeholder:text-white/20 outline-none focus:border-[#B79527]/50 transition-colors"
+              />
+              <input
+                type="text"
+                value={signalingDisplayId}
+                onChange={(e) => setSignalingDisplayId(e.target.value)}
+                placeholder="Display ID (e.g. lobby-tv-1)"
+                className="w-full px-3 py-2.5 bg-black/30 border border-white/10 rounded-lg text-sm text-white placeholder:text-white/20 outline-none focus:border-[#B79527]/50 transition-colors"
+              />
+              <button
+                onClick={connectViaSignaling}
+                className="w-full py-2.5 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 transition-all hover:scale-[1.02]"
+                style={{ backgroundColor: '#B79527', color: '#035642' }}
+              >
+                <MonitorSmartphone className="w-4 h-4" />
+                Connect via Signal
               </button>
             </div>
           </div>

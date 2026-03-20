@@ -1,0 +1,186 @@
+const { createServer } = require("http");
+const { Server } = require("socket.io");
+
+const PORT = process.env.PORT || 3030;
+const CORS_ORIGIN = process.env.CORS_ORIGIN || "*";
+
+const httpServer = createServer((req, res) => {
+  // Health check & connections API
+  if (req.method === "GET" && req.url === "/health") {
+    res.writeHead(200, { "Content-Type": "application/json" });
+    return res.end(JSON.stringify({ status: "ok", displays: displays.size, controllers: controllers.size }));
+  }
+
+  if (req.method === "GET" && req.url === "/displays") {
+    res.writeHead(200, {
+      "Content-Type": "application/json",
+      "Access-Control-Allow-Origin": CORS_ORIGIN,
+    });
+    const list = [];
+    for (const [id, display] of displays) {
+      list.push({
+        displayId: id,
+        name: display.name,
+        connectedAt: display.connectedAt,
+        lastHeartbeat: display.lastHeartbeat,
+        currentConfig: display.currentConfig,
+        controllerCount: display.controllers.size,
+      });
+    }
+    return res.end(JSON.stringify(list));
+  }
+
+  res.writeHead(404);
+  res.end("Not found");
+});
+
+const io = new Server(httpServer, {
+  cors: {
+    origin: CORS_ORIGIN,
+    methods: ["GET", "POST"],
+  },
+});
+
+// State
+// displays: Map<displayId, { socketId, socket, name, connectedAt, lastHeartbeat, currentConfig, controllers: Set<socketId> }>
+const displays = new Map();
+// controllers: Map<socketId, { socket, targetDisplayId }>
+const controllers = new Map();
+// socketToDisplay: Map<socketId, displayId> — reverse lookup for display sockets
+const socketToDisplay = new Map();
+
+io.on("connection", (socket) => {
+  console.log(`[connect] ${socket.id}`);
+
+  // === DISPLAY ROLE ===
+  socket.on("register-display", ({ displayId, name, currentConfig } = {}) => {
+    if (!displayId) return socket.emit("error", { message: "displayId required" });
+
+    // If display ID already taken by another socket, reject
+    const existing = displays.get(displayId);
+    if (existing && existing.socketId !== socket.id) {
+      // Boot old connection (reconnect scenario)
+      existing.socket.disconnect(true);
+    }
+
+    const display = {
+      socketId: socket.id,
+      socket,
+      name: name || displayId,
+      connectedAt: Date.now(),
+      lastHeartbeat: Date.now(),
+      currentConfig: currentConfig || null,
+      controllers: existing?.controllers || new Set(),
+    };
+
+    displays.set(displayId, display);
+    socketToDisplay.set(socket.id, displayId);
+    socket.join(`display:${displayId}`);
+
+    console.log(`[display] "${displayId}" registered`);
+    socket.emit("registered", { displayId, name: display.name });
+
+    // Notify any controllers watching this display
+    io.to(`controllers:${displayId}`).emit("display-online", {
+      displayId,
+      name: display.name,
+      currentConfig: display.currentConfig,
+    });
+  });
+
+  socket.on("display-heartbeat", ({ displayId, currentConfig } = {}) => {
+    const display = displays.get(displayId);
+    if (display && display.socketId === socket.id) {
+      display.lastHeartbeat = Date.now();
+      if (currentConfig !== undefined) display.currentConfig = currentConfig;
+    }
+  });
+
+  socket.on("display-status", ({ displayId, status } = {}) => {
+    // Display reports status back (e.g., config applied, error, etc.)
+    io.to(`controllers:${displayId}`).emit("display-status", {
+      displayId,
+      status,
+    });
+  });
+
+  // === CONTROLLER ROLE ===
+  socket.on("join-display", ({ displayId } = {}) => {
+    if (!displayId) return socket.emit("error", { message: "displayId required" });
+
+    socket.join(`controllers:${displayId}`);
+    controllers.set(socket.id, { socket, targetDisplayId: displayId });
+
+    const display = displays.get(displayId);
+    if (display) {
+      display.controllers.add(socket.id);
+      socket.emit("display-online", {
+        displayId,
+        name: display.name,
+        currentConfig: display.currentConfig,
+      });
+    } else {
+      socket.emit("display-offline", { displayId });
+    }
+
+    console.log(`[controller] ${socket.id} joined display "${displayId}"`);
+  });
+
+  socket.on("leave-display", ({ displayId } = {}) => {
+    socket.leave(`controllers:${displayId}`);
+    controllers.delete(socket.id);
+    const display = displays.get(displayId);
+    if (display) display.controllers.delete(socket.id);
+  });
+
+  // Controller sends command to display
+  socket.on("push-config", ({ displayId, config } = {}) => {
+    const display = displays.get(displayId);
+    if (!display) return socket.emit("error", { message: "Display not connected" });
+
+    console.log(`[push-config] -> "${displayId}"`);
+    display.socket.emit("apply-config", { config, from: socket.id });
+  });
+
+  socket.on("push-action", ({ displayId, action } = {}) => {
+    const display = displays.get(displayId);
+    if (!display) return socket.emit("error", { message: "Display not connected" });
+
+    console.log(`[push-action] "${action}" -> "${displayId}"`);
+    display.socket.emit("apply-action", { action, from: socket.id });
+  });
+
+  // === GENERIC MESSAGE (for future extensibility) ===
+  socket.on("message", ({ displayId, payload } = {}) => {
+    const display = displays.get(displayId);
+    if (display) {
+      display.socket.emit("message", { from: socket.id, payload });
+    }
+  });
+
+  // === DISCONNECT ===
+  socket.on("disconnect", () => {
+    // Was this a display?
+    const displayId = socketToDisplay.get(socket.id);
+    if (displayId) {
+      console.log(`[display] "${displayId}" disconnected`);
+      io.to(`controllers:${displayId}`).emit("display-offline", { displayId });
+      displays.delete(displayId);
+      socketToDisplay.delete(socket.id);
+    }
+
+    // Was this a controller?
+    const controller = controllers.get(socket.id);
+    if (controller) {
+      const display = displays.get(controller.targetDisplayId);
+      if (display) display.controllers.delete(socket.id);
+      controllers.delete(socket.id);
+    }
+
+    console.log(`[disconnect] ${socket.id}`);
+  });
+});
+
+httpServer.listen(PORT, () => {
+  console.log(`Campus Hub Signaling Server running on port ${PORT}`);
+});
