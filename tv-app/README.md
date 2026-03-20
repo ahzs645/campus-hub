@@ -93,8 +93,9 @@ The current implementation advertises that WebSocket path in its metadata, but d
 
 | Action | Android TV |
 |--------|------------|
-| Open setup | `Back` or `Menu` |
+| Open setup | `Menu` |
 | Return from setup | `Back` |
+| Return to home from display | `Back` |
 | Retry on error | Focus `Retry` and press `Select` |
 
 ## Architecture

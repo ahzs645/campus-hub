@@ -23,6 +23,7 @@ DerivedData/
 *.aab
 *.keystore
 local.properties
+android/gradle.properties
 
 # Editor
 .vscode/

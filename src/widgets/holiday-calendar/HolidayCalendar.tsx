@@ -3,140 +3,11 @@
 import { useState, useEffect, useMemo } from 'react';
 import { WidgetComponentProps, registerWidget } from '@/lib/widget-registry';
 import { useFitScale } from '@/hooks/useFitScale';
+import { DotMatrixText, textToChars, type DotChar } from '@/lib/dot-matrix';
 import HolidayCalendarOptions from './HolidayCalendarOptions';
 
 interface HolidayCalendarConfig {
   style?: 'modern' | 'bauhaus';
-}
-
-// 5x7 dot-matrix font glyphs — each letter is 5 columns × 7 rows
-// Stored as array of 7 numbers, each number's bits represent 5 columns (MSB = left)
-const FONT: Record<string, number[]> = {
-  A: [0b01110, 0b10001, 0b10001, 0b11111, 0b10001, 0b10001, 0b10001],
-  B: [0b11110, 0b10001, 0b10001, 0b11110, 0b10001, 0b10001, 0b11110],
-  C: [0b01110, 0b10001, 0b10000, 0b10000, 0b10000, 0b10001, 0b01110],
-  D: [0b11110, 0b10001, 0b10001, 0b10001, 0b10001, 0b10001, 0b11110],
-  E: [0b11111, 0b10000, 0b10000, 0b11110, 0b10000, 0b10000, 0b11111],
-  F: [0b11111, 0b10000, 0b10000, 0b11110, 0b10000, 0b10000, 0b10000],
-  G: [0b01110, 0b10001, 0b10000, 0b10111, 0b10001, 0b10001, 0b01110],
-  H: [0b10001, 0b10001, 0b10001, 0b11111, 0b10001, 0b10001, 0b10001],
-  I: [0b01110, 0b00100, 0b00100, 0b00100, 0b00100, 0b00100, 0b01110],
-  J: [0b00111, 0b00010, 0b00010, 0b00010, 0b00010, 0b10010, 0b01100],
-  K: [0b10001, 0b10010, 0b10100, 0b11000, 0b10100, 0b10010, 0b10001],
-  L: [0b10000, 0b10000, 0b10000, 0b10000, 0b10000, 0b10000, 0b11111],
-  M: [0b10001, 0b11011, 0b10101, 0b10101, 0b10001, 0b10001, 0b10001],
-  N: [0b10001, 0b11001, 0b10101, 0b10011, 0b10001, 0b10001, 0b10001],
-  O: [0b01110, 0b10001, 0b10001, 0b10001, 0b10001, 0b10001, 0b01110],
-  P: [0b11110, 0b10001, 0b10001, 0b11110, 0b10000, 0b10000, 0b10000],
-  Q: [0b01110, 0b10001, 0b10001, 0b10001, 0b10101, 0b10010, 0b01101],
-  R: [0b11110, 0b10001, 0b10001, 0b11110, 0b10100, 0b10010, 0b10001],
-  S: [0b01110, 0b10001, 0b10000, 0b01110, 0b00001, 0b10001, 0b01110],
-  T: [0b11111, 0b00100, 0b00100, 0b00100, 0b00100, 0b00100, 0b00100],
-  U: [0b10001, 0b10001, 0b10001, 0b10001, 0b10001, 0b10001, 0b01110],
-  V: [0b10001, 0b10001, 0b10001, 0b10001, 0b01010, 0b01010, 0b00100],
-  W: [0b10001, 0b10001, 0b10001, 0b10101, 0b10101, 0b11011, 0b10001],
-  X: [0b10001, 0b10001, 0b01010, 0b00100, 0b01010, 0b10001, 0b10001],
-  Y: [0b10001, 0b10001, 0b01010, 0b00100, 0b00100, 0b00100, 0b00100],
-  Z: [0b11111, 0b00001, 0b00010, 0b00100, 0b01000, 0b10000, 0b11111],
-  '0': [0b01110, 0b10001, 0b10011, 0b10101, 0b11001, 0b10001, 0b01110],
-  '1': [0b00100, 0b01100, 0b00100, 0b00100, 0b00100, 0b00100, 0b01110],
-  '2': [0b01110, 0b10001, 0b00001, 0b00110, 0b01000, 0b10000, 0b11111],
-  '3': [0b01110, 0b10001, 0b00001, 0b00110, 0b00001, 0b10001, 0b01110],
-  '4': [0b00010, 0b00110, 0b01010, 0b10010, 0b11111, 0b00010, 0b00010],
-  '5': [0b11111, 0b10000, 0b11110, 0b00001, 0b00001, 0b10001, 0b01110],
-  '6': [0b01110, 0b10000, 0b10000, 0b11110, 0b10001, 0b10001, 0b01110],
-  '7': [0b11111, 0b00001, 0b00010, 0b00100, 0b01000, 0b01000, 0b01000],
-  '8': [0b01110, 0b10001, 0b10001, 0b01110, 0b10001, 0b10001, 0b01110],
-  '9': [0b01110, 0b10001, 0b10001, 0b01111, 0b00001, 0b00001, 0b01110],
-  ' ': [0b00000, 0b00000, 0b00000, 0b00000, 0b00000, 0b00000, 0b00000],
-  "'": [0b00100, 0b00100, 0b01000, 0b00000, 0b00000, 0b00000, 0b00000],
-  '!': [0b00100, 0b00100, 0b00100, 0b00100, 0b00100, 0b00000, 0b00100],
-  '.': [0b00000, 0b00000, 0b00000, 0b00000, 0b00000, 0b00000, 0b00100],
-  '-': [0b00000, 0b00000, 0b00000, 0b11111, 0b00000, 0b00000, 0b00000],
-  '(': [0b00010, 0b00100, 0b01000, 0b01000, 0b01000, 0b00100, 0b00010],
-  ')': [0b01000, 0b00100, 0b00010, 0b00010, 0b00010, 0b00100, 0b01000],
-  '\u00E9': [0b00010, 0b00100, 0b01110, 0b10001, 0b11111, 0b10000, 0b01110], // é
-};
-
-interface DotChar {
-  char: string;
-  color: string;
-}
-
-// Render text as SVG dot-matrix
-function DotMatrixText({
-  chars,
-  dotSize = 3,
-  gap = 1,
-  emptyColor,
-  showEmpty = true,
-}: {
-  chars: DotChar[];
-  dotSize?: number;
-  gap?: number;
-  emptyColor?: string;
-  showEmpty?: boolean;
-}) {
-  const pitch = dotSize + gap;
-  const charWidth = 5;
-  const charHeight = 7;
-  const charSpacing = 1; // 1 dot gap between characters
-
-  // Calculate total width
-  let totalCols = 0;
-  for (let i = 0; i < chars.length; i++) {
-    if (i > 0) totalCols += charSpacing;
-    const ch = chars[i].char.toUpperCase();
-    totalCols += ch === ' ' ? 3 : charWidth;
-  }
-
-  const svgW = totalCols * pitch;
-  const svgH = charHeight * pitch;
-
-  const dots: { cx: number; cy: number; fill: string }[] = [];
-  let colOffset = 0;
-
-  for (const { char, color } of chars) {
-    const ch = char.toUpperCase();
-    const glyph = FONT[ch];
-    const w = ch === ' ' ? 3 : charWidth;
-
-    if (glyph) {
-      for (let row = 0; row < charHeight; row++) {
-        for (let col = 0; col < w; col++) {
-          const bit = (glyph[row] >> (charWidth - 1 - col)) & 1;
-          if (bit) {
-            dots.push({
-              cx: (colOffset + col) * pitch + dotSize / 2,
-              cy: row * pitch + dotSize / 2,
-              fill: color,
-            });
-          } else if (showEmpty && emptyColor) {
-            dots.push({
-              cx: (colOffset + col) * pitch + dotSize / 2,
-              cy: row * pitch + dotSize / 2,
-              fill: emptyColor,
-            });
-          }
-        }
-      }
-    }
-
-    colOffset += w + charSpacing;
-  }
-
-  return (
-    <svg width={svgW} height={svgH} viewBox={`0 0 ${svgW} ${svgH}`}>
-      {dots.map((d, i) => (
-        <circle key={i} cx={d.cx} cy={d.cy} r={dotSize / 2} fill={d.fill} />
-      ))}
-    </svg>
-  );
-}
-
-// Helper to convert a string to DotChar[] with a single color
-function textToChars(text: string, color: string): DotChar[] {
-  return text.split('').map((char) => ({ char, color }));
 }
 
 // Key holidays by 'M-D' format
@@ -226,7 +97,6 @@ function getEmojis(holiday: string, month: number): string[] {
   if (lower.includes('bee')) return ['🐝', '🌻', '🍯', '✨'];
   if (lower.includes('ocean')) return ['🌊', '🐠', '🐬', '🦈'];
   if (lower.includes('peace')) return ['☮️', '🕊️', '🌿', '✨'];
-  // Seasonal fallback
   if (month >= 2 && month <= 4) return ['🌸', '🌷', '🌼', '✨'];
   if (month >= 5 && month <= 7) return ['☀️', '🌴', '🏖️', '✨'];
   if (month >= 8 && month <= 10) return ['🍂', '🍁', '🎃', '✨'];
@@ -234,6 +104,24 @@ function getEmojis(holiday: string, month: number): string[] {
 }
 
 const BAUHAUS_WORD_COLORS = ['#FDCA21', '#0C4E82', '#48525B'] as const;
+
+/** Break text into lines that fit within maxCols characters */
+function wrapText(text: string, maxCols: number): string[] {
+  const words = text.toUpperCase().split(' ');
+  const lines: string[] = [];
+  let current = '';
+  for (const word of words) {
+    const test = current ? `${current} ${word}` : word;
+    if (test.length > maxCols && current) {
+      lines.push(current);
+      current = word;
+    } else {
+      current = test;
+    }
+  }
+  if (current) lines.push(current);
+  return lines;
+}
 
 export default function HolidayCalendar({ config }: WidgetComponentProps) {
   const calConfig = config as HolidayCalendarConfig | undefined;
@@ -253,30 +141,13 @@ export default function HolidayCalendar({ config }: WidgetComponentProps) {
   const month = now.getMonth();
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const dateLabel = `${monthNames[month]} ${now.getDate()}`;
-
-  // Build dot-matrix chars for the holiday name, splitting into lines
-  const holidayLines = useMemo(() => {
-    const words = holiday.toUpperCase().split(' ');
-    const lines: string[] = [];
-    let current = '';
-    for (const word of words) {
-      const test = current ? `${current} ${word}` : word;
-      if (test.length > 12 && current) {
-        lines.push(current);
-        current = word;
-      } else {
-        current = test;
-      }
-    }
-    if (current) lines.push(current);
-    return lines;
-  }, [holiday]);
+  const holidayLines = useMemo(() => wrapText(holiday, 12), [holiday]);
 
   if (style === 'bauhaus') {
-    // Bauhaus: light gray bg, colored dot-matrix text
+    // Bauhaus: light bg, date in red dots, holiday in colored dots
     const dateChars: DotChar[] = dateLabel.toUpperCase().split('').map((ch) => ({
       char: ch,
-      color: '#C33531', // red for date
+      color: '#C33531',
     }));
 
     // Color each word with rotating Bauhaus palette
@@ -287,9 +158,7 @@ export default function HolidayCalendar({ config }: WidgetComponentProps) {
       for (const word of words) {
         if (chars.length > 0) chars.push({ char: ' ', color: 'transparent' });
         const color = BAUHAUS_WORD_COLORS[wordIdx % BAUHAUS_WORD_COLORS.length];
-        for (const ch of word) {
-          chars.push({ char: ch, color });
-        }
+        for (const ch of word) chars.push({ char: ch, color });
         wordIdx++;
       }
       return chars;
@@ -316,12 +185,8 @@ export default function HolidayCalendar({ config }: WidgetComponentProps) {
     );
   }
 
-  // Modern style: dark bg, emoji row, "Happy" greeting, dot-matrix holiday name, date
+  // Modern style: dark bg, emoji row, "Happy" greeting, dot-matrix holiday, date
   const emojis = getEmojis(holiday, month);
-  const holidayCharsPerLine = holidayLines.map((line) =>
-    textToChars(line, '#FDFBFF')
-  );
-  const dateChars = textToChars(dateLabel, '#ABABAF');
 
   return (
     <div
@@ -335,24 +200,33 @@ export default function HolidayCalendar({ config }: WidgetComponentProps) {
       >
         {/* Emoji row */}
         <div className="flex gap-1.5" style={{ fontSize: 24 }}>
-          {emojis.map((e, i) => (
-            <span key={i}>{e}</span>
-          ))}
+          {emojis.map((e, i) => <span key={i}>{e}</span>)}
         </div>
 
         {/* Greeting */}
-        <div style={{ color: '#ABABAF', fontSize: 13, fontWeight: 500 }}>Happy</div>
+        <div style={{ color: '#ABABAF', fontSize: 14, fontWeight: 500 }}>Happy</div>
 
         {/* Holiday name in dot-matrix */}
         <div className="flex flex-col items-center gap-1.5">
-          {holidayCharsPerLine.map((lineChars, i) => (
-            <DotMatrixText key={i} chars={lineChars} dotSize={3} gap={0.8} emptyColor="#2A2A2E" showEmpty />
+          {holidayLines.map((line, i) => (
+            <DotMatrixText
+              key={i}
+              chars={textToChars(line, '#FDFBFF')}
+              dotSize={3}
+              gap={0.8}
+              emptyColor="#2A2A2E"
+              showEmpty
+            />
           ))}
         </div>
 
-        {/* Date */}
+        {/* Date in dot-matrix */}
         <div className="mt-1">
-          <DotMatrixText chars={dateChars} dotSize={2.5} gap={0.8} />
+          <DotMatrixText
+            chars={textToChars(dateLabel, '#ABABAF')}
+            dotSize={2.5}
+            gap={0.8}
+          />
         </div>
       </div>
     </div>

@@ -131,20 +131,13 @@ class MainActivity : AppCompatActivity(), TvHttpServer.Listener {
 
   override fun dispatchKeyEvent(event: KeyEvent): Boolean {
     if (event.action == KeyEvent.ACTION_UP && event.keyCode == KeyEvent.KEYCODE_MENU) {
-      toggleSetup()
+      if (!isSetupVisible) {
+        showSetup()
+      }
       return true
     }
 
     return super.dispatchKeyEvent(event)
-  }
-
-  override fun onKeyLongPress(keyCode: Int, event: KeyEvent?): Boolean {
-    if (keyCode == KeyEvent.KEYCODE_BACK) {
-      toggleSetup()
-      return true
-    }
-
-    return super.onKeyLongPress(keyCode, event)
   }
 
   @SuppressLint("SetJavaScriptEnabled")
@@ -242,7 +235,9 @@ class MainActivity : AppCompatActivity(), TvHttpServer.Listener {
       if (isSetupVisible) {
         showDisplay()
       } else {
-        showSetup()
+        isEnabled = false
+        onBackPressedDispatcher.onBackPressed()
+        isEnabled = true
       }
     }
   }
@@ -299,14 +294,6 @@ class MainActivity : AppCompatActivity(), TvHttpServer.Listener {
     binding.setupScreen.post {
       binding.setupScreen.scrollTo(0, 0)
       binding.setupContent.requestFocus()
-    }
-  }
-
-  private fun toggleSetup() {
-    if (isSetupVisible) {
-      showDisplay()
-    } else {
-      showSetup()
     }
   }
 
