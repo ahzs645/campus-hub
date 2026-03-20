@@ -234,7 +234,7 @@ export default function GroupFitness({
           )}
         </div>
 
-        <div className="mt-4 flex-1 rounded-2xl border border-white/10 bg-black/20 p-4">
+        <div className="mt-4 flex-1 min-h-0 rounded-2xl border border-white/10 bg-black/20 p-4 overflow-hidden">
           {loading && !schedule ? (
             <div className="flex h-full items-center justify-center text-center text-[15px] text-white/55">
               Loading UNBC fitness schedule...
@@ -245,7 +245,7 @@ export default function GroupFitness({
               <div className="max-w-[340px] text-[15px] leading-relaxed text-red-200">{error}</div>
             </div>
           ) : section ? (
-            <div className="flex h-full flex-col">
+            <div className="flex h-full min-h-0 flex-col">
               <div
                 className={`grid ${rowColumns} gap-3 border-b border-white/10 pb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-white/45`}
               >

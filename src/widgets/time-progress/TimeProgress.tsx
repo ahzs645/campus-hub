@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { WidgetComponentProps, registerWidget } from '@/lib/widget-registry';
-import { useFitScale } from '@/hooks/useFitScale';
+import { useAdaptiveFitScale } from '@/hooks/useFitScale';
 import TimeProgressOptions from './TimeProgressOptions';
 
 interface TimeProgressConfig {
@@ -12,7 +12,7 @@ interface TimeProgressConfig {
 
 interface ProgressRow {
   label: string;
-  progress: number; // 0-1
+  progress: number;
 }
 
 const DAYS = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
@@ -66,28 +66,31 @@ function calculateProgress(now: Date): ProgressRow[] {
   ];
 }
 
-const DOT_COUNT = 40;
 const DOTS_PER_ROW = 20;
-const DANGER_THRESHOLD = 36; // index >= 36 gets red when filled
+const DOT_COUNT = 40;
+const DANGER_THRESHOLD = 36;
 
 const COLOR_BG = '#1B1B1D';
 const COLOR_PRIMARY = '#FDFBFF';
 const COLOR_UNFILLED = '#5E5E62';
 const COLOR_DANGER = '#D81921';
 
-function FiniteDotGrid({ progress }: { progress: number }) {
-  const filledCount = Math.round(progress * DOT_COUNT);
+function FiniteDotGrid({ progress, dotsTotal }: { progress: number; dotsTotal: number }) {
+  const perRow = Math.ceil(dotsTotal / 2);
+  const filledCount = Math.round(progress * dotsTotal);
+  const dangerStart = Math.round(dotsTotal * 0.9);
 
   return (
     <div className="flex-1 flex flex-col gap-[2px] mx-[8px] justify-center">
       {[0, 1].map((row) => (
         <div key={row} className="flex gap-[2px]">
-          {Array.from({ length: DOTS_PER_ROW }, (_, col) => {
-            const idx = row * DOTS_PER_ROW + col;
+          {Array.from({ length: perRow }, (_, col) => {
+            const idx = row * perRow + col;
+            if (idx >= dotsTotal) return null;
             const isFilled = idx < filledCount;
             let color: string;
             if (isFilled) {
-              color = idx >= DANGER_THRESHOLD ? COLOR_DANGER : COLOR_PRIMARY;
+              color = idx >= dangerStart ? COLOR_DANGER : COLOR_PRIMARY;
             } else {
               color = COLOR_UNFILLED;
             }
@@ -105,21 +108,21 @@ function FiniteDotGrid({ progress }: { progress: number }) {
   );
 }
 
-function FiniteDotsRow({ item }: { item: ProgressRow }) {
+function FiniteDotsRow({ item, fontSize, dotsTotal }: { item: ProgressRow; fontSize: number; dotsTotal: number }) {
   const pct = Math.round(item.progress * 100);
 
   return (
     <div className="flex items-center flex-1 w-full">
       <span
-        className="font-mono uppercase tracking-wider text-[16px] leading-none shrink-0"
-        style={{ color: COLOR_PRIMARY, width: '30%' }}
+        className="font-mono uppercase tracking-wider leading-none shrink-0"
+        style={{ color: COLOR_PRIMARY, width: '30%', fontSize }}
       >
         {item.label}
       </span>
-      <FiniteDotGrid progress={item.progress} />
+      <FiniteDotGrid progress={item.progress} dotsTotal={dotsTotal} />
       <span
-        className="font-mono uppercase tracking-wider text-[16px] leading-none text-right shrink-0"
-        style={{ color: COLOR_PRIMARY, width: '15%' }}
+        className="font-mono uppercase tracking-wider leading-none text-right shrink-0"
+        style={{ color: COLOR_PRIMARY, width: '15%', fontSize }}
       >
         {pct}%
       </span>
@@ -127,14 +130,14 @@ function FiniteDotsRow({ item }: { item: ProgressRow }) {
   );
 }
 
-function BarsRow({ item }: { item: ProgressRow }) {
+function BarsRow({ item, fontSize }: { item: ProgressRow; fontSize: number }) {
   const pct = Math.round(item.progress * 100);
 
   return (
     <div className="flex items-center gap-2 flex-1 w-full">
       <span
-        className="font-mono uppercase tracking-wider text-[16px] leading-none shrink-0"
-        style={{ color: COLOR_PRIMARY, width: '30%' }}
+        className="font-mono uppercase tracking-wider leading-none shrink-0"
+        style={{ color: COLOR_PRIMARY, width: '30%', fontSize }}
       >
         {item.label}
       </span>
@@ -151,8 +154,8 @@ function BarsRow({ item }: { item: ProgressRow }) {
         />
       </div>
       <span
-        className="font-mono uppercase tracking-wider text-[16px] leading-none text-right shrink-0"
-        style={{ color: COLOR_PRIMARY, width: '15%' }}
+        className="font-mono uppercase tracking-wider leading-none text-right shrink-0"
+        style={{ color: COLOR_PRIMARY, width: '15%', fontSize }}
       >
         {pct}%
       </span>
@@ -173,35 +176,42 @@ export default function TimeProgress({ config }: WidgetComponentProps) {
 
   const items = useMemo(() => calculateProgress(now), [now]);
 
-  const { containerRef, scale } = useFitScale(400, 140);
+  const {
+    containerRef, scale, designWidth: BASE_W, designHeight: DESIGN_H,
+    containerWidth, containerHeight,
+  } = useAdaptiveFitScale({
+    landscape: { w: 400, h: 140 },
+    portrait: { w: 240, h: 240 },
+  });
+
+  const DESIGN_W = containerWidth > 0 ? Math.max(BASE_W, containerWidth / scale) : BASE_W;
+  const ACTUAL_H = containerHeight > 0 ? Math.max(DESIGN_H, containerHeight / scale) : DESIGN_H;
+
+  // Scale font and dots based on available width
+  const fontSize = Math.min(16, Math.max(11, DESIGN_W * 0.04));
+  const dotsTotal = Math.max(20, Math.min(60, Math.round(DESIGN_W * 0.1)));
 
   return (
     <div
       ref={containerRef}
       className="w-full h-full overflow-hidden"
-      style={{
-        backgroundColor: COLOR_BG,
-        borderRadius: 22,
-      }}
+      style={{ backgroundColor: COLOR_BG, borderRadius: 22 }}
     >
       <div
         style={{
-          width: 400,
-          height: 140,
+          width: DESIGN_W,
+          height: ACTUAL_H,
           transform: `scale(${scale})`,
           transformOrigin: 'top left',
-          paddingTop: 14.4,
-          paddingBottom: 14.4,
-          paddingLeft: 18,
-          paddingRight: 18,
+          padding: '14px 18px',
         }}
         className="flex flex-col gap-[6px]"
       >
         {items.map((item) =>
           displayMode === 'dots' ? (
-            <FiniteDotsRow key={item.label} item={item} />
+            <FiniteDotsRow key={item.label} item={item} fontSize={fontSize} dotsTotal={dotsTotal} />
           ) : (
-            <BarsRow key={item.label} item={item} />
+            <BarsRow key={item.label} item={item} fontSize={fontSize} />
           )
         )}
       </div>

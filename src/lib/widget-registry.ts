@@ -28,6 +28,7 @@ export interface WidgetDefinition {
   maxH?: number;
   defaultW: number;
   defaultH: number;
+  tags?: string[];
   component: ComponentType<WidgetComponentProps>;
   OptionsComponent?: ComponentType<WidgetOptionsProps>;
   defaultProps?: Record<string, unknown>;

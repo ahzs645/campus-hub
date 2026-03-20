@@ -44,4 +44,8 @@ export type IconName =
   | 'flag'
   | 'languages'
   | 'hand'
-  | 'wine';
+  | 'wine'
+  | 'rss'
+  | 'table'
+  | 'type'
+  | 'calendarRange';

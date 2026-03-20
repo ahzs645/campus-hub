@@ -44,6 +44,10 @@ import {
   Languages,
   Hand,
   Wine,
+  Rss,
+  Table,
+  Type,
+  CalendarRange,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { IconName } from '@/lib/icon-names';
@@ -102,6 +106,10 @@ const ICONS: Record<IconName, LucideIcon> = {
   languages: Languages,
   hand: Hand,
   wine: Wine,
+  rss: Rss,
+  table: Table,
+  type: Type,
+  calendarRange: CalendarRange,
 };
 
 export default function AppIcon({

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { getAllWidgets, type WidgetDefinition } from '@/lib/widget-registry';
 import AppIcon from '@/components/AppIcon';
@@ -55,6 +55,7 @@ export default function GalleryPage() {
   const [widgets, setWidgets] = useState<WidgetDefinition[]>([]);
   const [search, setSearch] = useState('');
   const [previewSize, setPreviewSize] = useState<SizePreset>('medium');
+  const [playgroundWidget, setPlaygroundWidget] = useState<WidgetDefinition | null>(null);
 
   useEffect(() => {
     setWidgets(getAllWidgets());
@@ -138,7 +139,14 @@ export default function GalleryPage() {
         <div className="flex flex-wrap gap-6 justify-center">
           {filtered.map((widget) => {
             const size = getWidgetPreviewSize(widget, scale);
-            return <WidgetCard key={widget.type} widget={widget} size={size} />;
+            return (
+              <WidgetCard
+                key={widget.type}
+                widget={widget}
+                size={size}
+                onPlayground={() => setPlaygroundWidget(widget)}
+              />
+            );
           })}
         </div>
 
@@ -148,6 +156,13 @@ export default function GalleryPage() {
           </div>
         )}
       </main>
+
+      {playgroundWidget && (
+        <BoardPlayground
+          widget={playgroundWidget}
+          onClose={() => setPlaygroundWidget(null)}
+        />
+      )}
     </div>
   );
 }
@@ -155,9 +170,11 @@ export default function GalleryPage() {
 function WidgetCard({
   widget,
   size,
+  onPlayground,
 }: {
   widget: WidgetDefinition;
   size: { w: number; h: number };
+  onPlayground: () => void;
 }) {
   const Component = widget.component;
   const [glyphMode, setGlyphMode] = useState(widget.defaultProps?.mode as string ?? 'pendulum');
@@ -207,6 +224,15 @@ function WidgetCard({
           <h3 className="text-sm font-semibold text-white truncate">{widget.name}</h3>
           <p className="text-xs text-white/40 truncate">{widget.description}</p>
         </div>
+        <button
+          onClick={onPlayground}
+          className="p-1.5 rounded-lg text-white/30 hover:text-[#B79527] hover:bg-[#B79527]/10 transition-all shrink-0"
+          title="Open in board playground"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zM14 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
+          </svg>
+        </button>
         <span className="text-[10px] text-white/20 font-mono shrink-0">
           {widget.defaultW}x{widget.defaultH}
         </span>
@@ -228,6 +254,168 @@ function WidgetCard({
           </select>
         </div>
       )}
+    </div>
+  );
+}
+
+// Board Playground - renders widget on a mock grid board with size controls
+const GRID_COLS = 12;
+const GRID_ROWS = 8;
+
+function BoardPlayground({
+  widget,
+  onClose,
+}: {
+  widget: WidgetDefinition;
+  onClose: () => void;
+}) {
+  const Component = widget.component;
+  const maxW = widget.maxW ?? GRID_COLS;
+  const maxH = widget.maxH ?? GRID_ROWS;
+  const [w, setW] = useState(Math.min(widget.defaultW, GRID_COLS));
+  const [h, setH] = useState(Math.min(widget.defaultH, GRID_ROWS));
+  const boardRef = useRef<HTMLDivElement>(null);
+  const [boardPx, setBoardPx] = useState({ w: 0, h: 0 });
+
+  // Measure the board container
+  useEffect(() => {
+    if (!boardRef.current) return;
+    const ro = new ResizeObserver((entries) => {
+      const rect = entries[0].contentRect;
+      setBoardPx({ w: rect.width, h: rect.height });
+    });
+    ro.observe(boardRef.current);
+    return () => ro.disconnect();
+  }, []);
+
+  // Close on Escape
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [onClose]);
+
+  const cellW = boardPx.w / GRID_COLS;
+  const cellH = boardPx.h / GRID_ROWS;
+  const gap = 4;
+
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div className="bg-[#111] border border-white/10 rounded-2xl shadow-2xl w-[90vw] max-w-[1100px] max-h-[90vh] flex flex-col overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center gap-3 px-5 py-4 border-b border-white/[0.06]">
+          <div
+            className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+            style={{ backgroundColor: 'rgba(183, 149, 39, 0.15)' }}
+          >
+            <AppIcon name={widget.icon} className="w-4 h-4 text-[#B79527]" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h2 className="text-base font-semibold text-white">{widget.name}</h2>
+            <p className="text-xs text-white/40 truncate">{widget.description}</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 rounded-lg text-white/40 hover:text-white hover:bg-white/10 transition-all"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Controls */}
+        <div className="px-5 py-3 border-b border-white/[0.06] flex items-center gap-6 flex-wrap">
+          <div className="flex items-center gap-3">
+            <label className="text-xs text-white/50 font-medium w-12">Width</label>
+            <input
+              type="range"
+              min={widget.minW}
+              max={Math.min(maxW, GRID_COLS)}
+              value={w}
+              onChange={(e) => setW(Number(e.target.value))}
+              className="w-32 accent-[#B79527]"
+            />
+            <span className="text-sm text-white/70 font-mono w-6 text-right">{w}</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <label className="text-xs text-white/50 font-medium w-12">Height</label>
+            <input
+              type="range"
+              min={widget.minH}
+              max={Math.min(maxH, GRID_ROWS)}
+              value={h}
+              onChange={(e) => setH(Number(e.target.value))}
+              className="w-32 accent-[#B79527]"
+            />
+            <span className="text-sm text-white/70 font-mono w-6 text-right">{h}</span>
+          </div>
+          <span className="text-xs text-white/20 font-mono ml-auto">
+            {w}x{h} on {GRID_COLS}x{GRID_ROWS} grid
+          </span>
+        </div>
+
+        {/* Board */}
+        <div className="flex-1 p-5 min-h-0">
+          <div
+            ref={boardRef}
+            className="relative w-full bg-[#0a0a0a] rounded-xl border border-white/[0.06] overflow-hidden"
+            style={{ aspectRatio: `${16} / ${9}` }}
+          >
+            {/* Grid lines */}
+            {boardPx.w > 0 && (
+              <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ opacity: 0.08 }}>
+                {Array.from({ length: GRID_COLS + 1 }, (_, i) => (
+                  <line
+                    key={`v${i}`}
+                    x1={i * cellW}
+                    y1={0}
+                    x2={i * cellW}
+                    y2={boardPx.h}
+                    stroke="white"
+                    strokeWidth={1}
+                  />
+                ))}
+                {Array.from({ length: GRID_ROWS + 1 }, (_, i) => (
+                  <line
+                    key={`h${i}`}
+                    x1={0}
+                    y1={i * cellH}
+                    x2={boardPx.w}
+                    y2={i * cellH}
+                    stroke="white"
+                    strokeWidth={1}
+                  />
+                ))}
+              </svg>
+            )}
+
+            {/* Widget */}
+            {boardPx.w > 0 && (
+              <div
+                className="absolute rounded-lg overflow-hidden"
+                style={{
+                  left: gap,
+                  top: gap,
+                  width: w * cellW - gap * 2,
+                  height: h * cellH - gap * 2,
+                  transition: 'width 0.2s ease, height 0.2s ease',
+                }}
+              >
+                <ErrorBoundary name={widget.name}>
+                  <Component
+                    config={widget.defaultProps}
+                    theme={PREVIEW_THEME}
+                  />
+                </ErrorBoundary>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
