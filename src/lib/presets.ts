@@ -1,7 +1,6 @@
 // Demo presets for Campus Hub
 
-import type { DisplayConfig } from './config';
-import type { IconName } from './icon-names';
+import type { DisplayConfig, IconName } from '@campus-hub/engine';
 
 export interface Preset {
   id: string;

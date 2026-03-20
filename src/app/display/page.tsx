@@ -10,9 +10,13 @@ import {
   type WidgetConfig,
 } from '@/lib/config';
 import { createSignalingClient, type SignalingClient } from '@/lib/signaling-client';
-import { buildCacheKey, fetchJsonWithCache } from '@/lib/data-cache';
-import { preloadDisplayWidgetComponent } from '@/lib/display-widget-components';
-import WidgetRenderer from '@/components/WidgetRenderer';
+import {
+  buildCacheKey,
+  fetchJsonWithCache,
+  preloadDisplayWidgetComponent,
+  WidgetRenderer,
+} from '@campus-hub/engine';
+import '@campus-hub/engine/widgets';
 
 interface PlaylistItem {
   id?: string;

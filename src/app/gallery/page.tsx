@@ -2,14 +2,15 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
-import { getAllWidgets, type WidgetDefinition } from '@/lib/widget-registry';
-import { getWidgetTags, ALL_TAGS } from '@/lib/widget-tags';
-import AppIcon from '@/components/AppIcon';
-import { MODES as GLYPH_MODES } from '@/widgets/nothing-glyph/NothingGlyph';
-
-
-// Import all widgets to trigger registration
-import '@/widgets/index';
+import {
+  getAllWidgets,
+  type WidgetDefinition,
+  getWidgetTags,
+  ALL_TAGS,
+  AppIcon,
+} from '@campus-hub/engine';
+import '@campus-hub/engine/widgets';
+import { NOTHING_GLYPH_MODES as GLYPH_MODES } from '@campus-hub/engine/widgets';
 
 type SortMode = 'name' | 'tag' | 'size';
 

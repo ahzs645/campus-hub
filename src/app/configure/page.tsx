@@ -21,15 +21,21 @@ import {
   type DashboardHistoryEntry,
 } from '@/lib/dashboard-history';
 import { DEMO_PRESETS } from '@/lib/presets';
-import { getAllWidgets, getWidget } from '@/widgets';
-import { getWidgetTags, ALL_TAGS } from '@/lib/widget-tags';
-import AppIcon from '@/components/AppIcon';
+import {
+  getAllWidgets,
+  getWidget,
+  getWidgetTags,
+  ALL_TAGS,
+} from '@campus-hub/engine';
+import { AppIcon, WidgetEditDialog } from '@campus-hub/engine';
+import type { GridStackItem } from '@campus-hub/engine';
+import '@campus-hub/engine/widgets';
 import EditableWidget from '@/components/EditableWidget';
-import WidgetEditDialog from '@/components/WidgetEditDialog';
-import type { GridStackItem, GridStackWrapperRef } from '@/components/GridStackWrapper';
+
+type GridStackWrapperRef = { getItems: () => GridStackItem[] };
 
 // Dynamic import for GridStack to avoid SSR issues
-const GridStackWrapper = dynamic(() => import('@/components/GridStackWrapper'), {
+const GridStackWrapper = dynamic(() => import('@campus-hub/engine').then(m => ({ default: m.GridStackWrapper })), {
   ssr: false,
   loading: () => (
     <div className="w-full h-full flex items-center justify-center text-white/30">

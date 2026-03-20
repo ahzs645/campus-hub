@@ -2,9 +2,8 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { getWidget } from '@/lib/widget-registry';
-import type { WidgetConfig } from '@/lib/config';
-import AppIcon from '@/components/AppIcon';
+import { getWidget, type WidgetConfig } from '@campus-hub/engine';
+import { AppIcon } from '@campus-hub/engine';
 
 interface EditableWidgetProps {
   widget: WidgetConfig;

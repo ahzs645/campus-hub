@@ -6,6 +6,8 @@ const nextConfig: NextConfig = {
   images: {
     unoptimized: true,
   },
+  transpilePackages: ["@campus-hub/engine"],
+  turbopack: {},
 };
 
 export default nextConfig;

@@ -12,6 +12,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@campus-hub/engine": "file:../campus-hub-engine",
     "@firstform/json-url": "^4.1.0",
     "gridstack": "^12.4.2",
     "gtfs-realtime-bindings": "^1.1.1",
