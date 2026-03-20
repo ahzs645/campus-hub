@@ -261,6 +261,22 @@ function DisplayContent() {
     return () => { client?.disconnect(); };
   }, [searchParams]);
 
+  // === postMessage bridge ===
+  // Allows parent frames (e.g., campus-hub-cloud) to push configs to this display
+  useEffect(() => {
+    const handler = (event: MessageEvent) => {
+      if (event.data?.type === 'campus-hub-config' && event.data?.config) {
+        const config = normalizeConfig(event.data.config);
+        if (config) {
+          setActiveConfig(config);
+          setPlaylist(null);
+        }
+      }
+    };
+    window.addEventListener('message', handler);
+    return () => window.removeEventListener('message', handler);
+  }, []);
+
   useEffect(() => {
     if (!playlist || playlist.items.length === 0) return;
 

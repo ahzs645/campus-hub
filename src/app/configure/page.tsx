@@ -574,6 +574,34 @@ export default function ConfigurePage() {
     };
   }, [buildShareUrl]);
 
+  // === postMessage bridge for iframe embedding ===
+  // Allows parent frames (e.g., campus-hub-cloud) to send/receive configs
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    // Receive config from parent
+    const handler = (event: MessageEvent) => {
+      if (event.data?.type === 'campus-hub-load-config' && event.data?.config) {
+        const loaded = normalizeConfig(event.data.config);
+        if (loaded) setConfig(loaded);
+      }
+    };
+    window.addEventListener('message', handler);
+
+    return () => window.removeEventListener('message', handler);
+  }, []);
+
+  // Notify parent when config changes (debounced)
+  useEffect(() => {
+    if (typeof window === 'undefined' || window.parent === window) return;
+
+    const timeout = setTimeout(() => {
+      window.parent.postMessage({ type: 'config-save', config }, '*');
+    }, 500);
+
+    return () => clearTimeout(timeout);
+  }, [config]);
+
   useEffect(() => {
     if (!showShareModal || typeof window === 'undefined') return;
     let cancelled = false;
