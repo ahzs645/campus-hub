@@ -264,8 +264,9 @@ function BauhausHolidayName({ name }: { name: string }) {
   );
 }
 
-function HolidayCalendar({ config }: WidgetComponentProps<HolidayCalendarConfig>) {
-  const style = config?.style ?? 'modern';
+export default function HolidayCalendar({ config }: WidgetComponentProps) {
+  const calConfig = config as HolidayCalendarConfig | undefined;
+  const style = calConfig?.style ?? 'modern';
   const { containerRef, scale } = useFitScale(200, 200);
   const [now, setNow] = useState(() => new Date());
 
@@ -365,4 +366,3 @@ registerWidget({
   defaultProps: { style: 'modern' },
 });
 
-export default HolidayCalendar;

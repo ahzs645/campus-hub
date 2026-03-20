@@ -24,8 +24,8 @@ const KAOMOJI = [
   { face: '(\u2310\u25A0_\u25A0)', mood: 'Cool' },
 ];
 
-export default function Kaomoji({ data }: WidgetComponentProps) {
-  const config = (data ?? {}) as KaomojiConfig;
+export default function Kaomoji({ config: rawConfig }: WidgetComponentProps) {
+  const config = (rawConfig ?? {}) as KaomojiConfig;
   const cycleInterval = (config.cycleInterval ?? 5) * 1000;
 
   const [index, setIndex] = useState(0);
