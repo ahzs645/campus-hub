@@ -65,7 +65,7 @@ jobs:
 
           # Engine needs deps that live in campus-hub/node_modules
           mkdir -p campus-hub-engine/node_modules/@types
-          for pkg in react react-dom @types/react @types/react-dom gridstack lucide-react qrcode lottie-web gtfs-realtime-bindings react-pixel-display socket.io-client; do
+          for pkg in react react-dom @types/react @types/react-dom @types/qrcode gridstack lucide-react qrcode lottie-web gtfs-realtime-bindings react-pixel-display socket.io-client; do
             if [ -e "$GITHUB_WORKSPACE/campus-hub/node_modules/$pkg" ]; then
               mkdir -p "$(dirname "campus-hub-engine/node_modules/$pkg")"
               ln -sf "$GITHUB_WORKSPACE/campus-hub/node_modules/$pkg" "campus-hub-engine/node_modules/$pkg"
