@@ -17,15 +17,33 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./campus-hub
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          path: campus-hub
+
+      - name: Checkout engine
+        uses: actions/checkout@v4
+        with:
+          repository: ahzs645/campus-hub-engine
+          path: campus-hub-engine
+
+      - name: Checkout configurator
+        uses: actions/checkout@v4
+        with:
+          repository: ahzs645/campus-hub-configurator
+          path: campus-hub-configurator
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "20"
           cache: "npm"
+          cache-dependency-path: campus-hub/package-lock.json
 
       - name: Install dependencies
         run: npm ci
@@ -35,11 +53,11 @@ jobs:
 
       - name: Install docs dependencies
         run: npm ci
-        working-directory: ./docs
+        working-directory: ./campus-hub/docs
 
       - name: Build docs
         run: npm run build
-        working-directory: ./docs
+        working-directory: ./campus-hub/docs
 
       - name: Merge docs into main site
         run: cp -r ./docs/dist ./out/docs
@@ -47,7 +65,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./out
+          path: ./campus-hub/out
 
   deploy:
     environment:
