@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import path from "path";
 
 const nextConfig: NextConfig = {
   output: "export",
@@ -6,8 +7,10 @@ const nextConfig: NextConfig = {
   images: {
     unoptimized: true,
   },
-  transpilePackages: ["@campus-hub/engine"],
-  turbopack: {},
+  transpilePackages: ["@campus-hub/engine", "@campus-hub/configurator"],
+  turbopack: {
+    root: path.resolve(__dirname, ".."),
+  },
 };
 
 export default nextConfig;
