@@ -53,20 +53,20 @@ jobs:
         run: |
           # Configurator needs @campus-hub/engine and @firstform/json-url
           mkdir -p campus-hub-configurator/node_modules/@campus-hub
-          ln -s $GITHUB_WORKSPACE/campus-hub-engine campus-hub-configurator/node_modules/@campus-hub/engine
+          ln -sf $GITHUB_WORKSPACE/campus-hub-engine campus-hub-configurator/node_modules/@campus-hub/engine
           mkdir -p campus-hub-configurator/node_modules/@firstform
-          ln -s $GITHUB_WORKSPACE/campus-hub/node_modules/@firstform/json-url campus-hub-configurator/node_modules/@firstform/json-url
+          ln -sf $GITHUB_WORKSPACE/campus-hub/node_modules/@firstform/json-url campus-hub-configurator/node_modules/@firstform/json-url
 
           # Engine needs deps that live in campus-hub/node_modules
           mkdir -p campus-hub-engine/node_modules
           for pkg in gridstack lucide-react qrcode lottie-web gtfs-realtime-bindings react-pixel-display socket.io-client; do
-            ln -s $GITHUB_WORKSPACE/campus-hub/node_modules/$pkg campus-hub-engine/node_modules/$pkg
+            ln -sf $GITHUB_WORKSPACE/campus-hub/node_modules/$pkg campus-hub-engine/node_modules/$pkg
           done
 
           # Main project also needs @campus-hub/engine alias (used by configurator imports)
           mkdir -p campus-hub/node_modules/@campus-hub
-          ln -s $GITHUB_WORKSPACE/campus-hub-engine campus-hub/node_modules/@campus-hub/engine
-          ln -s $GITHUB_WORKSPACE/campus-hub-configurator campus-hub/node_modules/@campus-hub/configurator
+          ln -sf $GITHUB_WORKSPACE/campus-hub-engine campus-hub/node_modules/@campus-hub/engine
+          ln -sf $GITHUB_WORKSPACE/campus-hub-configurator campus-hub/node_modules/@campus-hub/configurator
 
       - name: Build main site
         run: npm run build:app
