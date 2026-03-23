@@ -1,0 +1,21 @@
+<resources>
+    <string name="app_name">Campus Hub</string>
+
+    <!-- Pairing screen -->
+    <string name="pair_title">Pair this device as a display</string>
+    <string name="pair_qr_description">QR code for cloud pairing</string>
+    <string name="pair_qr_caption">Scan in the Campus Hub dashboard to pair</string>
+    <string name="pair_instructions">Enter code %1$s in the Campus Hub dashboard to link this device as a display.</string>
+
+    <!-- Manual entry -->
+    <string name="manual_entry_label">Or enter a display ID manually:</string>
+    <string name="manual_entry_hint">e.g. lobby-1</string>
+    <string name="manual_pair_button">Connect to Display</string>
+    <string name="scan_tv_qr_button">Scan TV QR Code</string>
+
+    <!-- Paired screen -->
+    <string name="paired_title">Display Paired</string>
+    <string name="open_display">Open Display</string>
+    <string name="open_dashboard">Open Dashboard</string>
+    <string name="unpair">Unpair Device</string>
+</resources>

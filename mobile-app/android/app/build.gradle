@@ -1,0 +1,99 @@
+plugins {
+    id "com.android.application"
+    id "org.jetbrains.kotlin.android"
+}
+
+def enableProguardInReleaseBuilds = false
+
+android {
+    buildToolsVersion rootProject.ext.buildToolsVersion
+    compileSdk rootProject.ext.compileSdkVersion
+
+    namespace "com.campushub.mobile"
+
+    defaultConfig {
+        applicationId "com.campushub.mobile"
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        versionCode 1
+        versionName "1.0"
+
+        // Campus Hub Cloud base URL — the PWA origin
+        buildConfigField "String", "CLOUD_BASE_URL", "\"https://cloud.campus.ahmadjalil.com\""
+        // Display path on the main campus-hub web app
+        buildConfigField "String", "DISPLAY_BASE_URL", "\"https://campus.ahmadjalil.com/display/\""
+        // Pairing API endpoint on campus-hub-cloud
+        buildConfigField "String", "PAIR_API_URL", "\"https://cloud.campus.ahmadjalil.com/api/pair\""
+    }
+
+    signingConfigs {
+        debug {
+            storeFile file('debug.keystore')
+            storePassword 'android'
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
+        }
+        release {
+            if (project.hasProperty('CAMPUSHUB_UPLOAD_STORE_FILE') &&
+                file(CAMPUSHUB_UPLOAD_STORE_FILE).exists()) {
+                storeFile file(CAMPUSHUB_UPLOAD_STORE_FILE)
+                storePassword CAMPUSHUB_UPLOAD_STORE_PASSWORD
+                keyAlias CAMPUSHUB_UPLOAD_KEY_ALIAS
+                keyPassword CAMPUSHUB_UPLOAD_KEY_PASSWORD
+            } else {
+                // Fallback to debug signing for development
+                storeFile file('debug.keystore')
+                storePassword 'android'
+                keyAlias 'androiddebugkey'
+                keyPassword 'android'
+            }
+        }
+    }
+
+    buildTypes {
+        debug {
+            signingConfig signingConfigs.debug
+        }
+        release {
+            signingConfig signingConfigs.release
+            minifyEnabled enableProguardInReleaseBuilds
+            proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
+        }
+    }
+
+    buildFeatures {
+        buildConfig true
+        viewBinding true
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+
+    packaging {
+        resources {
+            excludes += [
+                "META-INF/AL2.0",
+                "META-INF/LGPL2.1"
+            ]
+        }
+    }
+}
+
+dependencies {
+    implementation("androidx.core:core-ktx:1.15.0")
+    implementation("androidx.appcompat:appcompat:1.7.0")
+    implementation("com.google.android.material:material:1.12.0")
+    implementation("androidx.constraintlayout:constraintlayout:2.2.1")
+    implementation("androidx.webkit:webkit:1.12.1")
+    implementation("androidx.browser:browser:1.8.0")
+    implementation("com.google.androidbrowserhelper:androidbrowserhelper:2.5.0")
+    implementation("com.google.zxing:core:3.5.3")
+    // For camera-based QR scanning during pairing
+    implementation("com.journeyapps:zxing-android-embedded:4.3.0")
+}

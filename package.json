@@ -9,7 +9,9 @@
     "build:docs": "cd docs && npm run build && cp -r dist ../out/docs",
     "dev:docs": "cd docs && npm run dev",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "android-mobile-build": "cd mobile-app/android && ./gradlew app:assembleDebug",
+    "android-mobile": "cd mobile-app/android && ./gradlew app:installDebug && adb shell am start -n com.campushub.mobile/.MainActivity"
   },
   "dependencies": {
     "@campus-hub/engine": "file:../campus-hub-engine",
