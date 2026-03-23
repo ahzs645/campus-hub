@@ -17,76 +17,29 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./campus-hub
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          path: campus-hub
-
-      - name: Checkout engine
-        uses: actions/checkout@v4
-        with:
-          repository: ahzs645/campus-hub-engine
-          path: campus-hub-engine
-
-      - name: Checkout configurator
-        uses: actions/checkout@v4
-        with:
-          repository: ahzs645/campus-hub-configurator
-          path: campus-hub-configurator
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "20"
           cache: "npm"
-          cache-dependency-path: campus-hub/package-lock.json
 
       - name: Install dependencies
         run: npm ci
-
-      - name: Link sibling package dependencies
-        working-directory: .
-        run: |
-          # Configurator needs @campus-hub/engine, @firstform/json-url, and React
-          mkdir -p campus-hub-configurator/node_modules/@campus-hub
-          ln -sf $GITHUB_WORKSPACE/campus-hub-engine campus-hub-configurator/node_modules/@campus-hub/engine
-          mkdir -p campus-hub-configurator/node_modules/@firstform
-          ln -sf $GITHUB_WORKSPACE/campus-hub/node_modules/@firstform/json-url campus-hub-configurator/node_modules/@firstform/json-url
-          for pkg in react react-dom @types/react @types/react-dom; do
-            if [ -e "$GITHUB_WORKSPACE/campus-hub/node_modules/$pkg" ]; then
-              mkdir -p "$(dirname "campus-hub-configurator/node_modules/$pkg")"
-              ln -sf "$GITHUB_WORKSPACE/campus-hub/node_modules/$pkg" "campus-hub-configurator/node_modules/$pkg"
-            fi
-          done
-
-          # Engine needs deps that live in campus-hub/node_modules
-          mkdir -p campus-hub-engine/node_modules/@types
-          for pkg in react react-dom @types/react @types/react-dom @types/qrcode gridstack lucide-react qrcode lottie-web gtfs-realtime-bindings react-pixel-display socket.io-client; do
-            if [ -e "$GITHUB_WORKSPACE/campus-hub/node_modules/$pkg" ]; then
-              mkdir -p "$(dirname "campus-hub-engine/node_modules/$pkg")"
-              ln -sf "$GITHUB_WORKSPACE/campus-hub/node_modules/$pkg" "campus-hub-engine/node_modules/$pkg"
-            fi
-          done
-
-          # Main project also needs @campus-hub/engine alias (used by configurator imports)
-          mkdir -p campus-hub/node_modules/@campus-hub
-          ln -sf $GITHUB_WORKSPACE/campus-hub-engine campus-hub/node_modules/@campus-hub/engine
-          ln -sf $GITHUB_WORKSPACE/campus-hub-configurator campus-hub/node_modules/@campus-hub/configurator
 
       - name: Build main site
         run: npm run build:app
 
       - name: Install docs dependencies
         run: npm ci
-        working-directory: ./campus-hub/docs
+        working-directory: ./docs
 
       - name: Build docs
         run: npm run build
-        working-directory: ./campus-hub/docs
+        working-directory: ./docs
 
       - name: Merge docs into main site
         run: cp -r ./docs/dist ./out/docs
@@ -94,7 +47,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./campus-hub/out
+          path: ./out
 
   deploy:
     environment:

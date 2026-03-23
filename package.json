@@ -14,8 +14,8 @@
     "android-mobile": "cd ../campus-hub-app/android && ./gradlew app:installDebug && adb shell am start -n com.campushub.mobile/.MainActivity"
   },
   "dependencies": {
-    "@firstform/campus-hub-configurator": "file:../campus-hub-configurator",
-    "@firstform/campus-hub-engine": "file:../campus-hub-engine",
+    "@firstform/campus-hub-configurator": "^0.1.0",
+    "@firstform/campus-hub-engine": "^0.1.0",
     "@firstform/json-url": "^4.1.0",
     "gridstack": "^12.4.2",
     "gtfs-realtime-bindings": "^1.1.1",
