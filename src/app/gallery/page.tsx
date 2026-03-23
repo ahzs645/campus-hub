@@ -8,9 +8,9 @@ import {
   getWidgetTags,
   ALL_TAGS,
   AppIcon,
-} from '@campus-hub/engine';
-import '@campus-hub/engine/widgets';
-import { NOTHING_GLYPH_MODES as GLYPH_MODES } from '@campus-hub/engine/widgets';
+} from '@firstform/campus-hub-engine';
+import '@firstform/campus-hub-engine/widgets';
+import { NOTHING_GLYPH_MODES as GLYPH_MODES } from '@firstform/campus-hub-engine/widgets';
 
 type SortMode = 'name' | 'tag' | 'size';
 

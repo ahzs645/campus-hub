@@ -1,7 +1,7 @@
 'use client';
 
-import { ConfigurePage } from '@campus-hub/configurator';
-import '@campus-hub/engine/widgets';
+import { ConfigurePage } from '@firstform/campus-hub-configurator';
+import '@firstform/campus-hub-engine/widgets';
 
 export default function Configure() {
   return <ConfigurePage enableBrowserPersistence />;

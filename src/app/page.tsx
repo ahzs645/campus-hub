@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { DEFAULT_CONFIG, generateSharePath } from '@/lib/config';
-import { AppIcon } from '@campus-hub/engine';
+import { AppIcon } from '@firstform/campus-hub-engine';
 
 export default async function Home() {
   const displayPath = await generateSharePath(DEFAULT_CONFIG);

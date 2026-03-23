@@ -20,8 +20,8 @@
     ],
     "paths": {
       "@/*": ["./src/*"],
-      "@campus-hub/engine": ["./node_modules/@campus-hub/engine/src/index.ts"],
-      "@campus-hub/engine/widgets": ["./node_modules/@campus-hub/engine/src/widgets/index.ts"]
+      "@firstform/campus-hub-engine": ["./node_modules/@firstform/campus-hub-engine/src/index.ts"],
+      "@firstform/campus-hub-engine/widgets": ["./node_modules/@firstform/campus-hub-engine/src/widgets/index.ts"]
     }
   },
   "include": [

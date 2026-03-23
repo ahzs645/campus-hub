@@ -7,7 +7,7 @@ const nextConfig: NextConfig = {
   images: {
     unoptimized: true,
   },
-  transpilePackages: ["@campus-hub/engine", "@campus-hub/configurator"],
+  transpilePackages: ["@firstform/campus-hub-engine", "@firstform/campus-hub-configurator"],
   turbopack: {
     root: path.resolve(__dirname, ".."),
   },

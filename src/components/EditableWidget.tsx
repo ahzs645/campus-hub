@@ -2,8 +2,8 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { getWidget, type WidgetConfig } from '@campus-hub/engine';
-import { AppIcon } from '@campus-hub/engine';
+import { getWidget, type WidgetConfig } from '@firstform/campus-hub-engine';
+import { AppIcon } from '@firstform/campus-hub-engine';
 
 interface EditableWidgetProps {
   widget: WidgetConfig;

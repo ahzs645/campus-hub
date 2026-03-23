@@ -15,8 +15,8 @@ import {
   fetchJsonWithCache,
   preloadDisplayWidgetComponent,
   WidgetRenderer,
-} from '@campus-hub/engine';
-import '@campus-hub/engine/widgets';
+} from '@firstform/campus-hub-engine';
+import '@firstform/campus-hub-engine/widgets';
 
 interface PlaylistItem {
   id?: string;
