@@ -1,36 +1,58 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Campus Hub
+
+A configurable digital signage platform for campus displays. Build custom dashboard layouts with drag-and-drop widgets — weather, events, transit, media, and more.
+
+Built with Next.js 16, React 19, Tailwind CSS 4, and GridStack.
+
+## Project Structure
+
+This is a multi-repo project with three packages:
+
+```
+campus-hub/              ← This repo (Next.js app)
+campus-hub-engine/       ← Widget engine & renderer
+campus-hub-configurator/ ← Drag-and-drop layout editor
+```
+
+### Routes
+
+- `/` — Landing page
+- `/configure` — Drag-and-drop dashboard configurator
+- `/display` — Fullscreen display renderer (shareable via URL)
+- `/gallery` — Browse all available widgets
+- `/tv-setup` — TV/kiosk setup flow
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
+
+Clone all three repos as siblings:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone https://github.com/ahzs645/campus-hub.git
+git clone https://github.com/ahzs645/campus-hub-engine.git
+git clone https://github.com/ahzs645/campus-hub-configurator.git
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Install & Run
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+cd campus-hub
+npm install
+npm run dev
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+The dev server starts at [http://localhost:3000](http://localhost:3000).
 
-## Learn More
+### Build
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npm run build:app   # Build the Next.js app only
+npm run build       # Build app + docs
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Deployment
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Deployed to GitHub Pages via the `.github/workflows/deploy.yml` workflow. The workflow automatically checks out all three repos and builds the static export.
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Triggered on push to `main` or manually via workflow dispatch.
