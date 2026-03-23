@@ -51,11 +51,17 @@ jobs:
       - name: Link sibling package dependencies
         working-directory: .
         run: |
-          # Configurator needs @campus-hub/engine and @firstform/json-url
+          # Configurator needs @campus-hub/engine, @firstform/json-url, and React
           mkdir -p campus-hub-configurator/node_modules/@campus-hub
           ln -sf $GITHUB_WORKSPACE/campus-hub-engine campus-hub-configurator/node_modules/@campus-hub/engine
           mkdir -p campus-hub-configurator/node_modules/@firstform
           ln -sf $GITHUB_WORKSPACE/campus-hub/node_modules/@firstform/json-url campus-hub-configurator/node_modules/@firstform/json-url
+          for pkg in react react-dom @types/react @types/react-dom; do
+            if [ -e "$GITHUB_WORKSPACE/campus-hub/node_modules/$pkg" ]; then
+              mkdir -p "$(dirname "campus-hub-configurator/node_modules/$pkg")"
+              ln -sf "$GITHUB_WORKSPACE/campus-hub/node_modules/$pkg" "campus-hub-configurator/node_modules/$pkg"
+            fi
+          done
 
           # Engine needs deps that live in campus-hub/node_modules
           mkdir -p campus-hub-engine/node_modules
