@@ -20,8 +20,11 @@
     ],
     "paths": {
       "@/*": ["./src/*"],
-      "@firstform/campus-hub-engine": ["./node_modules/@firstform/campus-hub-engine/src/index.ts"],
-      "@firstform/campus-hub-engine/widgets": ["./node_modules/@firstform/campus-hub-engine/src/widgets/index.ts"]
+      "@firstform/campus-hub-engine": ["./packages/campus-hub-engine/src/index.ts"],
+      "@firstform/campus-hub-engine/widgets": ["./packages/campus-hub-engine/src/widgets/index.ts"],
+      "@firstform/campus-hub-engine/src/*": ["./packages/campus-hub-engine/src/*"],
+      "@firstform/campus-hub-configurator": ["./packages/campus-hub-configurator/src/index.ts"],
+      "@firstform/campus-hub-widget-sdk": ["./packages/campus-hub-widget-sdk/src/index.ts"]
     }
   },
   "include": [
@@ -29,9 +32,13 @@
     "next.config.ts",
     "src/**/*.ts",
     "src/**/*.tsx",
+    "packages/*/src/**/*.ts",
+    "packages/*/src/**/*.tsx",
+    "packages/campus-hub-widgets/packages/*/src/**/*.ts",
+    "packages/campus-hub-widgets/packages/*/src/**/*.tsx",
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules", "docs", "tv-app"]
+  "exclude": ["node_modules", "docs", "tv-app", "packages/*/node_modules"]
 }

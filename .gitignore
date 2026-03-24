@@ -47,3 +47,6 @@ docs/node_modules/
 
 # signaling server
 signaling-server/node_modules/
+
+# subpackage node_modules
+packages/*/node_modules/

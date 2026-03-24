@@ -2,6 +2,13 @@
   "name": "campus-hub",
   "version": "0.1.0",
   "private": true,
+  "workspaces": [
+    "packages/campus-hub-widget-sdk",
+    "packages/campus-hub-widgets",
+    "packages/campus-hub-widgets/packages/*",
+    "packages/campus-hub-configurator",
+    "packages/campus-hub-engine"
+  ],
   "scripts": {
     "dev": "next dev",
     "build": "next build && npm run build:docs",
@@ -14,8 +21,8 @@
     "android-mobile": "cd ../campus-hub-app/android && ./gradlew app:installDebug && adb shell am start -n com.campushub.mobile/.MainActivity"
   },
   "dependencies": {
-    "@firstform/campus-hub-configurator": "^0.1.0",
-    "@firstform/campus-hub-engine": "^0.1.0",
+    "@firstform/campus-hub-configurator": "*",
+    "@firstform/campus-hub-engine": "*",
     "@firstform/json-url": "^4.1.0",
     "gridstack": "^12.4.2",
     "gtfs-realtime-bindings": "^1.1.1",
