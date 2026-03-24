@@ -11,7 +11,7 @@
   ],
   "scripts": {
     "dev": "next dev",
-    "build": "next build && npm run build:docs",
+    "build": "npm run build:app && npm run build:docs",
     "build:app": "next build",
     "build:docs": "cd docs && npm run build && cp -r dist ../out/docs",
     "dev:docs": "cd docs && npm run dev",
