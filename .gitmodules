@@ -1,0 +1,12 @@
+[submodule "packages/campus-hub-widget-sdk"]
+	path = packages/campus-hub-widget-sdk
+	url = https://github.com/ahzs645/campus-hub-widget-sdk.git
+[submodule "packages/campus-hub-widgets"]
+	path = packages/campus-hub-widgets
+	url = https://github.com/ahzs645/campus-hub-widgets.git
+[submodule "packages/campus-hub-configurator"]
+	path = packages/campus-hub-configurator
+	url = https://github.com/ahzs645/campus-hub-configurator.git
+[submodule "packages/campus-hub-engine"]
+	path = packages/campus-hub-engine
+	url = https://github.com/ahzs645/campus-hub-engine.git
