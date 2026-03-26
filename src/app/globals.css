@@ -40,6 +40,25 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Widget edit dialog – override display-screen variables with neutral dark UI */
+.widget-edit-dialog {
+  --ui-text: #ffffff;
+  --ui-text-muted: #9ca3af;
+  --ui-input-bg: #1f2937;
+  --ui-input-border: #374151;
+  --ui-input-focus: var(--color-accent);
+  --ui-item-bg: #1f2937;
+  --ui-item-hover: #374151;
+  --ui-item-border: #374151;
+  --ui-item-border-hover: var(--color-accent);
+  --ui-switch-off: #4b5563;
+  --ui-switch-on: var(--color-accent);
+  --ui-panel-border: #374151;
+  --ui-panel-soft: #111827;
+  --ui-panel-solid: #111827;
+  --ui-accent-soft: rgba(183, 149, 39, 0.2);
+}
+
 /* Typography utilities */
 .font-display {
   font-family: var(--font-display), Georgia, serif;
