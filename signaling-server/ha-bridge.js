@@ -39,6 +39,10 @@ class HABridge {
     }
   }
 
+  isConfigured() {
+    return Boolean(this.haUrl && this.haToken);
+  }
+
   connect() {
     const wsUrl = this.haUrl.replace(/^http/, "ws") + "/api/websocket";
     console.log(`[ha-bridge] Connecting to ${wsUrl}`);
@@ -247,6 +251,22 @@ class HABridge {
         }
       }
     }
+  }
+
+  getStates(entityIds) {
+    const requestedIds = Array.isArray(entityIds) && entityIds.length > 0
+      ? entityIds
+      : [...this.entityStates.keys()];
+    const states = [];
+
+    for (const entityId of requestedIds) {
+      const entity = this.entityStates.get(entityId);
+      if (entity) {
+        states.push(this.formatEntityState(entity));
+      }
+    }
+
+    return states;
   }
 
   // Expose entity list for discovery

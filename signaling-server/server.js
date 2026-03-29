@@ -1,22 +1,114 @@
 const { createServer } = require("http");
 const { Server } = require("socket.io");
 const { HABridge } = require("./ha-bridge");
+const { CampusHubHAProxy } = require("./campus-hub-ha");
 
 const PORT = process.env.PORT || 3030;
 const CORS_ORIGIN = process.env.CORS_ORIGIN || "*";
+const campusHubHA = new CampusHubHAProxy();
+
+function jsonResponse(res, status, data, extraHeaders = {}) {
+  res.writeHead(status, {
+    "Content-Type": "application/json",
+    ...extraHeaders,
+  });
+  res.end(JSON.stringify(data));
+}
+
+function corsHeaders(extraHeaders = {}) {
+  return {
+    "Access-Control-Allow-Origin": CORS_ORIGIN,
+    ...extraHeaders,
+  };
+}
+
+function parseRequestUrl(requestUrl = "/") {
+  return new URL(requestUrl, `http://localhost:${PORT}`);
+}
+
+function getRequestedEntityIds(requestUrl = "/") {
+  const params = parseRequestUrl(requestUrl).searchParams;
+  const requestedIds = new Set();
+
+  for (const entityId of params.getAll("entity_id")) {
+    const trimmed = entityId.trim();
+    if (trimmed) requestedIds.add(trimmed);
+  }
+
+  const csvIds = params.get("entity_ids");
+  if (csvIds) {
+    for (const entityId of csvIds.split(",")) {
+      const trimmed = entityId.trim();
+      if (trimmed) requestedIds.add(trimmed);
+    }
+  }
+
+  return [...requestedIds];
+}
+
+function filterEntitiesByDomain(entities, domain) {
+  if (!domain) return entities;
+  return entities.filter((entity) => entity.entity_id?.startsWith(`${domain}.`));
+}
+
+async function getHAEntities(requestUrl = "/") {
+  const domain = parseRequestUrl(requestUrl).searchParams.get("domain") || undefined;
+
+  if (campusHubHA.isConfigured()) {
+    const payload = await campusHubHA.request("/api/campus_hub_bridge/entities", requestUrl);
+    return filterEntitiesByDomain(payload.entities || [], domain);
+  }
+
+  return haBridge ? haBridge.getEntities(domain) : [];
+}
+
+async function getHAStatePayload(requestUrl = "/") {
+  if (campusHubHA.isConfigured()) {
+    return {
+      ...(await campusHubHA.request("/api/campus_hub_bridge/state", requestUrl)),
+      source: "campus-hub-ha",
+    };
+  }
+
+  const requestedEntityIds = getRequestedEntityIds(requestUrl);
+  const states = haBridge ? haBridge.getStates(requestedEntityIds) : [];
+
+  return {
+    source: "raw-ha-websocket",
+    requested_entity_ids: requestedEntityIds,
+    states,
+    count: states.length,
+  };
+}
+
+async function getHAHealthPayload() {
+  if (campusHubHA.isConfigured()) {
+    return {
+      ...(await campusHubHA.request("/api/campus_hub_bridge/health")),
+      source: "campus-hub-ha",
+    };
+  }
+
+  const entityCount = haBridge ? haBridge.getEntities().length : 0;
+  return {
+    ok: haBridge ? haBridge.connected : false,
+    entity_count: entityCount,
+    source: "raw-ha-websocket",
+  };
+}
 
 const httpServer = createServer((req, res) => {
   // Health check & connections API
   if (req.method === "GET" && req.url === "/health") {
-    res.writeHead(200, { "Content-Type": "application/json" });
-    return res.end(JSON.stringify({ status: "ok", displays: displays.size, controllers: controllers.size }));
+    return jsonResponse(res, 200, {
+      status: "ok",
+      displays: displays.size,
+      controllers: controllers.size,
+      homeAssistantMode: campusHubHA.isConfigured() ? "campus-hub-ha" : "raw-ha-websocket",
+    });
   }
 
   if (req.method === "GET" && req.url === "/displays") {
-    res.writeHead(200, {
-      "Content-Type": "application/json",
-      "Access-Control-Allow-Origin": CORS_ORIGIN,
-    });
     const list = [];
     for (const [id, display] of displays) {
       list.push({
@@ -28,18 +120,41 @@ const httpServer = createServer((req, res) => {
         controllerCount: display.controllers.size,
       });
     }
-    return res.end(JSON.stringify(list));
+    return jsonResponse(res, 200, list, corsHeaders());
+  }
+
+  if (req.method === "GET" && req.url?.startsWith("/ha/health")) {
+    void (async () => {
+      try {
+        jsonResponse(res, 200, await getHAHealthPayload(), corsHeaders());
+      } catch (err) {
+        jsonResponse(res, 502, { error: err.message }, corsHeaders());
+      }
+    })();
+    return;
   }
 
   // HA entity discovery — GET /ha/entities?domain=sensor
   if (req.method === "GET" && req.url?.startsWith("/ha/entities")) {
-    res.writeHead(200, {
-      "Content-Type": "application/json",
-      "Access-Control-Allow-Origin": CORS_ORIGIN,
-    });
-    const params = new URL(req.url, `http://localhost:${PORT}`).searchParams;
-    const domain = params.get("domain") || undefined;
-    return res.end(JSON.stringify(haBridge ? haBridge.getEntities(domain) : []));
+    void (async () => {
+      try {
+        jsonResponse(res, 200, await getHAEntities(req.url), corsHeaders());
+      } catch (err) {
+        jsonResponse(res, 502, { error: err.message }, corsHeaders());
+      }
+    })();
+    return;
+  }
+
+  if (req.method === "GET" && req.url?.startsWith("/ha/state")) {
+    void (async () => {
+      try {
+        jsonResponse(res, 200, await getHAStatePayload(req.url), corsHeaders());
+      } catch (err) {
+        jsonResponse(res, 502, { error: err.message }, corsHeaders());
+      }
+    })();
+    return;
   }
 
   // Server-side config push — used by campus-hub-cloud's Convex actions
@@ -53,21 +168,12 @@ const httpServer = createServer((req, res) => {
         if (display) {
           console.log(`[push-config] HTTP POST -> "${displayId}"`);
           display.socket.emit("apply-config", { config, from: "cloud" });
-          res.writeHead(200, {
-            "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": CORS_ORIGIN,
-          });
-          res.end(JSON.stringify({ ok: true }));
+          jsonResponse(res, 200, { ok: true }, corsHeaders());
         } else {
-          res.writeHead(404, {
-            "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": CORS_ORIGIN,
-          });
-          res.end(JSON.stringify({ error: "Display not connected" }));
+          jsonResponse(res, 404, { error: "Display not connected" }, corsHeaders());
         }
       } catch (err) {
-        res.writeHead(400, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ error: "Invalid JSON" }));
+        jsonResponse(res, 400, { error: "Invalid JSON" });
       }
     });
     return;
@@ -208,8 +314,17 @@ io.on("connection", (socket) => {
 
   // === HOME ASSISTANT BRIDGE ===
   socket.on("ha-subscribe", ({ entityIds } = {}) => {
-    if (Array.isArray(entityIds)) {
+    if (!Array.isArray(entityIds) || entityIds.length === 0) return;
+
+    if (haBridge.isConfigured()) {
       haBridge.subscribe(socket.id, entityIds);
+      return;
+    }
+
+    if (campusHubHA.isConfigured()) {
+      socket.emit("ha-error", {
+        message: "Live Home Assistant subscriptions require HA_URL and HA_TOKEN on the signaling server. Use HTTP mode with /ha/state when sourcing data from campus-hub-ha.",
+      });
     }
   });
 
@@ -218,14 +333,26 @@ io.on("connection", (socket) => {
   });
 
   socket.on("ha-call-service", ({ domain, service, data, target } = {}) => {
-    if (domain && service) {
+    if (haBridge.isConfigured() && domain && service) {
       haBridge.callService(socket.id, domain, service, data, target);
+      return;
+    }
+
+    if (campusHubHA.isConfigured()) {
+      socket.emit("ha-error", {
+        message: "campus-hub-ha is read-only. Service calls must go through the raw Home Assistant websocket bridge.",
+      });
     }
   });
 
-  socket.on("ha-get-entities", ({ domain } = {}) => {
-    const entities = haBridge.getEntities(domain);
-    socket.emit("ha-entities", { entities });
+  socket.on("ha-get-entities", async ({ domain } = {}) => {
+    try {
+      const query = domain ? `/ha/entities?domain=${encodeURIComponent(domain)}` : "/ha/entities";
+      const entities = await getHAEntities(query);
+      socket.emit("ha-entities", { entities });
+    } catch (err) {
+      socket.emit("ha-error", { message: err.message });
+    }
   });
 
   // === GENERIC MESSAGE (for future extensibility) ===
