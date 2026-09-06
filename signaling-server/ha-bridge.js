@@ -12,6 +12,8 @@
  * Environment variables:
  *   HA_URL       — Home Assistant URL (e.g. http://homeassistant.local:8123)
  *   HA_TOKEN     — Long-lived access token from HA
+ *
+ * Service calls are gated by HA_ALLOWED_SERVICES in server.js.
  */
 
 const WebSocket = require("ws");
@@ -54,8 +56,18 @@ class HABridge {
     });
 
     this.ws.on("message", (data) => {
-      const msg = JSON.parse(data.toString());
-      this.handleMessage(msg);
+      let msg;
+      try {
+        msg = JSON.parse(data.toString());
+      } catch (err) {
+        console.error("[ha-bridge] Ignoring malformed frame from Home Assistant:", err.message);
+        return;
+      }
+      try {
+        this.handleMessage(msg);
+      } catch (err) {
+        console.error("[ha-bridge] Error handling frame:", err.message);
+      }
     });
 
     this.ws.on("close", () => {

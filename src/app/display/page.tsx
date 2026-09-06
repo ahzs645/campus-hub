@@ -43,6 +43,21 @@ interface ScreenMap {
   groups?: Record<string, string[]>;
 }
 
+// localStorage key for the signaling shared secret (SIGNALING_AUTH_TOKEN).
+const SIGNALING_TOKEN_STORAGE_KEY = 'campus-hub:signaling-token';
+
+// Only http(s) URLs may be navigated to or fetched from a remotely pushed
+// config. Rejects javascript:, data:, file: etc.
+const isHttpUrl = (value: unknown): value is string => {
+  if (typeof value !== 'string') return false;
+  try {
+    const { protocol } = new URL(value, window.location.origin + '/');
+    return protocol === 'http:' || protocol === 'https:';
+  } catch {
+    return false;
+  }
+};
+
 const resolveUrl = (url: string): string => {
   const trimmed = url.trim();
   if (!trimmed) return '';
@@ -178,17 +193,37 @@ function DisplayContent() {
   // When ?signal=ws://server:3030&displayId=lobby-1 are present,
   // the display connects to the signaling server and listens for
   // remote config pushes and actions from controllers.
+  // The shared secret comes from ?signalingToken=... (persisted to
+  // localStorage so subsequent loads can omit it) or from localStorage.
   useEffect(() => {
     const signalUrl = searchParams.get('signal');
     const displayId = searchParams.get('displayId');
     if (!signalUrl || !displayId) return;
+
+    let token = searchParams.get('signalingToken') || '';
+    try {
+      if (token) {
+        localStorage.setItem(SIGNALING_TOKEN_STORAGE_KEY, token);
+      } else {
+        token = localStorage.getItem(SIGNALING_TOKEN_STORAGE_KEY) || '';
+      }
+    } catch {}
+    if (!token) {
+      console.error('[signaling] No signaling token: pass ?signalingToken=... once (it is remembered in localStorage)');
+      return;
+    }
+
+    // Report the current URL without the secret so it is not echoed to controllers.
+    const reportedUrl = new URL(window.location.href);
+    reportedUrl.searchParams.delete('signalingToken');
 
     let client: SignalingClient | null = null;
 
     const setup = async () => {
       client = createSignalingClient(signalUrl, 'display', displayId, {
         name: searchParams.get('displayName') || displayId,
-        currentConfig: window.location.href,
+        currentConfig: reportedUrl.toString(),
+        token,
       });
 
       client.on('apply-config', async (data) => {
@@ -198,10 +233,20 @@ function DisplayContent() {
         let newConfig: DisplayConfig | null = null;
 
         if (config.type === 'url') {
-          // Navigate to the new display URL
+          // Navigate to the new display URL — http(s) only.
+          if (!isHttpUrl(config.value)) {
+            console.error('[signaling] Ignoring non-http(s) url push');
+            client?.reportStatus({ error: 'Rejected non-http(s) URL' });
+            return;
+          }
           window.location.href = config.value;
           return;
         } else if (config.type === 'configUrl') {
+          if (!isHttpUrl(config.value)) {
+            console.error('[signaling] Ignoring non-http(s) configUrl push');
+            client?.reportStatus({ error: 'Rejected non-http(s) config URL' });
+            return;
+          }
           try {
             const { data: fetched } = await fetchJsonWithCache<DisplayConfig>(
               resolveUrl(config.value),
@@ -213,6 +258,11 @@ function DisplayContent() {
             client?.reportStatus({ error: 'Failed to fetch config URL' });
           }
         } else if (config.type === 'playlistUrl') {
+          if (!isHttpUrl(config.value)) {
+            console.error('[signaling] Ignoring non-http(s) playlistUrl push');
+            client?.reportStatus({ error: 'Rejected non-http(s) playlist URL' });
+            return;
+          }
           // Reload with new playlist
           const url = new URL(window.location.href);
           url.searchParams.set('playlistUrl', config.value);
@@ -255,6 +305,7 @@ function DisplayContent() {
       });
 
       client.on('connected', () => console.log(`[signaling] Connected as display "${displayId}"`));
+      client.on('error', (data) => console.error('[signaling] Error:', data.message));
       client.on('disconnected', () => console.log('[signaling] Disconnected, will reconnect...'));
 
       await client.connect();
