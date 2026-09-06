@@ -48,6 +48,46 @@ Edit the Android build constants in `android/app/build.gradle` to set your Campu
 
 Local network `http://` URLs are supported on Android so the shell can point at a LAN-hosted Campus Hub instance during signage deployments.
 
+## Release Signing
+
+`android/gradle.properties` holds the release keystore credentials read by
+`android/app/build.gradle` and is **git-ignored** (`tv-app/.gitignore`). It is
+not in the repo, so a fresh clone needs it created:
+
+```bash
+cd tv-app/android
+cp gradle.properties.example gradle.properties
+# then edit gradle.properties and fill in:
+#   CAMPUSHUBTV_UPLOAD_STORE_FILE     path to the keystore, relative to android/app/
+#   CAMPUSHUBTV_UPLOAD_KEY_ALIAS
+#   CAMPUSHUBTV_UPLOAD_STORE_PASSWORD
+#   CAMPUSHUBTV_UPLOAD_KEY_PASSWORD
+```
+
+Keep the keystore itself out of the repo too (`*.keystore` is ignored; use a
+name that is ignored or store it outside the tree). Only
+`gradle.properties.example`, with placeholder values, is tracked.
+
+### Secret rotation required
+
+An earlier revision committed the real `android/gradle.properties`, including
+`CAMPUSHUBTV_UPLOAD_STORE_PASSWORD` and `CAMPUSHUBTV_UPLOAD_KEY_PASSWORD`
+(introduced in commit `768b6ce`). Removing the file from the tree does not
+remove it from history, so:
+
+1. Treat those passwords as compromised and rotate them: generate a new upload
+   keystore/key (or at least change both passwords) and, if the key was used for
+   Play Console uploads, request an upload-key reset from Google Play.
+2. Purge the file from history and force-push. This rewrites every commit since
+   `768b6ce` and must be coordinated by the repository owner with anyone who has
+   a clone:
+
+   ```bash
+   git filter-repo --path tv-app/android/gradle.properties --invert-paths
+   git push --force --all
+   git push --force --tags
+   ```
+
 ## Pairing Model
 
 The shipped Android TV pairing flow is **direct local HTTP**:
