@@ -1,11 +1,69 @@
 const { createServer } = require("http");
+const { timingSafeEqual } = require("crypto");
 const { Server } = require("socket.io");
 const { HABridge } = require("./ha-bridge");
 const { CampusHubHAProxy } = require("./campus-hub-ha");
 
 const PORT = process.env.PORT || 3030;
-const CORS_ORIGIN = process.env.CORS_ORIGIN || "*";
+
+// === Shared secret (required) ===
+// Every Socket.IO handshake and every HTTP endpoint except GET /health must
+// present this token. The server refuses to start without it (fail closed).
+const AUTH_TOKEN = (process.env.SIGNALING_AUTH_TOKEN || "").trim();
+if (!AUTH_TOKEN) {
+  console.error(
+    "[signaling] SIGNALING_AUTH_TOKEN is not set. Refusing to start an unauthenticated relay.\n" +
+      "  Generate one with: node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\"\n" +
+      "  Then run with:     SIGNALING_AUTH_TOKEN=<token> npm start"
+  );
+  process.exit(1);
+}
+const AUTH_TOKEN_BUFFER = Buffer.from(AUTH_TOKEN, "utf8");
+
+// === CORS ===
+// No default: cross-origin browser access is denied unless CORS_ORIGIN lists
+// the dashboard origin(s), comma-separated, e.g.
+//   CORS_ORIGIN=https://hub.example.edu,http://localhost:3000
+const ALLOWED_ORIGINS = (process.env.CORS_ORIGIN || "")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+if (ALLOWED_ORIGINS.length === 0) {
+  console.log("[signaling] CORS_ORIGIN not set; cross-origin browser access is disabled");
+}
+
+// === Home Assistant service-call allowlist ===
+// Comma-separated `domain.service` entries. Empty (default) denies all calls.
+const HA_ALLOWED_SERVICES = new Set(
+  (process.env.HA_ALLOWED_SERVICES || "")
+    .split(",")
+    .map((entry) => entry.trim().toLowerCase())
+    .filter(Boolean)
+);
+
+// Maximum accepted body for POST /push-config.
+const MAX_PUSH_CONFIG_BODY_BYTES = 64 * 1024;
+
 const campusHubHA = new CampusHubHAProxy();
+
+function isValidToken(candidate) {
+  if (typeof candidate !== "string") return false;
+  const candidateBuffer = Buffer.from(candidate, "utf8");
+  if (candidateBuffer.length !== AUTH_TOKEN_BUFFER.length) return false;
+  return timingSafeEqual(candidateBuffer, AUTH_TOKEN_BUFFER);
+}
+
+function getBearerToken(req) {
+  const header = req.headers.authorization;
+  if (typeof header !== "string") return null;
+  const match = /^Bearer\s+(.+)$/i.exec(header.trim());
+  return match ? match[1].trim() : null;
+}
+
+function isHAServiceAllowed(domain, service) {
+  if (typeof domain !== "string" || typeof service !== "string") return false;
+  return HA_ALLOWED_SERVICES.has(`${domain}.${service}`.toLowerCase());
+}
 
 function jsonResponse(res, status, data, extraHeaders = {}) {
   res.writeHead(status, {
@@ -15,9 +73,15 @@ function jsonResponse(res, status, data, extraHeaders = {}) {
   res.end(JSON.stringify(data));
 }
 
-function corsHeaders(extraHeaders = {}) {
+// Echo the request origin back only when it is on the allowlist.
+function corsHeaders(req, extraHeaders = {}) {
+  const origin = req.headers.origin;
+  if (typeof origin !== "string" || !ALLOWED_ORIGINS.includes(origin)) {
+    return { ...extraHeaders };
+  }
   return {
-    "Access-Control-Allow-Origin": CORS_ORIGIN,
+    "Access-Control-Allow-Origin": origin,
+    Vary: "Origin",
     ...extraHeaders,
   };
 }
@@ -98,14 +162,36 @@ async function getHAHealthPayload() {
 }
 
 const httpServer = createServer((req, res) => {
-  // Health check & connections API
+  // Health check — the only unauthenticated endpoint. Deliberately does not
+  // leak display or controller details.
   if (req.method === "GET" && req.url === "/health") {
     return jsonResponse(res, 200, {
       status: "ok",
-      displays: displays.size,
-      controllers: controllers.size,
       homeAssistantMode: campusHubHA.isConfigured() ? "campus-hub-ha" : "raw-ha-websocket",
     });
+  }
+
+  // CORS preflight. Browsers send this without credentials, so it cannot be
+  // authenticated; it only reveals CORS policy for allowlisted origins.
+  if (req.method === "OPTIONS") {
+    res.writeHead(
+      204,
+      corsHeaders(req, {
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization",
+      })
+    );
+    return res.end();
+  }
+
+  // Everything below requires `Authorization: Bearer <SIGNALING_AUTH_TOKEN>`.
+  if (!isValidToken(getBearerToken(req))) {
+    return jsonResponse(
+      res,
+      401,
+      { error: "Unauthorized: missing or invalid bearer token" },
+      corsHeaders(req, { "WWW-Authenticate": 'Bearer realm="campus-hub-signaling"' })
+    );
   }
 
   if (req.method === "GET" && req.url === "/displays") {
@@ -120,15 +206,15 @@ const httpServer = createServer((req, res) => {
         controllerCount: display.controllers.size,
       });
     }
-    return jsonResponse(res, 200, list, corsHeaders());
+    return jsonResponse(res, 200, list, corsHeaders(req));
   }
 
   if (req.method === "GET" && req.url?.startsWith("/ha/health")) {
     void (async () => {
       try {
-        jsonResponse(res, 200, await getHAHealthPayload(), corsHeaders());
+        jsonResponse(res, 200, await getHAHealthPayload(), corsHeaders(req));
       } catch (err) {
-        jsonResponse(res, 502, { error: err.message }, corsHeaders());
+        jsonResponse(res, 502, { error: err.message }, corsHeaders(req));
       }
     })();
     return;
@@ -138,9 +224,9 @@ const httpServer = createServer((req, res) => {
   if (req.method === "GET" && req.url?.startsWith("/ha/entities")) {
     void (async () => {
       try {
-        jsonResponse(res, 200, await getHAEntities(req.url), corsHeaders());
+        jsonResponse(res, 200, await getHAEntities(req.url), corsHeaders(req));
       } catch (err) {
-        jsonResponse(res, 502, { error: err.message }, corsHeaders());
+        jsonResponse(res, 502, { error: err.message }, corsHeaders(req));
       }
     })();
     return;
@@ -149,9 +235,9 @@ const httpServer = createServer((req, res) => {
   if (req.method === "GET" && req.url?.startsWith("/ha/state")) {
     void (async () => {
       try {
-        jsonResponse(res, 200, await getHAStatePayload(req.url), corsHeaders());
+        jsonResponse(res, 200, await getHAStatePayload(req.url), corsHeaders(req));
       } catch (err) {
-        jsonResponse(res, 502, { error: err.message }, corsHeaders());
+        jsonResponse(res, 502, { error: err.message }, corsHeaders(req));
       }
     })();
     return;
@@ -159,34 +245,46 @@ const httpServer = createServer((req, res) => {
 
   // Server-side config push — used by campus-hub-cloud's Convex actions
   if (req.method === "POST" && req.url === "/push-config") {
-    let body = "";
-    req.on("data", (chunk) => (body += chunk));
+    const chunks = [];
+    let received = 0;
+    let rejected = false;
+
+    req.on("data", (chunk) => {
+      if (rejected) return;
+      received += chunk.length;
+      if (received > MAX_PUSH_CONFIG_BODY_BYTES) {
+        rejected = true;
+        // Tell the client not to reuse this connection, then drop the
+        // unread remainder of the body once the response has flushed.
+        res.once("finish", () => req.destroy());
+        jsonResponse(
+          res,
+          413,
+          { error: `Body exceeds ${MAX_PUSH_CONFIG_BODY_BYTES} bytes` },
+          corsHeaders(req, { Connection: "close" })
+        );
+        return;
+      }
+      chunks.push(chunk);
+    });
+
     req.on("end", () => {
+      if (rejected) return;
       try {
-        const { displayId, config } = JSON.parse(body);
+        const { displayId, config } = JSON.parse(Buffer.concat(chunks).toString("utf8"));
         const display = displays.get(displayId);
         if (display) {
           console.log(`[push-config] HTTP POST -> "${displayId}"`);
           display.socket.emit("apply-config", { config, from: "cloud" });
-          jsonResponse(res, 200, { ok: true }, corsHeaders());
+          jsonResponse(res, 200, { ok: true }, corsHeaders(req));
         } else {
-          jsonResponse(res, 404, { error: "Display not connected" }, corsHeaders());
+          jsonResponse(res, 404, { error: "Display not connected" }, corsHeaders(req));
         }
-      } catch (err) {
-        jsonResponse(res, 400, { error: "Invalid JSON" });
+      } catch {
+        jsonResponse(res, 400, { error: "Invalid JSON" }, corsHeaders(req));
       }
     });
     return;
-  }
-
-  // CORS preflight for POST endpoints
-  if (req.method === "OPTIONS") {
-    res.writeHead(204, {
-      "Access-Control-Allow-Origin": CORS_ORIGIN,
-      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type",
-    });
-    return res.end();
   }
 
   res.writeHead(404);
@@ -194,10 +292,28 @@ const httpServer = createServer((req, res) => {
 });
 
 const io = new Server(httpServer, {
-  cors: {
-    origin: CORS_ORIGIN,
-    methods: ["GET", "POST"],
-  },
+  ...(ALLOWED_ORIGINS.length > 0
+    ? { cors: { origin: ALLOWED_ORIGINS, methods: ["GET", "POST"] } }
+    : {}),
+});
+
+// Reject any Socket.IO connection that does not present the shared secret in
+// its handshake: io(url, { auth: { token } }).
+// Clients that build the socket from a bare URL (the campus-hub-cloud and
+// widget-sdk signaling clients accept only a server URL) may instead append
+// `?token=<SIGNALING_AUTH_TOKEN>` to that URL; Socket.IO surfaces it as
+// handshake.query.token. Prefer auth.token where the client supports it.
+io.use((socket, next) => {
+  const token = socket.handshake.auth?.token ?? socket.handshake.query?.token;
+  if (!isValidToken(token)) {
+    console.warn(`[auth] rejected socket ${socket.id}: missing or invalid token`);
+    return next(
+      new Error(
+        "Unauthorized: a valid SIGNALING_AUTH_TOKEN must be sent in handshake auth.token (or ?token= on the server URL)"
+      )
+    );
+  }
+  next();
 });
 
 // Home Assistant bridge
@@ -333,7 +449,18 @@ io.on("connection", (socket) => {
   });
 
   socket.on("ha-call-service", ({ domain, service, data, target } = {}) => {
-    if (haBridge.isConfigured() && domain && service) {
+    if (!isHAServiceAllowed(domain, service)) {
+      console.warn(`[ha-bridge] denied service call ${domain}.${service} from ${socket.id} (not in HA_ALLOWED_SERVICES)`);
+      socket.emit("ha-service-result", {
+        domain,
+        service,
+        success: false,
+        error: "Service call not permitted. Add it to HA_ALLOWED_SERVICES on the signaling server.",
+      });
+      return;
+    }
+
+    if (haBridge.isConfigured()) {
       haBridge.callService(socket.id, domain, service, data, target);
       return;
     }
@@ -391,4 +518,7 @@ io.on("connection", (socket) => {
 
 httpServer.listen(PORT, () => {
   console.log(`Campus Hub Signaling Server running on port ${PORT}`);
+  if (HA_ALLOWED_SERVICES.size === 0) {
+    console.log("[ha-bridge] HA_ALLOWED_SERVICES is empty; all Home Assistant service calls are denied");
+  }
 });

@@ -46,6 +46,9 @@ function TVSetupPage() {
   const [connectionMode, setConnectionMode] = useState<ConnectionMode>('direct');
   const [signalingUrl, setSignalingUrl] = useState('');
   const [signalingDisplayId, setSignalingDisplayId] = useState('');
+  // Shared secret matching the server's SIGNALING_AUTH_TOKEN. Prefilled from
+  // ?signalingToken=... so a setup link can carry it.
+  const [signalingToken, setSignalingToken] = useState(() => searchParams.get('signalingToken') ?? '');
   const signalingClientRef = useRef<SignalingClient | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -144,8 +147,8 @@ function TVSetupPage() {
   }, [createPairHeaders, parseTVTarget, stopCamera]);
 
   const connectViaSignaling = useCallback(async () => {
-    if (!signalingUrl.trim() || !signalingDisplayId.trim()) {
-      setError('Please enter the signaling server URL and display ID');
+    if (!signalingUrl.trim() || !signalingDisplayId.trim() || !signalingToken.trim()) {
+      setError('Please enter the signaling server URL, display ID, and signaling token');
       setState('error');
       return;
     }
@@ -154,7 +157,9 @@ function TVSetupPage() {
     stopCamera();
 
     try {
-      const client = createSignalingClient(signalingUrl, 'controller', signalingDisplayId);
+      const client = createSignalingClient(signalingUrl, 'controller', signalingDisplayId, {
+        token: signalingToken.trim(),
+      });
       signalingClientRef.current = client;
 
       client.on('display-online', (data) => {
@@ -199,7 +204,7 @@ function TVSetupPage() {
       setError('Failed to connect to signaling server');
       setState('error');
     }
-  }, [signalingUrl, signalingDisplayId, stopCamera, state]);
+  }, [signalingUrl, signalingDisplayId, signalingToken, stopCamera, state]);
 
   const startCamera = useCallback(async () => {
     setState('scanning');
@@ -672,6 +677,14 @@ function TVSetupPage() {
                 value={signalingDisplayId}
                 onChange={(e) => setSignalingDisplayId(e.target.value)}
                 placeholder="Display ID (e.g. lobby-tv-1)"
+                className="w-full px-3 py-2.5 bg-black/30 border border-white/10 rounded-lg text-sm text-white placeholder:text-white/20 outline-none focus:border-[#B79527]/50 transition-colors"
+              />
+              <input
+                type="password"
+                autoComplete="off"
+                value={signalingToken}
+                onChange={(e) => setSignalingToken(e.target.value)}
+                placeholder="Signaling token (SIGNALING_AUTH_TOKEN)"
                 className="w-full px-3 py-2.5 bg-black/30 border border-white/10 rounded-lg text-sm text-white placeholder:text-white/20 outline-none focus:border-[#B79527]/50 transition-colors"
               />
               <button

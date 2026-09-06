@@ -1,3 +1,7 @@
+# Copy this file to gradle.properties and fill in your own values.
+# gradle.properties is git-ignored (see tv-app/.gitignore) because it holds
+# the release signing credentials. Never commit the real file.
+
 # Project-wide Gradle settings.
 
 # IDE (e.g. Android Studio) users:
@@ -22,7 +26,9 @@ org.gradle.jvmargs=-Xmx2048m -XX:MaxMetaspaceSize=512m
 # https://developer.android.com/topic/libraries/support-library/androidx-rn
 android.useAndroidX=true
 
-CAMPUSHUBTV_UPLOAD_STORE_FILE=/Users/ahmadjalil/keys/campushubtv/campushubtv-upload.keystore
-CAMPUSHUBTV_UPLOAD_KEY_ALIAS=campushubtv-upload
-CAMPUSHUBTV_UPLOAD_STORE_PASSWORD=569856
-CAMPUSHUBTV_UPLOAD_KEY_PASSWORD=569856
+# Release (upload) signing config, read by android/app/build.gradle.
+# The keystore path is relative to android/app/. Keystores are git-ignored.
+CAMPUSHUBTV_UPLOAD_STORE_FILE=your-upload-keystore.jks
+CAMPUSHUBTV_UPLOAD_KEY_ALIAS=your-key-alias
+CAMPUSHUBTV_UPLOAD_STORE_PASSWORD=CHANGE_ME
+CAMPUSHUBTV_UPLOAD_KEY_PASSWORD=CHANGE_ME

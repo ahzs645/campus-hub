@@ -4,14 +4,17 @@
  * Lightweight client for connecting displays and controllers
  * to the signaling server via Socket.IO.
  *
+ * The server requires a shared secret (SIGNALING_AUTH_TOKEN). Pass it as
+ * `options.token`; it is sent in the Socket.IO handshake `auth` payload.
+ *
  * Usage (display):
- *   const client = createSignalingClient("ws://server:3030", "display", "lobby-tv-1");
+ *   const client = createSignalingClient("ws://server:3030", "display", "lobby-tv-1", { token });
  *   client.on("apply-config", ({ config }) => { ... });
  *   client.on("apply-action", ({ action }) => { ... });
  *   client.connect();
  *
  * Usage (controller):
- *   const client = createSignalingClient("ws://server:3030", "controller", "lobby-tv-1");
+ *   const client = createSignalingClient("ws://server:3030", "controller", "lobby-tv-1", { token });
  *   client.on("display-online", (info) => { ... });
  *   client.pushConfig({ type: "url", value: "https://..." });
  *   client.connect();
@@ -26,8 +29,16 @@ interface SignalingConfig {
 
 type EventCallback = (data: Record<string, unknown>) => void;
 
+interface SignalingClientOptions {
+  name?: string;
+  currentConfig?: string;
+  autoReconnect?: boolean;
+  /** Shared secret matching the server's SIGNALING_AUTH_TOKEN. */
+  token?: string;
+}
+
 interface SignalingClient {
-  connect: () => void;
+  connect: () => Promise<void>;
   disconnect: () => void;
   on: (event: string, callback: EventCallback) => void;
   off: (event: string, callback: EventCallback) => void;
@@ -47,14 +58,26 @@ function createSignalingClient(
   serverUrl: string,
   role: Role,
   displayId: string,
-  options: { name?: string; currentConfig?: string; autoReconnect?: boolean } = {}
+  options: SignalingClientOptions = {}
 ): SignalingClient {
-  const { name, currentConfig, autoReconnect = true } = options;
+  const { name, currentConfig, autoReconnect = true, token } = options;
 
   const listeners = new Map<string, Set<EventCallback>>();
   let socket: ReturnType<typeof import("socket.io-client").io> | null = null;
   let connected = false;
   let heartbeatInterval: ReturnType<typeof setInterval> | null = null;
+  // Incremented by every connect()/disconnect(). A socket created by a
+  // connect() call whose generation is no longer current (because disconnect()
+  // ran while the dynamic import was pending) is closed immediately instead of
+  // leaking.
+  let generation = 0;
+
+  function stopHeartbeat() {
+    if (heartbeatInterval) {
+      clearInterval(heartbeatInterval);
+      heartbeatInterval = null;
+    }
+  }
 
   function emit(event: string, data: Record<string, unknown>) {
     const cbs = listeners.get(event);
@@ -71,35 +94,54 @@ function createSignalingClient(
   }
 
   async function connect() {
+    // Close any socket from a previous connect() before opening another.
+    disconnect();
+    const myGeneration = ++generation;
+
     // Dynamic import — socket.io-client is only loaded when signaling is used
     const { io } = await import("socket.io-client");
 
-    socket = io(serverUrl, {
+    // disconnect() (or another connect()) ran while the import was pending.
+    if (myGeneration !== generation) return;
+
+    const newSocket = io(serverUrl, {
       reconnection: autoReconnect,
       reconnectionAttempts: Infinity,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 10000,
       transports: ["websocket", "polling"],
+      auth: { token },
     });
+    socket = newSocket;
 
-    socket.on("connect", () => {
+    newSocket.on("connect", () => {
+      if (myGeneration !== generation) {
+        newSocket.disconnect();
+        return;
+      }
       connected = true;
       emit("connected", {});
 
       if (role === "display") {
-        socket!.emit("register-display", { displayId, name, currentConfig });
+        newSocket.emit("register-display", { displayId, name, currentConfig });
         // Start heartbeat every 30s
+        stopHeartbeat();
         heartbeatInterval = setInterval(() => {
-          socket!.emit("display-heartbeat", { displayId });
+          newSocket.emit("display-heartbeat", { displayId });
         }, 30000);
       } else {
-        socket!.emit("join-display", { displayId });
+        newSocket.emit("join-display", { displayId });
       }
     });
 
-    socket.on("disconnect", () => {
+    newSocket.on("connect_error", (err: Error) => {
+      // Surfaced by the server's auth middleware when the token is missing/invalid.
+      emit("error", { message: err.message });
+    });
+
+    newSocket.on("disconnect", () => {
       connected = false;
-      if (heartbeatInterval) clearInterval(heartbeatInterval);
+      stopHeartbeat();
       emit("disconnected", {});
     });
 
@@ -121,12 +163,14 @@ function createSignalingClient(
     ];
 
     for (const event of forwardEvents) {
-      socket.on(event, (data: Record<string, unknown>) => emit(event, data));
+      newSocket.on(event, (data: Record<string, unknown>) => emit(event, data));
     }
   }
 
   function disconnect() {
-    if (heartbeatInterval) clearInterval(heartbeatInterval);
+    // Invalidate any connect() still awaiting its import.
+    generation++;
+    stopHeartbeat();
     socket?.disconnect();
     socket = null;
     connected = false;
@@ -183,4 +227,4 @@ function createSignalingClient(
 }
 
 export { createSignalingClient };
-export type { SignalingClient, SignalingConfig, Role };
+export type { SignalingClient, SignalingClientOptions, SignalingConfig, Role };
