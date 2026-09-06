@@ -299,11 +299,19 @@ const io = new Server(httpServer, {
 
 // Reject any Socket.IO connection that does not present the shared secret in
 // its handshake: io(url, { auth: { token } }).
+// Clients that build the socket from a bare URL (the campus-hub-cloud and
+// widget-sdk signaling clients accept only a server URL) may instead append
+// `?token=<SIGNALING_AUTH_TOKEN>` to that URL; Socket.IO surfaces it as
+// handshake.query.token. Prefer auth.token where the client supports it.
 io.use((socket, next) => {
-  const token = socket.handshake.auth?.token;
+  const token = socket.handshake.auth?.token ?? socket.handshake.query?.token;
   if (!isValidToken(token)) {
     console.warn(`[auth] rejected socket ${socket.id}: missing or invalid token`);
-    return next(new Error("Unauthorized: a valid SIGNALING_AUTH_TOKEN must be sent in handshake auth.token"));
+    return next(
+      new Error(
+        "Unauthorized: a valid SIGNALING_AUTH_TOKEN must be sent in handshake auth.token (or ?token= on the server URL)"
+      )
+    );
   }
   next();
 });

@@ -12,7 +12,7 @@ unauthenticated.
 
 | Variable | Required | Purpose |
 |----------|----------|---------|
-| `SIGNALING_AUTH_TOKEN` | **yes** | Shared secret. The server refuses to start without it. Every Socket.IO connection must send it as `auth.token` in the handshake; every HTTP endpoint except `GET /health` requires `Authorization: Bearer <token>`. |
+| `SIGNALING_AUTH_TOKEN` | **yes** | Shared secret. The server refuses to start without it. Every Socket.IO connection must send it as `auth.token` in the handshake (or as `?token=<token>` on the server URL, for clients that only take a URL); every HTTP endpoint except `GET /health` requires `Authorization: Bearer <token>`. |
 | `CORS_ORIGIN` | for browser clients | Comma-separated list of dashboard origins allowed to connect cross-origin, e.g. `https://hub.example.edu,http://localhost:3000`. There is no default: when unset, cross-origin browser access is denied. |
 | `HA_ALLOWED_SERVICES` | for HA service calls | Comma-separated `domain.service` allowlist for `ha-call-service`, e.g. `light.turn_on,light.turn_off,switch.toggle`. Default is empty, which denies **all** service calls. |
 
@@ -28,6 +28,9 @@ Clients supply the token like this:
   The token is stored in `localStorage` (`campus-hub:signaling-token`) so later loads may omit it.
 - TV setup page (`/tv-setup`): enter it in the **Signaling token** field next to the server URL,
   or open `/tv-setup?signalingToken=<token>` to prefill it.
+- Campus Hub Cloud and widget-sdk signaling clients (Home Assistant widget in `signaling` mode, cloud
+  `signaling` display mode): they only accept a server URL, so append the token to it:
+  `ws://server:3030/?token=<token>`.
 - HTTP callers (e.g. `POST /push-config` from campus-hub-cloud): send
   `Authorization: Bearer <token>`. The `POST /push-config` body is limited to 64 KB.
 
