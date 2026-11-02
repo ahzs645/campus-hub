@@ -234,9 +234,39 @@ body {
   z-index: 10;
 }
 
-.grid-stack-item:hover > .grid-stack-item-content {
-  outline: 2px solid var(--color-accent);
-  outline-offset: 2px;
+/* ── Editor selection ring & resize handles ──
+   One thin ring sits just outside the widget. Every resize handle is centred
+   ON that ring, so the chrome never paints over the widget's own content or
+   its controls (the options button lives inside the top-right corner).
+
+   - Corners: small white squares with an accent border.
+   - Edges: invisible hit strips that run the full length between the
+     corners, with a short pill grip in the middle. The grip's length is a
+     percentage of the edge (clamped), so it stays proportional on a tall
+     card and on a one-row ticker alike.
+
+   GridStack's own stylesheet rotates the corner handles 45deg (for its arrow
+   icon) — that rotation is what turned our squares into diamonds, so it is
+   explicitly reset here. */
+.grid-stack {
+  --sel-ring: 2px;      /* ring thickness */
+  --sel-gap: 2px;       /* space between the widget and the ring */
+  --sel-corner: 10px;   /* painted corner square */
+  --sel-hit: 12px;      /* thickness of an edge's grab strip */
+  --sel-grip: 5px;      /* thickness of an edge's visible pill */
+  /* Centre line of the ring, measured outward from the widget's edge. */
+  --sel-line: calc(var(--sel-gap) + var(--sel-ring) / 2);
+  /* The ring follows the widget's rounded corners, so a corner handle is
+     pulled in along the diagonal onto the curve: r * (1 - 1/sqrt(2)). */
+  --sel-radius: calc(0.75rem + var(--sel-line));
+  --sel-corner-pull: calc(var(--sel-radius) * 0.2929);
+}
+
+.grid-stack-item:hover > .grid-stack-item-content,
+/* Selected widgets keep the ring, so a shift-click selection stays legible. */
+.grid-stack-item:has([data-selected="true"]) > .grid-stack-item-content {
+  outline: var(--sel-ring) solid var(--color-accent);
+  outline-offset: var(--sel-gap);
 }
 
 .grid-stack-placeholder > .placeholder-content {
@@ -246,114 +276,130 @@ body {
   border: 2px dashed var(--color-accent);
 }
 
-/* Resize handles - always visible with larger hit areas */
-.ui-resizable-handle {
-  background: var(--color-accent);
+.grid-stack-item > .ui-resizable-handle {
+  background: none !important;
+  transform: none !important;
   opacity: 0;
-  transition: opacity 0.2s;
-  z-index: 1000 !important;
   pointer-events: none;
+  transition: opacity 0.15s;
+  z-index: 1000 !important;
 }
 
-.grid-stack-item:hover .ui-resizable-handle {
-  opacity: 0.8;
+/* GridStack's autoHide only toggles display on mouseover; visibility is
+   driven by opacity below instead, so a selected widget keeps its handles. */
+.grid-stack-item.ui-resizable-autohide > .ui-resizable-handle { display: block; }
+
+.grid-stack-item:hover > .ui-resizable-handle,
+.grid-stack-item:has([data-selected="true"]) > .ui-resizable-handle,
+.grid-stack-item.ui-resizable-resizing > .ui-resizable-handle {
+  opacity: 1;
   pointer-events: auto;
 }
 
-.grid-stack-item:hover .ui-resizable-handle:hover {
-  opacity: 1;
-  transform: scale(1.1);
+/* Corners */
+.grid-stack-item > .ui-resizable-nw,
+.grid-stack-item > .ui-resizable-ne,
+.grid-stack-item > .ui-resizable-sw,
+.grid-stack-item > .ui-resizable-se {
+  width: var(--sel-corner) !important;
+  height: var(--sel-corner) !important;
+  box-sizing: border-box;
+  background: #fff !important;
+  border: var(--sel-ring) solid var(--color-accent);
+  border-radius: 3px;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.4);
 }
-
-/* SE corner - main resize handle */
-.ui-resizable-se {
-  width: 20px !important;
-  height: 20px !important;
-  right: 0 !important;
-  bottom: 0 !important;
-  cursor: se-resize;
-  border-radius: 4px 0 8px 0;
-  background: var(--color-accent) !important;
+/* A slightly larger invisible target than the painted square. */
+.grid-stack-item > .ui-resizable-nw::before,
+.grid-stack-item > .ui-resizable-ne::before,
+.grid-stack-item > .ui-resizable-sw::before,
+.grid-stack-item > .ui-resizable-se::before {
+  content: '';
+  position: absolute;
+  inset: -5px;
 }
-
-/* SW corner */
-.ui-resizable-sw {
-  width: 20px !important;
-  height: 20px !important;
-  left: 0 !important;
-  bottom: 0 !important;
-  cursor: sw-resize;
-  border-radius: 0 4px 0 8px;
-  background: var(--color-accent) !important;
+.grid-stack-item > .ui-resizable-nw,
+.grid-stack-item > .ui-resizable-ne {
+  top: calc(var(--gs-item-margin-top, 0px) - var(--sel-line) + var(--sel-corner-pull) - var(--sel-corner) / 2) !important;
 }
-
-/* East edge */
-.ui-resizable-e {
-  width: 8px !important;
-  right: 0 !important;
-  top: 24px !important;
-  bottom: 24px !important;
-  cursor: ew-resize;
-  border-radius: 4px 0 0 4px;
-  background: var(--color-accent) !important;
+.grid-stack-item > .ui-resizable-sw,
+.grid-stack-item > .ui-resizable-se {
+  bottom: calc(var(--gs-item-margin-bottom, 0px) - var(--sel-line) + var(--sel-corner-pull) - var(--sel-corner) / 2) !important;
 }
-
-/* West edge */
-.ui-resizable-w {
-  width: 8px !important;
-  left: 0 !important;
-  top: 24px !important;
-  bottom: 24px !important;
-  cursor: ew-resize;
-  border-radius: 0 4px 4px 0;
-  background: var(--color-accent) !important;
+.grid-stack-item > .ui-resizable-nw,
+.grid-stack-item > .ui-resizable-sw {
+  left: calc(var(--gs-item-margin-left, 0px) - var(--sel-line) + var(--sel-corner-pull) - var(--sel-corner) / 2) !important;
 }
+.grid-stack-item > .ui-resizable-ne,
+.grid-stack-item > .ui-resizable-se {
+  right: calc(var(--gs-item-margin-right, 0px) - var(--sel-line) + var(--sel-corner-pull) - var(--sel-corner) / 2) !important;
+}
+.grid-stack-item > .ui-resizable-nw { cursor: nwse-resize; }
+.grid-stack-item > .ui-resizable-se { cursor: nwse-resize; }
+.grid-stack-item > .ui-resizable-ne { cursor: nesw-resize; }
+.grid-stack-item > .ui-resizable-sw { cursor: nesw-resize; }
 
-/* South edge */
-.ui-resizable-s {
-  height: 8px !important;
-  bottom: 0 !important;
-  left: 24px !important;
-  right: 24px !important;
+/* Edges: full-length hit strip between the corners, centred on the ring. */
+.grid-stack-item > .ui-resizable-n,
+.grid-stack-item > .ui-resizable-s {
+  height: var(--sel-hit) !important;
+  left: calc(var(--gs-item-margin-left, 0px) + var(--sel-corner)) !important;
+  right: calc(var(--gs-item-margin-right, 0px) + var(--sel-corner)) !important;
   cursor: ns-resize;
-  border-radius: 4px 4px 0 0;
-  background: var(--color-accent) !important;
+}
+.grid-stack-item > .ui-resizable-n {
+  top: calc(var(--gs-item-margin-top, 0px) - var(--sel-line) - var(--sel-hit) / 2) !important;
+}
+.grid-stack-item > .ui-resizable-s {
+  bottom: calc(var(--gs-item-margin-bottom, 0px) - var(--sel-line) - var(--sel-hit) / 2) !important;
+}
+.grid-stack-item > .ui-resizable-e,
+.grid-stack-item > .ui-resizable-w {
+  width: var(--sel-hit) !important;
+  top: calc(var(--gs-item-margin-top, 0px) + var(--sel-corner)) !important;
+  bottom: calc(var(--gs-item-margin-bottom, 0px) + var(--sel-corner)) !important;
+  cursor: ew-resize;
+}
+.grid-stack-item > .ui-resizable-e {
+  right: calc(var(--gs-item-margin-right, 0px) - var(--sel-line) - var(--sel-hit) / 2) !important;
+}
+.grid-stack-item > .ui-resizable-w {
+  left: calc(var(--gs-item-margin-left, 0px) - var(--sel-line) - var(--sel-hit) / 2) !important;
 }
 
-/* North edge - for expanding up */
-.ui-resizable-n {
-  height: 8px !important;
-  top: 0 !important;
-  left: 24px !important;
-  right: 24px !important;
-  cursor: ns-resize;
-  border-radius: 0 0 4px 4px;
-  background: var(--color-accent) !important;
+/* The visible grip, sized relative to its edge. */
+.grid-stack-item > .ui-resizable-n::after,
+.grid-stack-item > .ui-resizable-s::after,
+.grid-stack-item > .ui-resizable-e::after,
+.grid-stack-item > .ui-resizable-w::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  box-sizing: border-box;
+  background: #fff;
+  border: var(--sel-ring) solid var(--color-accent);
+  border-radius: 999px;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.4);
+  transition: background-color 0.15s;
+}
+.grid-stack-item > .ui-resizable-n::after,
+.grid-stack-item > .ui-resizable-s::after {
+  width: clamp(14px, 18%, 40px);
+  height: var(--sel-grip);
+}
+.grid-stack-item > .ui-resizable-e::after,
+.grid-stack-item > .ui-resizable-w::after {
+  width: var(--sel-grip);
+  height: clamp(14px, 18%, 40px);
 }
 
-/* NE corner */
-.ui-resizable-ne {
-  width: 20px !important;
-  height: 20px !important;
-  right: 0 !important;
-  top: 0 !important;
-  cursor: ne-resize;
-  border-radius: 0 8px 0 4px;
-  background: var(--color-accent) !important;
+.grid-stack-item > .ui-resizable-handle:hover,
+.grid-stack-item > .ui-resizable-handle:hover::after {
+  background-color: var(--color-accent) !important;
 }
 
-/* NW corner */
-.ui-resizable-nw {
-  width: 20px !important;
-  height: 20px !important;
-  left: 0 !important;
-  top: 0 !important;
-  cursor: nw-resize;
-  border-radius: 8px 0 4px 0;
-  background: var(--color-accent) !important;
-}
-
-/* Active drag/resize state */
 .grid-stack-item.ui-draggable-dragging,
 .grid-stack-item.ui-resizable-resizing {
   z-index: 1000 !important;
@@ -361,73 +407,25 @@ body {
 
 .grid-stack-item.ui-draggable-dragging > .grid-stack-item-content,
 .grid-stack-item.ui-resizable-resizing > .grid-stack-item-content {
-  outline: 3px solid var(--color-accent) !important;
+  outline: var(--sel-ring) solid var(--color-accent) !important;
+  outline-offset: var(--sel-gap);
   box-shadow: 0 10px 40px rgba(0,0,0,0.5);
 }
 
-/* Drag handle styling */
+/* The move target. It stays inset from the edges so the resize strips get
+   the pointer there; the ring already shows the selection, so it paints
+   nothing itself. */
 .gs-drag-handle {
   cursor: move;
   touch-action: none;
-  opacity: 0;
-  transition: opacity 0.2s;
-  border: 1px dashed rgba(255, 255, 255, 0.25);
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 0.5rem;
   pointer-events: none;
 }
 
 .grid-stack-item:hover .gs-drag-handle {
-  opacity: 1;
   pointer-events: auto;
 }
 
-/* Compact widgets: keep drag/resize usable at very small sizes */
-.grid-stack-item.gs-compact .gs-drag-handle {
-  inset: 0;
-}
-
-.grid-stack-item.gs-compact.ui-resizable-autohide > .ui-resizable-handle {
-  display: block;
-}
-
-.grid-stack-item.gs-compact .ui-resizable-handle {
-  opacity: 0;
-}
-
-.grid-stack-item.gs-compact:hover .ui-resizable-handle {
-  opacity: 0.95;
-}
-
-.grid-stack-item.gs-compact .ui-resizable-se,
-.grid-stack-item.gs-compact .ui-resizable-sw,
-.grid-stack-item.gs-compact .ui-resizable-ne,
-.grid-stack-item.gs-compact .ui-resizable-nw {
-  width: 24px !important;
-  height: 24px !important;
-}
-
-.grid-stack-item.gs-compact .ui-resizable-e,
-.grid-stack-item.gs-compact .ui-resizable-w {
-  width: 10px !important;
-}
-
-.grid-stack-item.gs-compact .ui-resizable-s,
-.grid-stack-item.gs-compact .ui-resizable-n {
-  height: 10px !important;
-}
-
-.grid-stack-item.gs-compact .ui-resizable-e,
-.grid-stack-item.gs-compact .ui-resizable-w {
-  top: 6px !important;
-  bottom: 6px !important;
-}
-
-.grid-stack-item.gs-compact .ui-resizable-s,
-.grid-stack-item.gs-compact .ui-resizable-n {
-  left: 6px !important;
-  right: 6px !important;
-}
+.grid-stack-item.gs-compact .gs-drag-handle { inset: 0; }
 
 /* Grid lines (subtle) */
 .gs-wrapper {
