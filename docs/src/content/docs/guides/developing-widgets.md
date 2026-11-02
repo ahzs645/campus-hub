@@ -4,194 +4,70 @@ description: How to create custom widgets for Campus Hub.
 draft: false
 ---
 
-Widgets are self-contained React components that register themselves into a central registry. Each widget lives in its own directory under `src/widgets/` and consists of two files: a **component** and an optional **options panel**.
+Widgets no longer live in this repository. Each widget belongs to a **widget
+package** built with the
+[Campus Hub Widget SDK](https://github.com/ahzs645/campus-hub-widget-sdk), and the
+host app discovers every installed package at build time. The built-in widgets
+are in [campus-hub-widgets](https://github.com/ahzs645/campus-hub-widgets),
+checked out here as the `packages/campus-hub-widgets` submodule.
 
-## Directory structure
+The full contract, dependency rules and a copyable starter package are in the
+SDK's
+[Building a Campus Hub widget](https://github.com/ahzs645/campus-hub-widget-sdk/blob/main/docs/authoring-widgets.md)
+guide. This page is a short orientation.
+
+## Layout of a widget
 
 ```
-src/widgets/
-  my-widget/
-    MyWidget.tsx          # The display component
-    MyWidgetOptions.tsx   # Options panel for the configurator (optional)
+packages/<category>/src/<widget>/
+  meta.ts               manifest + loaders; no component or library imports
+  <Widget>.tsx          the component, reached only through meta's load()
+  <Widget>Options.tsx   optional options panel, reached through loadOptions()
 ```
 
-## Step 1 — Create the widget component
+`meta.ts` declares the widget with `defineWidget`:
 
-Every widget component receives three props:
+```ts
+import { defineWidget } from '@firstform/campus-hub-widget-sdk';
 
-```typescript
-interface WidgetComponentProps {
-  config?: Record<string, unknown>;   // Widget-specific settings
-  theme: {
-    primary: string;    // e.g. "#035642"
-    accent: string;     // e.g. "#B79527"
-    background: string; // e.g. "#022b21"
-  };
-  corsProxy?: string;   // Global CORS proxy URL (if configured)
-}
-```
-
-Create `src/widgets/my-widget/MyWidget.tsx`:
-
-```tsx
-'use client';
-
-import { registerWidget } from '@/lib/widget-registry';
-
-interface MyWidgetConfig {
-  label?: string;
-  refreshSeconds?: number;
-}
-
-function MyWidget({ config, theme }: {
-  config?: Record<string, unknown>;
-  theme: { primary: string; accent: string; background: string };
-}) {
-  const { label = 'Hello', refreshSeconds = 30 } = (config ?? {}) as MyWidgetConfig;
-
-  return (
-    <div
-      className="h-full w-full flex items-center justify-center rounded-xl p-4"
-      style={{ backgroundColor: `${theme.primary}60`, color: theme.accent }}
-    >
-      <span className="text-2xl font-bold">{label}</span>
-    </div>
-  );
-}
-
-// Register immediately on import
-registerWidget({
-  type: 'my-widget',
-  name: 'My Widget',
-  description: 'A custom widget example',
-  icon: 'sparkles',       // Lucide icon name (see src/lib/icon-names.ts)
-  minW: 2,                // Minimum grid columns
-  minH: 1,                // Minimum grid rows
-  defaultW: 4,            // Default width when added
-  defaultH: 2,            // Default height when added
-  component: MyWidget,
-  defaultProps: {
-    label: 'Hello World',
-    refreshSeconds: 30,
+export default defineWidget({
+  manifest: {
+    type: 'my-widget',
+    name: 'My Widget',
+    description: 'A custom widget',
+    icon: 'puzzle',
+    minW: 2, minH: 2, defaultW: 3, defaultH: 2,
+    defaultProps: { label: 'Hello' },
   },
-});
-
-export default MyWidget;
-```
-
-### Key points
-
-- Call `registerWidget()` at the module's top level — it runs when the file is imported.
-- The `type` string must be unique across all widgets.
-- `icon` references a Lucide icon name. Check `src/lib/icon-names.ts` for the full list.
-- `minW`/`minH` constrain the smallest size in the grid editor.
-- `defaultProps` are the initial values when the widget is first added.
-
-## Step 2 — Create the options panel (optional)
-
-If your widget has configurable properties, create an options component:
-
-```tsx
-// src/widgets/my-widget/MyWidgetOptions.tsx
-import { FormInput, FormSwitch } from '@/components/ui';
-
-interface MyWidgetOptionsProps {
-  data: Record<string, unknown>;
-  onChange: (newData: Record<string, unknown>) => void;
-}
-
-export default function MyWidgetOptions({ data, onChange }: MyWidgetOptionsProps) {
-  return (
-    <div className="space-y-4">
-      <FormInput
-        label="Label"
-        value={(data.label as string) ?? ''}
-        onChange={(value) => onChange({ ...data, label: value })}
-      />
-      <FormInput
-        label="Refresh interval (seconds)"
-        type="number"
-        value={String(data.refreshSeconds ?? 30)}
-        onChange={(value) => onChange({ ...data, refreshSeconds: Number(value) })}
-      />
-    </div>
-  );
-}
-```
-
-Then reference it in your registration:
-
-```tsx
-import MyWidgetOptions from './MyWidgetOptions';
-
-registerWidget({
-  // ...other fields
-  OptionsComponent: MyWidgetOptions,
+  load: () => import('./MyWidget'),
+  loadOptions: () => import('./MyWidgetOptions'), // omit if using optionsSchema
 });
 ```
 
-### Built-in form components
+The component receives `WidgetComponentProps` (`config`, `theme`, `corsProxy`, …):
 
-The `@/components/ui` module exports reusable form controls styled to match the configurator:
+```tsx
+import type { WidgetComponentProps } from '@firstform/campus-hub-widget-sdk';
 
-| Component | Purpose |
-|-----------|---------|
-| `FormInput` | Text, number, URL inputs |
-| `FormSelect` | Dropdown selects |
-| `FormSwitch` | Boolean toggle switches |
-
-## Step 3 — Register the import
-
-Add your widget to `src/widgets/index.ts`:
-
-```typescript
-import './my-widget/MyWidget';
-```
-
-This ensures the widget's `registerWidget()` call runs when the application boots.
-
-## Step 4 — Add the type to the config union
-
-Open `src/lib/config.ts` and add your widget type to the `WidgetConfig.type` union:
-
-```typescript
-export interface WidgetConfig {
-  type:
-    | 'clock'
-    | 'poster-carousel'
-    // ...existing types
-    | 'my-widget';  // Add here
-  // ...
+export default function MyWidget({ config, theme }: WidgetComponentProps) {
+  return <div style={{ color: theme.accent }}>{String(config?.label ?? '')}</div>;
 }
 ```
 
-## Fetching external data
+The package's entry registers its widgets with `registerWidgetModule(meta)`, and
+its `package.json` declares `"campusHub": { "widgets": "./src/index.ts" }` so
+hosts discover it on install. There is no registration file to edit in the host.
 
-If your widget needs to fetch data from external APIs, use the caching utilities in `src/lib/data-cache.ts`:
+## Fetching data
 
-```tsx
-import { fetchJsonWithCache, buildProxyUrl, buildCacheKey } from '@/lib/data-cache';
+Use the SDK's cached fetch helpers (`fetchJsonWithCache`, `fetchTextWithCache`,
+`buildCacheKey`, `buildProxyUrl`); see [External Data](/docs/guides/external-data/).
+Show demo data only when no source is configured, always with a visible "Demo"
+badge. When a configured source fails, keep the last good data, or show an
+unavailable state; never fall back to demo data.
 
-// Inside your component:
-const url = buildProxyUrl(corsProxy, 'https://api.example.com/data');
-const { data } = await fetchJsonWithCache(url, {
-  cacheKey: buildCacheKey('my-widget', url),
-  ttlMs: 60_000,       // Cache for 60 seconds
-  allowStale: true,     // Serve stale data if fetch fails
-});
-```
+## Trying a widget here
 
-See the [CORS & Proxies guide](/docs/guides/cors-setup/) for details on proxy configuration.
-
-## Existing widgets as reference
-
-Study these widgets for patterns:
-
-| Widget | Good example of |
-|--------|-----------------|
-| `clock` | Simple self-contained component, timer-based updates |
-| `weather` | External API fetching with CORS proxy |
-| `events-list` | iCal feed parsing, mixed static/dynamic data |
-| `news-ticker` | RSS feed parsing, animation |
-| `poster-carousel` | Image rotation, configurable timing |
-| `bus-connection` | GTFS real-time data, complex rendering |
+Work inside the `packages/campus-hub-widgets` submodule (or point a local
+package at the SDK as the SDK guide describes), run `npm run dev` in this repo,
+and open `/gallery` or `/configure`.
