@@ -4,14 +4,29 @@ A configurable digital signage platform for campus displays. Build custom dashbo
 
 Built with Next.js 16, React 19, Tailwind CSS 4, and GridStack.
 
+## Status
+
+This repo is the **public static demo and companion tooling**: the configurator,
+display renderer and widget gallery exported as a static site
+(campus.ahmadjalil.com), the optional `signaling-server/`, and the TV shell in
+`tv-app/`. The full multi-tenant product (accounts, workspaces, saved sources,
+scheduling, managed displays) is
+[campus-hub-cloud](https://github.com/ahzs645/campus-hub-cloud), which uses the
+same engine, configurator, SDK and widget packages.
+
 ## Project Structure
 
-This is a multi-repo project with three packages:
+The shared packages are git submodules under `packages/`:
 
 ```
-campus-hub/              ← This repo (Next.js app)
-campus-hub-engine/       ← Widget engine & renderer
-campus-hub-configurator/ ← Drag-and-drop layout editor
+campus-hub/                         ← This repo (Next.js app)
+  packages/campus-hub-engine/       ← Widget engine & display renderer
+  packages/campus-hub-configurator/ ← Drag-and-drop layout editor
+  packages/campus-hub-widget-sdk/   ← Widget SDK (manifest, hooks, Vite discovery)
+  packages/campus-hub-widgets/      ← Widget packages (npm workspace)
+  signaling-server/                 ← Optional Socket.IO relay (see below)
+  tv-app/                           ← Android TV shell (see tv-app/README.md)
+  docs/                             ← Astro documentation site
 ```
 
 ### Routes
@@ -24,15 +39,16 @@ campus-hub-configurator/ ← Drag-and-drop layout editor
 
 ## Getting Started
 
-### Prerequisites
+### Clone
 
-Clone all three repos as siblings:
+Clone with the submodules:
 
 ```bash
-git clone https://github.com/ahzs645/campus-hub.git
-git clone https://github.com/ahzs645/campus-hub-engine.git
-git clone https://github.com/ahzs645/campus-hub-configurator.git
+git clone --recurse-submodules https://github.com/ahzs645/campus-hub.git
 ```
+
+For an existing checkout, run `git submodule update --init` (and again after
+pulling a commit that moves a submodule pointer).
 
 ### Install & Run
 
@@ -77,9 +93,29 @@ npm start
 Give the token to a display once via `&signalingToken=<token>` (remembered in
 `localStorage`) and enter it in the **Signaling token** field on `/tv-setup`.
 See [`signaling-server/README.md`](signaling-server/README.md) for the full reference.
+Run its tests with `cd signaling-server && npm test`.
+
+From `/tv-setup`, **Reload**, **Reset Default**, **Identify TV** and **Device Info**
+work over signaling as well as direct pairing. The display acknowledges each
+action, so the controller only reports success once the display has run it.
+**Reset Default** drops the display's config parameters (`config`, `configJson`,
+`configUrl`, `playlistUrl`, `screen`, `screenUrl`) and reloads with the default
+config, keeping its signaling connection.
+
+## Embedding a display (postMessage)
+
+An embedding page can push a config into `/display` with
+`postMessage({ type: 'campus-hub-config', config }, displayOrigin)`. The display
+only accepts the message from the window that embeds it (`window.parent`) or
+opened it (`window.opener`), and only from one of these origins:
+
+- the display's own origin;
+- origins listed in `NEXT_PUBLIC_DISPLAY_ALLOWED_ORIGINS` (comma-separated, set at
+  build time);
+- the origin given as `?parentOrigin=https://example.edu` on the display URL.
 
 ## Deployment
 
-Deployed to GitHub Pages via the `.github/workflows/deploy.yml` workflow. The workflow automatically checks out all three repos and builds the static export.
+Deployed to GitHub Pages via the `.github/workflows/deploy.yml` workflow. The workflow checks out the repo with its submodules (`submodules: recursive`) and builds the static export.
 
 Triggered on push to `main` or manually via workflow dispatch.

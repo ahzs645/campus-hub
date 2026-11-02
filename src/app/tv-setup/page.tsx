@@ -49,7 +49,14 @@ function TVSetupPage() {
   // Shared secret matching the server's SIGNALING_AUTH_TOKEN. Prefilled from
   // ?signalingToken=... so a setup link can carry it.
   const [signalingToken, setSignalingToken] = useState(() => searchParams.get('signalingToken') ?? '');
+  const [deviceInfo, setDeviceInfo] = useState<Record<string, unknown> | null>(null);
   const signalingClientRef = useRef<SignalingClient | null>(null);
+  // Current connection state for long-lived signaling callbacks and timers,
+  // which would otherwise see the value captured when they were created.
+  const stateRef = useRef<ConnectionState>(state);
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -154,57 +161,94 @@ function TVSetupPage() {
     }
 
     setState('connecting');
+    stateRef.current = 'connecting';
+    setDeviceInfo(null);
     stopCamera();
+    signalingClientRef.current?.disconnect();
+
+    const client = createSignalingClient(signalingUrl, 'controller', signalingDisplayId, {
+      token: signalingToken.trim(),
+    });
+    signalingClientRef.current = client;
+
+    const isCurrent = () => signalingClientRef.current === client;
+
+    // Server reached, but the display has not (yet) registered: show the
+    // control panel in a waiting state instead of the spinner.
+    const enterWaitingState = () => {
+      setTVInfo({ url: signalingUrl, device: signalingDisplayId });
+      setConnectionMode('signaling');
+      setState('connected');
+      showStatus('Connected to server. Waiting for display to come online...', 'error');
+    };
+
+    const failConnection = (message: string) => {
+      client.disconnect();
+      if (isCurrent()) signalingClientRef.current = null;
+      setError(message);
+      setState('error');
+    };
+
+    client.on('display-online', (data) => {
+      if (!isCurrent()) return;
+      setTVInfo({
+        url: signalingUrl,
+        device: (data.name as string) || signalingDisplayId,
+        currentUrl: data.currentConfig as string || undefined,
+      });
+      setConnectionMode('signaling');
+      setState('connected');
+      showStatus('Display is online', 'success');
+    });
+
+    client.on('display-offline', () => {
+      if (!isCurrent()) return;
+      // join-display answers with display-offline when the display is not
+      // registered, which also confirms the server accepted our token.
+      if (stateRef.current === 'connecting') enterWaitingState();
+      else showStatus('Display disconnected from signaling server', 'error');
+    });
+
+    client.on('display-status', (data) => {
+      if (!isCurrent()) return;
+      const status = data.status as Record<string, unknown> | undefined;
+      if (!status) return;
+      if (status.info && typeof status.info === 'object') {
+        setDeviceInfo(status.info as Record<string, unknown>);
+      }
+      if (status.error) showStatus(`Display error: ${status.error}`, 'error');
+      else if (status.applied) showStatus('Config applied!', 'success');
+      else if (status.action && status.ok) showStatus(`Display ran "${status.action}"`, 'success');
+    });
+
+    client.on('error', (data) => {
+      if (!isCurrent()) return;
+      const message = (data.message as string) || 'Signaling error';
+      // Before the first answer a connect_error is fatal (bad token, wrong
+      // URL); stop the client so it does not retry forever behind a spinner.
+      if (stateRef.current === 'connecting') failConnection(message);
+      else showStatus(message, 'error');
+    });
 
     try {
-      const client = createSignalingClient(signalingUrl, 'controller', signalingDisplayId, {
-        token: signalingToken.trim(),
-      });
-      signalingClientRef.current = client;
-
-      client.on('display-online', (data) => {
-        setTVInfo({
-          url: signalingUrl,
-          device: (data.name as string) || signalingDisplayId,
-          currentUrl: data.currentConfig as string || undefined,
-        });
-        setConnectionMode('signaling');
-        setState('connected');
-      });
-
-      client.on('display-offline', () => {
-        showStatus('Display disconnected from signaling server', 'error');
-      });
-
-      client.on('display-status', (data) => {
-        const status = data.status as Record<string, unknown>;
-        if (status?.applied) showStatus('Config applied!', 'success');
-        else if (status?.error) showStatus(`Display error: ${status.error}`, 'error');
-      });
-
-      client.on('error', (data) => {
-        showStatus((data.message as string) || 'Signaling error', 'error');
-      });
-
       await client.connect();
-
-      // If display doesn't come online within 8s, show waiting state
-      setTimeout(() => {
-        if (state === 'connecting') {
-          setTVInfo({
-            url: signalingUrl,
-            device: signalingDisplayId,
-          });
-          setConnectionMode('signaling');
-          setState('connected');
-          showStatus('Connected to server. Waiting for display to come online...', 'error');
-        }
-      }, 8000);
     } catch {
-      setError('Failed to connect to signaling server');
-      setState('error');
+      failConnection('Failed to connect to signaling server');
+      return;
     }
-  }, [signalingUrl, signalingDisplayId, signalingToken, stopCamera, state]);
+
+    // connect() resolves once the socket is created, not once it is
+    // connected. If nothing has answered within 8s, give up.
+    setTimeout(() => {
+      if (isCurrent() && stateRef.current === 'connecting') {
+        failConnection(
+          client.isConnected()
+            ? 'Connected to the signaling server, but it did not answer the join request.'
+            : 'Could not reach the signaling server. Check the URL and that it allows this origin (CORS_ORIGIN).'
+        );
+      }
+    }, 8000);
+  }, [signalingUrl, signalingDisplayId, signalingToken, stopCamera]);
 
   const startCamera = useCallback(async () => {
     setState('scanning');
@@ -333,8 +377,14 @@ function TVSetupPage() {
 
     // Signaling mode
     if (connectionMode === 'signaling' && signalingClientRef.current) {
+      if (!signalingClientRef.current.isConnected()) {
+        showStatus('Not connected to the signaling server', 'error');
+        return;
+      }
+      // Success is reported when the display acknowledges via display-status.
+      if (action === 'info') setDeviceInfo(null);
       signalingClientRef.current.pushAction(action);
-      showStatus(`Action "${action}" sent via signaling`, 'success');
+      showStatus(`Sending "${action}" to display...`, 'success');
       return;
     }
 
@@ -354,6 +404,7 @@ function TVSetupPage() {
         showStatus(data.error || 'Request failed', 'error');
         return;
       }
+      if (action === 'info') setDeviceInfo(data);
       showStatus(data.message || 'Done!', 'success');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Connection lost to TV';
@@ -477,6 +528,28 @@ function TVSetupPage() {
                 </button>
               </div>
             </div>
+
+            {/* Device info (from the Device Info action) */}
+            {deviceInfo && (
+              <div className="rounded-xl bg-white/5 border border-white/10 p-5 space-y-2">
+                <div className="flex items-center justify-between">
+                  <h2 className="font-semibold text-white/90 text-sm">Device Info</h2>
+                  <button onClick={() => setDeviceInfo(null)} className="text-xs text-white/30 hover:text-white/60">
+                    Hide
+                  </button>
+                </div>
+                <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
+                  {Object.entries(deviceInfo).map(([key, value]) => (
+                    <div key={key} className="contents">
+                      <dt className="text-white/40">{key}</dt>
+                      <dd className="text-white/70 font-mono break-all">
+                        {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+              </div>
+            )}
 
             {/* Currently displaying */}
             {tvInfo.currentUrl && (

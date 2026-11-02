@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useRef, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import {
   getAllWidgets,
@@ -55,17 +55,22 @@ function getWidgetPreviewSize(widget: WidgetDefinition, scale: number) {
   return { w: Math.round(w), h: Math.round(h) };
 }
 
+// The widget registry is filled by the side-effect import above and does not
+// change afterwards. Read it once on the client; render the empty list on the
+// server so the prerendered HTML matches the first client render.
+const NO_WIDGETS: WidgetDefinition[] = [];
+let registeredWidgets: WidgetDefinition[] | null = null;
+const getRegisteredWidgets = () => (registeredWidgets ??= getAllWidgets());
+const subscribeToRegistry = () => () => {};
+const getServerWidgets = () => NO_WIDGETS;
+
 export default function GalleryPage() {
-  const [widgets, setWidgets] = useState<WidgetDefinition[]>([]);
+  const widgets = useSyncExternalStore(subscribeToRegistry, getRegisteredWidgets, getServerWidgets);
   const [search, setSearch] = useState('');
   const [previewSize, setPreviewSize] = useState<SizePreset>('medium');
   const [playgroundWidget, setPlaygroundWidget] = useState<WidgetDefinition | null>(null);
   const [activeTag, setActiveTag] = useState<string | null>(null);
   const [sortMode, setSortMode] = useState<SortMode>('name');
-
-  useEffect(() => {
-    setWidgets(getAllWidgets());
-  }, []);
 
   const filtered = widgets
     .filter((w) => {
@@ -88,6 +93,13 @@ export default function GalleryPage() {
     });
 
   const scale = BASE_SCALE[previewSize];
+
+  // Widgets without a tag mapping are tagged "Other"; offer it as a filter
+  // whenever such a widget exists so every widget can be reached by tag.
+  const filterTags =
+    !ALL_TAGS.includes('Other') && widgets.some((w) => getWidgetTags(w.type).includes('Other'))
+      ? [...ALL_TAGS, 'Other']
+      : ALL_TAGS;
 
   return (
     <div className="min-h-screen bg-[#0a0a0a]">
@@ -166,7 +178,7 @@ export default function GalleryPage() {
         >
           All
         </button>
-        {ALL_TAGS.map((tag) => (
+        {filterTags.map((tag) => (
           <button
             key={tag}
             onClick={() => setActiveTag(activeTag === tag ? null : tag)}

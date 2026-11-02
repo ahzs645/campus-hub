@@ -12,6 +12,12 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Separate projects with their own tooling: the git submodules, the TV
+    // shell, the CommonJS signaling server and the Astro docs site.
+    "packages/**",
+    "tv-app/**",
+    "signaling-server/**",
+    "docs/**",
   ]),
 ]);
 

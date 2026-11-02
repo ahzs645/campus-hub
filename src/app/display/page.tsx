@@ -1,7 +1,7 @@
 'use client';
 
 import { useSearchParams } from 'next/navigation';
-import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import {
   decodeConfig,
   DEFAULT_CONFIG,
@@ -68,6 +68,53 @@ const resolveUrl = (url: string): string => {
   }
 };
 
+// Query parameters that select what the display shows. A `reset` action drops
+// these so the display falls back to its default configuration while keeping
+// its signaling connection parameters.
+const CONFIG_SELECTION_PARAMS = [
+  'config',
+  'configJson',
+  'configUrl',
+  'playlistUrl',
+  'screen',
+  'screenUrl',
+];
+
+// Origins allowed to push configs through the postMessage bridge, in addition
+// to this page's own origin. Comma-separated, set at build time.
+const ENV_ALLOWED_MESSAGE_ORIGINS = (process.env.NEXT_PUBLIC_DISPLAY_ALLOWED_ORIGINS || '')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+const normalizeOrigin = (value: string): string | null => {
+  try {
+    const { origin } = new URL(value);
+    return origin === 'null' ? null : origin;
+  } catch {
+    return null;
+  }
+};
+
+// Viewport size as a primitive snapshot ("width x height"), so the display can
+// derive its scale during render instead of mirroring it into state.
+// visualViewport.scale compensates for pinch-zoom so the layout stays based on
+// the *layout* viewport, not the zoomed visual viewport (window.innerWidth and
+// innerHeight shrink when the user pinch-zooms, which would otherwise cause a
+// resize feedback loop).
+const subscribeViewport = (onChange: () => void) => {
+  const target = window.visualViewport ?? window;
+  target.addEventListener('resize', onChange);
+  return () => target.removeEventListener('resize', onChange);
+};
+const getViewportSnapshot = () => {
+  const vv = window.visualViewport;
+  const vw = vv ? vv.width * vv.scale : window.innerWidth;
+  const vh = vv ? vv.height * vv.scale : window.innerHeight;
+  return `${vw}x${vh}`;
+};
+const getServerViewportSnapshot = () => null;
+
 const parseConfigJsonParam = (value: string): DisplayConfig | null => {
   const candidates = [value];
 
@@ -95,6 +142,12 @@ function DisplayContent() {
   const [playlist, setPlaylist] = useState<Playlist | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
+
+  // Latest config, readable from long-lived signaling handlers.
+  const activeConfigRef = useRef(activeConfig);
+  useEffect(() => {
+    activeConfigRef.current = activeConfig;
+  }, [activeConfig]);
 
   useEffect(() => {
     let isMounted = true;
@@ -288,8 +341,14 @@ function DisplayContent() {
 
       client.on('apply-action', (data) => {
         const action = data.action as string;
-        if (action === 'reload') window.location.reload();
-        else if (action === 'identify') {
+        const ack = (extra: Record<string, unknown> = {}) =>
+          client?.reportStatus({ action, ok: true, ...extra });
+
+        if (action === 'reload') {
+          ack();
+          // Give the acknowledgement a moment to flush before the page unloads.
+          setTimeout(() => window.location.reload(), 150);
+        } else if (action === 'identify') {
           // Flash the display ID on screen briefly
           const el = document.createElement('div');
           el.textContent = displayId;
@@ -301,6 +360,32 @@ function DisplayContent() {
           });
           document.body.appendChild(el);
           setTimeout(() => el.remove(), 3000);
+          ack();
+        } else if (action === 'reset') {
+          // Mirror the TV shell's reset: drop whatever config was selected and
+          // fall back to the default config, keeping the signaling connection.
+          setPlaylist(null);
+          setActiveConfig(DEFAULT_CONFIG);
+          ack();
+          const url = new URL(window.location.href);
+          for (const param of CONFIG_SELECTION_PARAMS) url.searchParams.delete(param);
+          url.searchParams.delete('signalingToken'); // already persisted to localStorage
+          setTimeout(() => window.location.replace(url.toString()), 150);
+        } else if (action === 'info') {
+          const current = activeConfigRef.current;
+          ack({
+            info: {
+              displayId,
+              name: searchParams.get('displayName') || displayId,
+              currentUrl: reportedUrl.toString(),
+              widgetCount: current.layout.length,
+              grid: `${current.gridCols ?? 12}x${current.gridRows ?? 8}`,
+              userAgent: navigator.userAgent,
+              viewport: `${window.innerWidth}x${window.innerHeight}`,
+            },
+          });
+        } else {
+          client?.reportStatus({ action, error: `Unsupported action "${action}"` });
         }
       });
 
@@ -317,9 +402,27 @@ function DisplayContent() {
   }, [searchParams]);
 
   // === postMessage bridge ===
-  // Allows parent frames (e.g., campus-hub-cloud) to push configs to this display
+  // Allows an embedding parent frame (or the window that opened this display)
+  // to push configs. Messages are only accepted from that window, and only
+  // from this page's own origin, origins in NEXT_PUBLIC_DISPLAY_ALLOWED_ORIGINS,
+  // or the origin named by ?parentOrigin=.
   useEffect(() => {
+    const allowedOrigins = new Set<string>([window.location.origin]);
+    for (const origin of ENV_ALLOWED_MESSAGE_ORIGINS) {
+      const normalized = normalizeOrigin(origin);
+      if (normalized) allowedOrigins.add(normalized);
+    }
+    const parentOrigin = new URLSearchParams(window.location.search).get('parentOrigin');
+    const normalizedParent = parentOrigin ? normalizeOrigin(parentOrigin) : null;
+    if (normalizedParent) allowedOrigins.add(normalizedParent);
+
     const handler = (event: MessageEvent) => {
+      const fromHost =
+        event.source !== null &&
+        ((window.parent !== window && event.source === window.parent) ||
+          (window.opener && event.source === window.opener));
+      if (!fromHost || !allowedOrigins.has(event.origin)) return;
+
       if (event.data?.type === 'campus-hub-config' && event.data?.config) {
         const config = normalizeConfig(event.data.config);
         if (config) {
@@ -405,31 +508,17 @@ function DisplayContent() {
   const configAspectRatio = config.aspectRatio ?? 16 / 9;
   const REF_WIDTH = Math.round(REF_HEIGHT * configAspectRatio);
 
-  const [scale, setScale] = useState(1);
-
-  const updateScale = useCallback(() => {
-    // Use visualViewport.scale to compensate for pinch-zoom so the layout
-    // stays based on the *layout* viewport, not the zoomed visual viewport.
-    // window.innerWidth/innerHeight shrink when the user pinch-zooms, which
-    // would otherwise cause a feedback loop (scale recalc → layout shift →
-    // another resize event → crash).
-    const vv = window.visualViewport;
-    const vw = vv ? vv.width * vv.scale : window.innerWidth;
-    const vh = vv ? vv.height * vv.scale : window.innerHeight;
+  const viewport = useSyncExternalStore(
+    subscribeViewport,
+    getViewportSnapshot,
+    getServerViewportSnapshot,
+  );
+  const scale = useMemo(() => {
+    if (!viewport) return 1;
+    const [vw, vh] = viewport.split('x').map(Number);
     // Scale to fit: pick the smaller ratio so nothing overflows
-    setScale(Math.min(vw / REF_WIDTH, vh / REF_HEIGHT));
-  }, [REF_WIDTH]);
-
-  useEffect(() => {
-    updateScale();
-
-    // Listen on visualViewport when available — it fires for zoom changes
-    // and provides accurate dimensions. Fall back to window resize.
-    const vv = window.visualViewport;
-    const target = vv ?? window;
-    target.addEventListener('resize', updateScale);
-    return () => target.removeEventListener('resize', updateScale);
-  }, [updateScale]);
+    return Math.min(vw / REF_WIDTH, vh / REF_HEIGHT);
+  }, [viewport, REF_WIDTH]);
 
   // Grid margin matches the editor formula: height * 0.0075
   const gridMargin = Math.max(2, Math.round(REF_HEIGHT * 0.0075));

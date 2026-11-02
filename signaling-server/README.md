@@ -37,6 +37,27 @@ Clients supply the token like this:
 Displays only act on `http:`/`https:` URLs in pushed configs; anything else
 (`javascript:`, `data:`, …) is logged and ignored.
 
+### Limitations of the shared token
+
+There is one token for every role. Anyone holding it can register as (and take
+over) any `displayId`, push configs and actions to any display, report a
+display's status, and read every Home Assistant entity the bridge can see
+through `/ha/state` and `/ha/entities` (only service calls have an allowlist).
+Displays also keep the token in their URL or `localStorage`. Treat it like an
+admin credential, run the server on a network you control, and rotate it if a
+display device is lost. Separate display/controller credentials and an entity
+allowlist are not implemented yet.
+
+## Tests
+
+```sh
+npm test
+```
+
+The suite starts the server on a free port and checks authentication, the
+open health endpoint, unknown-display handling and a full display/controller
+round trip.
+
 ## Modes
 
 ### Raw Home Assistant websocket bridge

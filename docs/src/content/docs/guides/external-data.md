@@ -26,7 +26,7 @@ Campus Hub is a static client-side application — it has no backend server. All
              (weather)      (events)      (configs, playlists)
 ```
 
-All fetching goes through the `data-cache` module (`src/lib/data-cache.ts`), which provides:
+All fetching goes through the widget SDK's data-cache helpers (exported by `@firstform/campus-hub-widget-sdk`), which provide:
 
 - **Two-layer cache** — in-memory `Map` + `localStorage` for persistence across page reloads.
 - **TTL-based expiry** — each entry has a configurable time-to-live.
@@ -40,7 +40,7 @@ Widgets like **News Ticker** and **Poster Feed** parse RSS/XML feeds using the b
 
 ```typescript
 import { parseRss } from '@/lib/feeds';
-import { fetchTextWithCache, buildProxyUrl } from '@/lib/data-cache';
+import { fetchTextWithCache, buildProxyUrl } from '@firstform/campus-hub-widget-sdk';
 
 const url = buildProxyUrl(corsProxy, 'https://news.example.com/rss');
 const { text } = await fetchTextWithCache(url, { ttlMs: 5 * 60_000 });
@@ -70,7 +70,7 @@ Supported iCal date formats:
 For REST APIs that return JSON (e.g., weather, occupancy data):
 
 ```typescript
-import { fetchJsonWithCache, buildProxyUrl, buildCacheKey } from '@/lib/data-cache';
+import { fetchJsonWithCache, buildProxyUrl, buildCacheKey } from '@firstform/campus-hub-widget-sdk';
 
 const targetUrl = 'https://api.example.com/data';
 const url = buildProxyUrl(corsProxy, targetUrl);
